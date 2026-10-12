@@ -69,8 +69,8 @@ Exercise 4 is "speak_verify" (speaking out loud).
 Exercise 5 is "roleplay_prompt" (conversational exchange with mascot Leo).
 Mascot Leo should be upbeat, warm, and pedagogically sharp in natural Brazilian Portuguese.`;
 
-  // Try gemini-2.5-flash with retry; fallback gracefully so user NEVER sees a 500 error!
-  const modelsToTry = ['gemini-2.5-flash', 'gemini-3.8-flash'];
+  // Use gemini-3.8-flash directly
+  const modelsToTry = ['gemini-3.8-flash'];
 
   for (const modelName of modelsToTry) {
     try {
