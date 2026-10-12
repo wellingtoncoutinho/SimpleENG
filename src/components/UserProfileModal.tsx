@@ -11,6 +11,7 @@ import {
   LogOut,
   Clock,
   Calendar,
+  Globe,
 } from 'lucide-react';
 import { UserProfile } from '../types/user';
 import { CEFRLevel } from '../types/lesson';
@@ -46,6 +47,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [level, setLevel] = useState<CEFRLevel>(user.level);
   const [dailyMinutesGoal, setDailyMinutesGoal] = useState<number>(user.dailyMinutesGoal || 20);
   const [classDay, setClassDay] = useState<string>(user.classDay || 'Quarta-feira');
+  const [appLanguage, setAppLanguage] = useState<'pt' | 'en'>(user.appLanguage || 'pt');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
   if (!isOpen) return null;
@@ -61,6 +63,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       level,
       dailyMinutesGoal,
       classDay,
+      appLanguage,
     };
     onUpdateUser(updated);
     setSavedSuccess(true);
@@ -249,6 +252,44 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <option value="Sábado">Sábado</option>
                 <option value="Domingo">Domingo</option>
               </select>
+            </div>
+          </div>
+
+          {/* App Language Preference */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Idioma do Aplicativo</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playTap();
+                  setAppLanguage('pt');
+                }}
+                className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer text-center ${
+                  appLanguage === 'pt'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-800 dark:text-emerald-300'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                🇧🇷 Português
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playTap();
+                  setAppLanguage('en');
+                }}
+                className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer text-center ${
+                  appLanguage === 'en'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-800 dark:text-emerald-300'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                🇺🇸 English
+              </button>
             </div>
           </div>
 

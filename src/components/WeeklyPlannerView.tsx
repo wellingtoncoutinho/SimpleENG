@@ -65,7 +65,7 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
           </h1>
 
           <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed mb-8">
-            Você ainda não cadastrou as anotações da sua aula semanal. Cole as palavras, frases e correções do seu professor para criarmos um <strong>roteiro de 7 dias estilo Duolingo</strong>, com 20 minutos de estudo diário!
+            Você ainda não cadastrou as anotações da sua aula semanal. Cole as palavras, frases e correções do seu professor para criarmos um <strong>roteiro de 7 dias prático e dinâmico</strong>, com 20 minutos de estudo diário!
           </p>
 
           {/* Primary Action Button */}
@@ -105,7 +105,7 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
                 Ciclo de 7 Dias
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                A IA do Gemini distribui as palavras em 4 blocos ágeis de 5 minutos para cada dia da sua semana.
+                A IA do Simple distribui as palavras em 4 blocos ágeis de 5 minutos para cada dia da sua semana.
               </p>
             </div>
 

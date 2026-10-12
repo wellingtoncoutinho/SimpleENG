@@ -112,11 +112,24 @@ export default function App() {
 
   const handleUpdateUser = (updated: UserProfile) => {
     setUser(updated);
+    if (updated.appLanguage && updated.appLanguage !== lang) {
+      setLang(updated.appLanguage);
+    }
     try {
       localStorage.setItem('talktune_user', JSON.stringify(updated));
     } catch {
       // ignore
     }
+  };
+
+  const toggleLanguage = () => {
+    soundEffects.playTap();
+    const nextLang: Language = lang === 'pt' ? 'en' : 'pt';
+    setLang(nextLang);
+    handleUpdateUser({
+      ...user,
+      appLanguage: nextLang,
+    });
   };
 
   const handleLogout = () => {
@@ -130,6 +143,9 @@ export default function App() {
 
   const handleAuthSuccess = (authenticatedUser: UserProfile) => {
     handleUpdateUser(authenticatedUser);
+    if (authenticatedUser.appLanguage) {
+      setLang(authenticatedUser.appLanguage);
+    }
     setShowAuthModal(false);
   };
 
@@ -303,6 +319,17 @@ export default function App() {
               <Flame className="w-4 h-4 text-emerald-600 fill-emerald-600" />
               <span>{user.streakDays || 1}</span>
             </div>
+
+            {/* Language Switcher Button */}
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="px-2.5 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 flex items-center gap-1.5 text-slate-700 dark:text-slate-200 text-xs font-black transition-colors cursor-pointer"
+              title="Alternar idioma (PT/EN)"
+            >
+              <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>{lang === 'pt' ? 'PT' : 'EN'}</span>
+            </button>
 
             {/* Dark Mode Switcher Button */}
             <button

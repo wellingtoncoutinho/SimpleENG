@@ -13,7 +13,7 @@ export const translations = {
     // Hero
     heroTag: 'Motor Pedagógico com IA',
     heroTitle: 'Transforme Anotações da sua Aula de Inglês em Micro-Lições',
-    heroSubtitle: 'Coloque as palavras em que você travou na aula particular, as correções do professor e o tema. O Leo monta um treino gamificado estilo Duolingo em segundos!',
+    heroSubtitle: 'Coloque as palavras em que você travou na aula particular, as correções do professor e o tema. O Leo monta um treino gamificado e interativo em segundos!',
     instantPresets: 'Exemplos Rápidos Prontos (1-Clique)',
     tryBenchmarks: 'Experimente casos reais de conversa',
     wordsCount: 'palavras',
@@ -105,7 +105,7 @@ export const translations = {
     // Hero
     heroTag: 'AI Pedagogical Engine',
     heroTitle: 'Turn Conversation Notes into Micro-Lessons',
-    heroSubtitle: 'Feed in words you struggled with, teacher feedback, and topic context. Leo builds a custom Duolingo-style gamified practice loop in seconds.',
+    heroSubtitle: 'Feed in words you struggled with, teacher feedback, and topic context. Leo builds a custom gamified practice loop in seconds.',
     instantPresets: 'Instant Presets (1-Click)',
     tryBenchmarks: 'Try our pedagogical benchmarks',
     wordsCount: 'words',

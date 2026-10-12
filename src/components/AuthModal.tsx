@@ -11,6 +11,7 @@ import {
   X,
   ArrowRight,
   GraduationCap,
+  Globe,
 } from 'lucide-react';
 import { UserProfile } from '../types/user';
 import { CEFRLevel } from '../types/lesson';
@@ -66,6 +67,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [level, setLevel] = useState<CEFRLevel>('B2');
   const [dailyMinutes, setDailyMinutes] = useState<number>(20);
   const [classDay, setClassDay] = useState<string>('Quarta-feira');
+  const [appLanguage, setAppLanguage] = useState<'pt' | 'en'>('pt');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -98,6 +100,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         level,
         dailyMinutesGoal: dailyMinutes,
         classDay,
+        appLanguage,
         totalXp: 0,
         lessonsCompleted: 0,
         streakDays: 1,
@@ -131,6 +134,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         level: 'B2',
         dailyMinutesGoal: 20,
         classDay: 'Quarta-feira',
+        appLanguage: 'pt',
         totalXp: 0,
         lessonsCompleted: 0,
         streakDays: 1,
@@ -341,6 +345,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Language Preference */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Idioma do aplicativo / App Language</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEffects.playTap();
+                      setAppLanguage('pt');
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer text-center ${
+                      appLanguage === 'pt'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-800 dark:text-emerald-300'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    🇧🇷 Português
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEffects.playTap();
+                      setAppLanguage('en');
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer text-center ${
+                      appLanguage === 'en'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-800 dark:text-emerald-300'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    🇺🇸 English
+                  </button>
                 </div>
               </div>
             </>

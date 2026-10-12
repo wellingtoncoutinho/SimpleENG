@@ -15,6 +15,7 @@ export interface UserProfile {
   streakDays: number;
   lastActiveDate?: string;
   isAuthenticated: boolean;
+  appLanguage: 'pt' | 'en';
   createdAt?: string;
 }
 
@@ -30,4 +31,5 @@ export const DEFAULT_USER: UserProfile = {
   classDay: 'Quarta-feira',
   streakDays: 1,
   isAuthenticated: true,
+  appLanguage: 'pt',
 };

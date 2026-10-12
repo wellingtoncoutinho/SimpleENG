@@ -339,7 +339,7 @@ export const LessonGenerator: React.FC<LessonGeneratorProps> = ({
           {isGenerating ? (
             <>
               <RefreshCw className="w-4 h-4 animate-spin" />
-              <span>Gerando Lição com a IA do Gemini...</span>
+              <span>Gerando Lição com a IA do Simple...</span>
             </>
           ) : (
             <>

@@ -141,7 +141,7 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
             Cadastrar Anotações da Aula
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium leading-relaxed">
-            Cole as palavras, frases ou correções da sua última aula de conversação. O SimpleENG vai montar um ciclo de 7 dias com exercícios interativos estilo Duolingo.
+            Cole as palavras, frases ou correções da sua última aula de conversação. O SimpleENG vai montar um ciclo de 7 dias com exercícios interativos e práticos.
           </p>
         </div>
 
@@ -311,7 +311,7 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
             {isGenerating ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Gerando seu plano de 7 dias com Gemini...</span>
+                <span>Gerando seu plano de 7 dias com a IA do Simple...</span>
               </>
             ) : (
               <>
