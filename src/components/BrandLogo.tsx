@@ -41,8 +41,8 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ className = '', size = 'md
       {/* Brand Typography */}
       <div>
         <div className="flex items-center">
-          <span className="font-black text-base sm:text-lg text-slate-900 tracking-tight leading-none">
-            Simple<span className="text-emerald-600">ENG</span>
+          <span className="font-black text-base sm:text-lg text-slate-900 dark:text-white tracking-tight leading-none">
+            Simple<span className="text-emerald-500">ENG</span>
           </span>
         </div>
         <p className="text-3xs sm:text-2xs text-slate-400 font-medium tracking-tight mt-0.5 hidden sm:block">

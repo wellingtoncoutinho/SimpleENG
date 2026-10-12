@@ -29,14 +29,14 @@ export const LessonHeader: React.FC<LessonHeaderProps> = ({
       <button
         type="button"
         onClick={onExit}
-        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
         title="Exit micro-lesson"
       >
         <X className="w-6 h-6 stroke-[2.5]" />
       </button>
 
       {/* Progress Bar */}
-      <div className="flex-1 max-w-md h-3.5 bg-slate-200 rounded-full overflow-hidden p-0.5 relative">
+      <div className="flex-1 max-w-md h-3.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 relative">
         <div
           className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out relative"
           style={{ width: `${progressPercent}%` }}
@@ -49,13 +49,13 @@ export const LessonHeader: React.FC<LessonHeaderProps> = ({
       {/* Stats (Hearts & XP) */}
       <div className="flex items-center gap-3">
         {/* XP Badge */}
-        <div className="inline-flex items-center gap-1 text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1.5 rounded-xl border border-amber-200">
+        <div className="inline-flex items-center gap-1 text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800">
           <Sparkles className="w-4 h-4 fill-amber-400 text-amber-500" />
           <span>{xp} XP</span>
         </div>
 
         {/* Hearts */}
-        <div className="inline-flex items-center gap-1 text-xs font-black text-rose-500 bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-200">
+        <div className="inline-flex items-center gap-1 text-xs font-black text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1.5 rounded-xl border border-rose-200 dark:border-rose-800">
           <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
           <span>{hearts}</span>
         </div>

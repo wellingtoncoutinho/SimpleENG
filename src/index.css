@@ -1,16 +1,26 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-display: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     letter-spacing: -0.012em;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -28,3 +38,40 @@
   font-weight: 800;
 }
 
+/* Duolingo-style 3D tactile buttons */
+.btn-3d-green {
+  background-color: #10b981;
+  border-bottom: 4px solid #047857;
+  transition: all 0.1s ease;
+}
+.btn-3d-green:hover {
+  background-color: #059669;
+}
+.btn-3d-green:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+.btn-3d-slate {
+  background-color: #f1f5f9;
+  border: 2px solid #e2e8f0;
+  border-bottom: 4px solid #cbd5e1;
+  color: #334155;
+  transition: all 0.1s ease;
+}
+.dark .btn-3d-slate {
+  background-color: #1e293b;
+  border-color: #334155;
+  border-bottom-color: #0f172a;
+  color: #f1f5f9;
+}
+.btn-3d-slate:hover {
+  background-color: #e2e8f0;
+}
+.dark .btn-3d-slate:hover {
+  background-color: #334155;
+}
+.btn-3d-slate:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}

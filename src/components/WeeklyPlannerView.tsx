@@ -12,18 +12,20 @@ import {
   Plus,
   RotateCcw,
   GraduationCap,
-  ChevronRight,
   ArrowRight,
   X,
   Target,
+  Zap,
+  Smile,
 } from 'lucide-react';
 import { WeeklyPlan, DayPlan, LessonBlock } from '../types/weeklyPlan';
 import { UserProfile } from '../types/user';
+import { LearnerMascot } from './LearnerMascot';
 import { speakWord, soundEffects } from '../utils/audio';
 import { Language, translations } from '../utils/i18n';
 
 interface WeeklyPlannerViewProps {
-  plan: WeeklyPlan;
+  plan: WeeklyPlan | null;
   user: UserProfile;
   lang?: Language;
   onStartBlock: (block: LessonBlock, dayIndex: number) => void;
@@ -38,6 +40,91 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
   onOpenNewPlanCreator,
 }) => {
   const t = translations[lang];
+
+  // If no plan is active, display an inviting Empty State
+  if (!plan || !plan.days || plan.days.length === 0) {
+    return (
+      <div className="w-full max-w-4xl mx-auto px-4 py-8 sm:py-12 animate-in fade-in">
+        {/* Empty State Welcome Card */}
+        <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-sm text-center relative overflow-hidden">
+          {/* Subtle background glow */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Mascot */}
+          <div className="flex justify-center mb-5">
+            <LearnerMascot mood="speaking" size="md" />
+          </div>
+
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-full mb-3 border border-emerald-200/80 dark:border-emerald-800">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Bem-vindo ao SimpleENG</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-3">
+            Olá, {user.name}! Pronto para estudar sua última aula?
+          </h1>
+
+          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed mb-8">
+            Você ainda não cadastrou as anotações da sua aula semanal. Cole as palavras, frases e correções do seu professor para criarmos um <strong>roteiro de 7 dias estilo Duolingo</strong>, com 20 minutos de estudo diário!
+          </p>
+
+          {/* Primary Action Button */}
+          <div className="flex justify-center mb-10">
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.playTap();
+                onOpenNewPlanCreator();
+              }}
+              className="py-4 px-8 rounded-2xl text-white font-black text-base sm:text-lg btn-3d-green shadow-md cursor-pointer flex items-center gap-3"
+            >
+              <Plus className="w-5 h-5 stroke-[3]" />
+              <span>Cadastrar Anotações da Minha Aula</span>
+            </button>
+          </div>
+
+          {/* 3 Step Features */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-slate-100 dark:border-slate-800 text-left">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-black text-sm mb-2.5">
+                1
+              </div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white mb-1">
+                Cole suas Anotações
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Jogue as palavras em inglês, pronúncias e significados da sua aula sem se preocupar com formatação.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-black text-sm mb-2.5">
+                2
+              </div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white mb-1">
+                Ciclo de 7 Dias
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                A IA do Gemini distribui as palavras em 4 blocos ágeis de 5 minutos para cada dia da sua semana.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-black text-sm mb-2.5">
+                3
+              </div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white mb-1">
+                Pratique & Fixe
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Monte frases, treine audição, fale no microfone e mantenha sua ofensiva ativa até a próxima aula!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Match today or default to first incomplete day
   const todayIso = new Date().toISOString().split('T')[0];
@@ -79,30 +166,28 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-5 sm:py-8 animate-in fade-in">
       {/* 1. Header Overview Card */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xs mb-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+      <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 shadow-xs mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
-                <CalendarIcon className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
+                <CalendarIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>Ciclo de 7 Dias</span>
               </span>
 
               {plan.classDay && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                   <GraduationCap className="w-3.5 h-3.5 text-slate-500" />
                   <span>Aula: {plan.classDay}</span>
                 </span>
               )}
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
               {plan.topic}
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm font-medium mt-1">
-              {lang === 'pt'
-                ? `Meta: ${plan.dailyMinutesGoal} min/dia (4 blocos de 5 min) · Nível ${plan.cefrLevel}`
-                : `Goal: ${plan.dailyMinutesGoal} min/day (4 blocks of 5 min) · Level ${plan.cefrLevel}`}
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium mt-1">
+              Meta: {plan.dailyMinutesGoal} min/dia · Nível {plan.cefrLevel}
             </p>
           </div>
 
@@ -114,10 +199,10 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
                 soundEffects.playTap();
                 setShowVocabModal(true);
               }}
-              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200/60"
+              className="px-3.5 py-2.5 btn-3d-slate font-bold text-xs rounded-2xl cursor-pointer flex items-center gap-1.5"
             >
               <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Anotações ({plan.parsedItems.length})</span>
+              <span>Anotações ({plan.parsedItems?.length || 0})</span>
             </button>
 
             <button
@@ -126,78 +211,79 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
                 soundEffects.playTap();
                 onOpenNewPlanCreator();
               }}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+              className="px-4 py-2.5 btn-3d-green text-white font-bold text-xs rounded-2xl cursor-pointer flex items-center gap-1.5"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
               <span>Nova Aula</span>
             </button>
           </div>
         </div>
 
-        {/* Unified, Minimalist Stats Strip (Aesthetic, no emoji clutter) */}
+        {/* Stats Strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 pt-5">
-          <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 text-left">
-            <div className="flex items-center gap-1.5 text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-200/60 dark:border-slate-700/60 text-left">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
               <Clock className="w-3 h-3 text-slate-500" />
               <span>Meta Diária</span>
             </div>
-            <div className="text-base sm:text-lg font-black text-slate-900">
+            <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
               {plan.dailyMinutesGoal} min
             </div>
           </div>
 
-          <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 text-left">
-            <div className="flex items-center gap-1.5 text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-              <CheckCircle2 className="w-3 h-3 text-slate-500" />
-              <span>Blocos Feitos</span>
+          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-200/60 dark:border-slate-700/60 text-left">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+              <span>Blocos Concluídos</span>
             </div>
-            <div className="text-base sm:text-lg font-black text-slate-900">
+            <div className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400">
               {completedBlocks} / {totalBlocks}
             </div>
           </div>
 
-          <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 text-left">
-            <div className="flex items-center gap-1.5 text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-              <Flame className="w-3 h-3 text-emerald-600" />
-              <span>Sequência</span>
+          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-200/60 dark:border-slate-700/60 text-left">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              <Target className="w-3 h-3 text-blue-500" />
+              <span>Progresso Semanal</span>
             </div>
-            <div className="text-base sm:text-lg font-black text-slate-900">
-              {user.streakDays || 1} {user.streakDays === 1 ? 'dia' : 'dias'}
+            <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+              {progressPercent}%
             </div>
           </div>
 
-          <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 text-left">
-            <div className="flex items-center justify-between text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-              <span>Progresso</span>
-              <span className="text-emerald-700 font-black">{progressPercent}%</span>
+          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-200/60 dark:border-slate-700/60 text-left">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              <Flame className="w-3 h-3 text-amber-500" />
+              <span>Dias Feitos</span>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-2 mt-2 overflow-hidden">
-              <div
-                className="bg-emerald-600 h-full rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
+            <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+              {completedDaysCount} / 7
             </div>
+          </div>
+        </div>
+
+        {/* Weekly Progress Bar */}
+        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+            <div
+              className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
         </div>
       </div>
 
-      {/* 2. Organized 7-Day Calendar Strip */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs mb-5">
+      {/* 2. Interactive 7-Day Rolling Calendar Bar */}
+      <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs mb-5">
         <div className="flex items-center justify-between mb-3 px-1">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-400">
-              Calendário da Semana
-            </span>
-            <span className="text-2xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-              7 dias a partir de hoje
-            </span>
-          </div>
-
-          {todayIndex !== -1 && selectedDayIndex !== todayIndex && (
+          <span className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
+            Seus 7 Dias de Estudo
+          </span>
+          {todayIndex !== -1 && (
             <button
               type="button"
               onClick={() => handleDaySelect(todayIndex)}
-              className="text-2xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer flex items-center gap-1"
+              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
             >
               <span>Ir para Hoje</span>
               <ArrowRight className="w-3 h-3" />
@@ -223,40 +309,39 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
                 key={day.dayIndex ?? idx}
                 type="button"
                 onClick={() => handleDaySelect(idx)}
-                className={`group relative p-2 sm:p-3 rounded-xl sm:rounded-2xl border transition-all cursor-pointer flex flex-col items-center justify-between min-h-[82px] sm:min-h-[96px] text-center ${
+                className={`group relative p-2 sm:p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center justify-between min-h-[82px] sm:min-h-[96px] text-center ${
                   isSelected
-                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
+                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-md'
                     : isAllCompleted
-                    ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-300 text-slate-800'
-                    : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/50 text-slate-800'
+                    ? 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30 text-slate-800 dark:text-slate-200'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 text-slate-800 dark:text-slate-200'
                 }`}
               >
-                {/* Top Badges: Hoje / Aula */}
+                {/* Top Badge */}
                 <div className="h-4 flex items-center justify-center gap-1 w-full">
                   {isToday ? (
                     <span
-                      className={`text-3xs sm:text-2xs font-black uppercase tracking-tight px-1.5 py-0.2 rounded-full leading-tight ${
+                      className={`text-[9px] font-black uppercase tracking-tight px-1.5 py-0.2 rounded-full leading-tight ${
                         isSelected
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-emerald-100 text-emerald-800 font-extrabold'
+                          ? 'bg-white text-emerald-700'
+                          : 'bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200'
                       }`}
                     >
                       Hoje
                     </span>
                   ) : isClassDay ? (
                     <span
-                      className={`text-3xs sm:text-2xs font-bold uppercase tracking-tight px-1 rounded leading-tight flex items-center gap-0.5 ${
-                        isSelected ? 'text-emerald-300' : 'text-slate-500'
+                      className={`text-[9px] font-bold uppercase tracking-tight px-1 rounded leading-tight flex items-center gap-0.5 ${
+                        isSelected ? 'text-emerald-200' : 'text-slate-400'
                       }`}
-                      title="Dia da Aula de Inglês"
                     >
                       <GraduationCap className="w-2.5 h-2.5" />
                       <span className="hidden sm:inline">Aula</span>
                     </span>
                   ) : (
                     <span
-                      className={`text-3xs uppercase font-bold tracking-tight ${
-                        isSelected ? 'text-slate-400' : 'text-slate-400'
+                      className={`text-[9px] uppercase font-bold tracking-tight ${
+                        isSelected ? 'text-emerald-200' : 'text-slate-400'
                       }`}
                     >
                       D{idx + 1}
@@ -267,27 +352,27 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
                 {/* Day Name & Date Number */}
                 <div className="my-1">
                   <span
-                    className={`text-2xs sm:text-xs font-bold uppercase tracking-tight block ${
-                      isSelected ? 'text-slate-300' : 'text-slate-500'
+                    className={`text-[10px] sm:text-xs font-bold uppercase tracking-tight block ${
+                      isSelected ? 'text-emerald-100' : 'text-slate-500 dark:text-slate-400'
                     }`}
                   >
                     {shortLabel}
                   </span>
                   <span
                     className={`text-sm sm:text-lg font-black leading-tight block ${
-                      isSelected ? 'text-white' : 'text-slate-900'
+                      isSelected ? 'text-white' : 'text-slate-900 dark:text-white'
                     }`}
                   >
-                    {day.dayNumber || (idx + 1)}
+                    {day.dayNumber || idx + 1}
                   </span>
                 </div>
 
-                {/* Progress Indicators: 4 Dots for the 4 Blocks */}
+                {/* 4 dots for the blocks */}
                 <div className="w-full flex items-center justify-center gap-0.5 sm:gap-1 mt-1">
                   {isAllCompleted ? (
                     <div
                       className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${
-                        isSelected ? 'bg-emerald-400 text-slate-900' : 'bg-emerald-500 text-white'
+                        isSelected ? 'bg-white text-emerald-700' : 'bg-emerald-500 text-white'
                       }`}
                     >
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -297,14 +382,14 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
                       {day.blocks.map((b, bIdx) => (
                         <span
                           key={b.id || bIdx}
-                          className={`w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full transition-all ${
+                          className={`w-1.5 h-1.5 rounded-full transition-all ${
                             b.isCompleted
                               ? isSelected
-                                ? 'bg-emerald-400'
+                                ? 'bg-white'
                                 : 'bg-emerald-500'
                               : isSelected
-                              ? 'bg-slate-700'
-                              : 'bg-slate-200'
+                              ? 'bg-emerald-800'
+                              : 'bg-slate-200 dark:bg-slate-700'
                           }`}
                         />
                       ))}
@@ -318,12 +403,12 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
       </div>
 
       {/* 3. Selected Day Panel & 4 Daily Blocks */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 shadow-xs">
         {/* Selected Day Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 mb-5 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 mb-5 border-b border-slate-100 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-xs font-black text-emerald-700 uppercase tracking-wider">
+              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                 {selectedDay.dayLabel}
               </span>
               {selectedDay.dateFormatted && (
@@ -333,71 +418,70 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
               )}
             </div>
 
-            <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
               {selectedDay.dayName}
             </h2>
-            <p className="text-slate-500 text-xs sm:text-sm font-medium mt-0.5">
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium mt-0.5">
               {selectedDay.theme}
             </p>
           </div>
 
-          <div className="bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/60 self-start sm:self-auto text-left sm:text-right">
-            <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider block">
+          <div className="bg-slate-50 dark:bg-slate-800/50 px-3.5 py-2 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 self-start sm:self-auto text-left sm:text-right">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
               Status do Dia
             </span>
-            <span className="text-xs font-black text-slate-800">
-              {selectedDay.blocks.filter((b) => b.isCompleted).length} de 4 blocos feitos (
-              {selectedDay.blocks.filter((b) => b.isCompleted).length * 5} min de{' '}
-              {selectedDay.totalMinutes} min)
+            <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+              {selectedDay.blocks.filter((b) => b.isCompleted).length} de 4 blocos feitos
             </span>
           </div>
         </div>
 
-        {/* The 4 Blocks of 5 Minutes Each */}
+        {/* 4 Blocks */}
         <div className="space-y-3">
           {selectedDay.blocks.map((block) => (
             <div
               key={block.id}
-              className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+              className={`p-4 sm:p-5 rounded-2xl border-2 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                 block.isCompleted
-                  ? 'border-emerald-200 bg-emerald-50/30'
-                  : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-xs'
+                  ? 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700'
               }`}
             >
               <div className="flex-1">
-                {/* Meta pills */}
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 flex items-center gap-1">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1">
                     <Clock className="w-2.5 h-2.5 text-slate-500" />
                     <span>{block.durationMinutes} min</span>
                   </span>
 
-                  <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                     Bloco {block.blockNumber} de 4
                   </span>
 
                   {block.isCompleted && (
-                    <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       <span>Concluído</span>
                     </span>
                   )}
                 </div>
 
-                <h3 className="text-sm sm:text-base font-black text-slate-900 mb-0.5">
+                <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white mb-0.5">
                   {block.title}
                 </h3>
-                <p className="text-slate-500 text-xs font-medium mb-3">{block.subtitle}</p>
+                <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-3">
+                  {block.subtitle}
+                </p>
 
-                {/* Vocabulary chips with audio preview */}
+                {/* Vocabulary chips with audio */}
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-2xs font-bold text-slate-400">Palavras do bloco:</span>
+                  <span className="text-[10px] font-bold text-slate-400">Palavras-chave:</span>
                   {block.targetWords.map((word) => (
                     <button
                       key={word}
                       type="button"
                       onClick={(e) => handlePronounceWord(e, word)}
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-lg text-xs font-bold text-slate-800 transition-all cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-50 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 transition-all cursor-pointer"
                       title="Ouvir pronúncia"
                     >
                       <Volume2 className="w-3 h-3 text-emerald-600" />
@@ -407,7 +491,7 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
                 </div>
               </div>
 
-              {/* Start Block Button */}
+              {/* Start block button with Duolingo 3D style */}
               <div className="flex-shrink-0">
                 <button
                   type="button"
@@ -415,21 +499,21 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
                     soundEffects.playTap();
                     onStartBlock(block, selectedDayIndex);
                   }}
-                  className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  className={`w-full sm:w-auto px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
                     block.isCompleted
-                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+                      ? 'btn-3d-slate'
+                      : 'btn-3d-green text-white shadow-xs'
                   }`}
                 >
                   {block.isCompleted ? (
                     <>
                       <RotateCcw className="w-3.5 h-3.5" />
-                      <span>{lang === 'pt' ? 'Revisar (5 min)' : 'Review (5 min)'}</span>
+                      <span>Revisar (5 min)</span>
                     </>
                   ) : (
                     <>
                       <Play className="w-3.5 h-3.5 fill-white" />
-                      <span>{lang === 'pt' ? 'Iniciar (5 min)' : 'Start (5 min)'}</span>
+                      <span>Iniciar (5 min)</span>
                     </>
                   )}
                 </button>
@@ -439,49 +523,53 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Classroom Vocabulary Modal (Clean & Organized) */}
+      {/* Classroom Vocabulary Modal */}
       {showVocabModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-6 shadow-xl border border-slate-200 animate-in zoom-in-95 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border-2 border-slate-200 dark:border-slate-800 animate-in zoom-in-95 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-base font-black text-slate-900">Anotações da sua Aula</h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  {plan.parsedItems.length} termos catalogados para este ciclo
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Anotações da sua Aula
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  {plan.parsedItems?.length || 0} termos cadastrados para este ciclo
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowVocabModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto py-4 space-y-2.5">
-              {plan.parsedItems.map((item) => (
+              {plan.parsedItems?.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-slate-50 rounded-xl p-3 border border-slate-200/70 flex items-start justify-between gap-3"
+                  className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex items-start justify-between gap-3"
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-slate-900 text-sm">{item.english}</span>
+                      <span className="font-black text-slate-900 dark:text-white text-sm">
+                        {item.english}
+                      </span>
                       {item.pronunciation && (
-                        <span className="text-2xs font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                        <span className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200/60 dark:border-emerald-800">
                           /{item.pronunciation}/
                         </span>
                       )}
                     </div>
                     {item.portuguese && (
-                      <div className="text-xs text-slate-600 font-medium mt-0.5">
+                      <div className="text-xs text-slate-600 dark:text-slate-300 font-medium mt-0.5">
                         = {item.portuguese}
                       </div>
                     )}
                     {item.note && (
-                      <div className="text-2xs text-slate-600 bg-white border border-slate-200/80 rounded px-2 py-0.5 mt-1.5 font-medium inline-block">
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 italic">
                         Nota: {item.note}
                       </div>
                     )}
@@ -490,7 +578,7 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
                   <button
                     type="button"
                     onClick={(e) => handlePronounceWord(e, item.english)}
-                    className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-white rounded-lg transition-all cursor-pointer"
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
                     title="Ouvir pronúncia"
                   >
                     <Volume2 className="w-4 h-4" />
@@ -499,11 +587,11 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
               ))}
             </div>
 
-            <div className="pt-3 border-t border-slate-100">
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowVocabModal(false)}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+                className="w-full py-2.5 btn-3d-slate font-bold text-xs rounded-xl cursor-pointer"
               >
                 Fechar
               </button>

@@ -186,9 +186,9 @@ export const SentenceBuildExercise: React.FC<SentenceBuildExerciseProps> = ({
       </div>
 
       {/* Assembly Tray */}
-      <div className="w-full min-h-[96px] p-4 bg-white border-2 border-dashed border-slate-300 rounded-3xl flex flex-wrap gap-2.5 items-center justify-start mb-3 transition-all shadow-xs">
+      <div className="w-full min-h-[96px] p-4 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-3xl flex flex-wrap gap-2.5 items-center justify-start mb-3 transition-all shadow-xs">
         {selectedTileIds.length === 0 ? (
-          <span className="text-slate-300 text-sm font-medium italic mx-auto text-center px-4">
+          <span className="text-slate-300 dark:text-slate-600 text-sm font-medium italic mx-auto text-center px-4">
             &nbsp;
           </span>
         ) : (
@@ -204,8 +204,8 @@ export const SentenceBuildExercise: React.FC<SentenceBuildExerciseProps> = ({
                 disabled={disabled}
                 className={`px-4 py-2.5 font-black text-base rounded-2xl border-2 transition-all cursor-pointer animate-in zoom-in-95 duration-150 flex items-center gap-2 ${
                   isSpeaking
-                    ? 'bg-emerald-100 text-emerald-950 border-emerald-400 ring-2 ring-emerald-300 ring-offset-1 shadow-[0_2px_0_#34d399]'
-                    : 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-[0_3px_0_#6ee7b7] hover:border-rose-400 hover:text-rose-700 hover:bg-rose-50 active:translate-y-0.5'
+                    ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-100 border-emerald-400 ring-2 ring-emerald-300 ring-offset-1 shadow-[0_2px_0_#34d399]'
+                    : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800 shadow-[0_3px_0_#6ee7b7] dark:shadow-[0_3px_0_#064e3b] hover:border-rose-400 hover:text-rose-700 hover:bg-rose-50 active:translate-y-0.5'
                 }`}
                 title="Toque para remover"
               >
@@ -223,7 +223,7 @@ export const SentenceBuildExercise: React.FC<SentenceBuildExerciseProps> = ({
           <button
             type="button"
             onClick={handleReset}
-            className="text-xs font-bold text-slate-500 hover:text-slate-700 inline-flex items-center gap-1 cursor-pointer"
+            className="text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 inline-flex items-center gap-1 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" /> {t.clearAll}
           </button>
@@ -231,7 +231,7 @@ export const SentenceBuildExercise: React.FC<SentenceBuildExerciseProps> = ({
       )}
 
       {/* Word Bank Container */}
-      <div className="w-full p-4 sm:p-5 bg-white border-2 border-slate-200/90 rounded-3xl shadow-xs">
+      <div className="w-full p-4 sm:p-5 bg-white dark:bg-slate-900 border-2 border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-xs">
         <div className="flex flex-wrap gap-2.5 justify-center">
           {tiles.map((tile) => {
             const isSpeaking = speakingTileId === tile.id;
@@ -243,10 +243,10 @@ export const SentenceBuildExercise: React.FC<SentenceBuildExerciseProps> = ({
                 disabled={disabled || tile.isUsed}
                 className={`relative px-4 py-2.5 rounded-2xl font-black text-base transition-all select-none flex items-center gap-1.5 ${
                   tile.isUsed
-                    ? 'bg-slate-100 text-slate-300 border-2 border-slate-200 shadow-none cursor-default'
+                    ? 'bg-slate-100 dark:bg-slate-850 text-slate-300 dark:text-slate-600 border-2 border-slate-200 dark:border-slate-800 shadow-none cursor-default'
                     : isSpeaking
-                    ? 'bg-emerald-100 text-emerald-950 border-2 border-emerald-500 ring-2 ring-emerald-300 ring-offset-1 shadow-[0_2px_0_#10b981] scale-105'
-                    : 'bg-white text-slate-800 border-2 border-slate-200 shadow-[0_4px_0_#cbd5e1] hover:border-emerald-400 hover:bg-emerald-50/50 hover:shadow-[0_4px_0_#86efac] active:shadow-[0_1px_0_#cbd5e1] active:translate-y-1 cursor-pointer'
+                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-950 dark:text-emerald-100 border-2 border-emerald-500 ring-2 ring-emerald-300 ring-offset-1 shadow-[0_2px_0_#10b981] scale-105'
+                    : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-2 border-slate-200 dark:border-slate-700 shadow-[0_4px_0_#cbd5e1] dark:shadow-[0_4px_0_#0f172a] hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-slate-750 active:translate-y-1 cursor-pointer'
                 }`}
                 title="Clique para encaixar e ouvir a pronúncia"
               >

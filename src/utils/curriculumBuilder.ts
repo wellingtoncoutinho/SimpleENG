@@ -8,10 +8,12 @@ import { DayPlan, LessonBlock, ParsedVocabularyItem, WeeklyPlan } from '../types
  */
 
 const DISTRACTORS_BY_LEVEL: Record<CEFRLevel, string[]> = {
+  A1: ['yes', 'no', 'and', 'but', 'is', 'in', 'on', 'at', 'good', 'my'],
   A2: ['never', 'always', 'today', 'very', 'because', 'with', 'together', 'often', 'sometimes'],
   B1: ['instead', 'although', 'actually', 'already', 'almost', 'probably', 'suddenly', 'recently'],
   B2: ['meanwhile', 'furthermore', 'nevertheless', 'regardless', 'definitely', 'apparently', 'obviously'],
   C1: ['consequently', 'subsequently', 'inadvertently', 'presumably', 'fundamentally', 'intrinsically'],
+  C2: ['notwithstanding', 'heretofore', 'quintessentially', 'unequivocally', 'invariably'],
 };
 
 // Generates contextual sample sentences matching the CEFR level

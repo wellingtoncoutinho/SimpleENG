@@ -52,21 +52,21 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
     <>
       {/* Hint Dialog / Drawer */}
       {showHint && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-amber-300 animate-in zoom-in-95">
-            <div className="flex items-center gap-3 text-amber-600 mb-3">
-              <div className="p-2.5 bg-amber-100 rounded-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-amber-300 dark:border-amber-700 animate-in zoom-in-95">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400 mb-3">
+              <div className="p-2.5 bg-amber-100 dark:bg-amber-950/60 rounded-2xl">
                 <Lightbulb className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-black text-slate-800">{t.hintTitle}</h3>
+              <h3 className="text-lg font-black text-slate-800 dark:text-white">{t.hintTitle}</h3>
             </div>
-            <p className="text-slate-700 text-base leading-relaxed mb-6 font-medium">
+            <p className="text-slate-700 dark:text-slate-300 text-base leading-relaxed mb-6 font-medium">
               {activeHint || 'Preste atenção na ordem das palavras, na preposição e no contexto.'}
             </p>
             <button
               type="button"
               onClick={() => setShowHint(false)}
-              className="w-full py-3.5 px-4 bg-amber-400 hover:bg-amber-300 active:translate-y-0.5 text-amber-950 font-bold rounded-2xl shadow-[0_4px_0_#d97706] transition-all cursor-pointer text-center"
+              className="w-full py-3.5 px-4 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-2xl shadow-[0_4px_0_#d97706] transition-all cursor-pointer text-center"
             >
               {t.hintCloseBtn}
             </button>
@@ -78,10 +78,10 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
       <div
         className={`fixed bottom-0 left-0 right-0 z-40 border-t-2 transition-all duration-300 pb-safe ${
           status === 'correct'
-            ? 'bg-emerald-50 border-emerald-300'
+            ? 'bg-emerald-50 dark:bg-emerald-950/90 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100'
             : status === 'incorrect'
-            ? 'bg-rose-50 border-rose-300'
-            : 'bg-white border-slate-200'
+            ? 'bg-rose-50 dark:bg-rose-950/90 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-100'
+            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white'
         }`}
       >
         <div className="max-w-3xl mx-auto px-4 py-4 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-4">

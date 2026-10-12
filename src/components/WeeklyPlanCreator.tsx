@@ -4,14 +4,11 @@ import {
   Clock,
   Sparkles,
   RefreshCw,
-  Wand2,
   BookOpen,
   Volume2,
-  Trash2,
-  Plus,
-  HelpCircle,
   AlertCircle,
   FileText,
+  Lightbulb,
 } from 'lucide-react';
 import { WeeklyPlan, ParsedVocabularyItem } from '../types/weeklyPlan';
 import { UserProfile } from '../types/user';
@@ -59,12 +56,10 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
   onPlanCreated,
   onCancel,
 }) => {
-  const t = translations[lang];
-
-  const [topic, setTopic] = useState<string>('Reuniões, Prazos & Rotina de Trabalho');
+  const [topic, setTopic] = useState<string>('');
   const [classDay, setClassDay] = useState<string>(user.classDay || 'Quarta-feira');
   const [dailyMinutes, setDailyMinutes] = useState<number>(user.dailyMinutesGoal || 20);
-  const [rawNotes, setRawNotes] = useState<string>(SAMPLE_NOTES);
+  const [rawNotes, setRawNotes] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -75,22 +70,17 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
 
   const handleUseExample = () => {
     soundEffects.playTap();
-    setTopic('Relacionamentos, Conversas & Socialização');
-    setRawNotes(`crush - paixonite / krash
-fall for - se apaixonar por (errei preposição)
-ghost someone - sumir sem avisar
-take for granted - não valorizar
-commitment - compromisso
-put off - adiar a conversa`);
+    setTopic('Trabalho, Reuniões & Prazos');
+    setRawNotes(SAMPLE_NOTES);
   };
 
   const handleGeneratePlan = async () => {
     if (!topic.trim()) {
-      setStatusMessage('Por favor, informe o assunto principal da sua aula.');
+      setStatusMessage('Por favor, informe o tema ou assunto principal da sua aula.');
       return;
     }
     if (parsedItems.length === 0) {
-      setStatusMessage('Adicione pelo menos 1 ou 2 palavras/anotações da sua aula.');
+      setStatusMessage('Adicione pelo menos 1 ou 2 palavras/anotações da sua aula no campo abaixo.');
       return;
     }
 
@@ -99,7 +89,6 @@ put off - adiar a conversa`);
     soundEffects.playTap();
 
     try {
-      // First attempt server endpoint with clean payload
       const response = await fetch('/api/generate-weekly-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,8 +109,7 @@ put off - adiar a conversa`);
         onPlanCreated(plan);
         return;
       }
-      // If server returned non-ok, fallback to local builder
-      console.warn('API returned non-ok, using local curriculum builder fallback');
+      console.warn('API returned non-ok, using fallback curriculum builder');
     } catch (err) {
       console.warn('Weekly plan API failed, using resilient local builder:', err);
     }
@@ -141,19 +129,19 @@ put off - adiar a conversa`);
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8 animate-in fade-in">
+    <div className="w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 animate-in fade-in">
       {/* Header Banner */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xs mb-6 flex items-center justify-between gap-6">
+      <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 shadow-xs mb-6 flex items-center justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-full mb-2.5 border border-emerald-200/80">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Ciclo de Treino Semanal</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-full mb-2.5 border border-emerald-200/80 dark:border-emerald-800">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Novo Roteiro de Estudos</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight mb-1.5">
-            Nova Aula & Planejamento Semanal
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight mb-1.5">
+            Cadastrar Anotações da Aula
           </h1>
-          <p className="text-slate-500 text-xs sm:text-sm font-medium leading-relaxed">
-            Cole suas anotações da aula (expressões, correções do professor e vocabulário). O sistema criará um ciclo inteligente de 7 dias, começando hoje, com 4 blocos de 5 minutos diários.
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium leading-relaxed">
+            Cole as palavras, frases ou correções da sua última aula de conversação. O SimpleENG vai montar um ciclo de 7 dias com exercícios interativos estilo Duolingo.
           </p>
         </div>
 
@@ -163,31 +151,31 @@ put off - adiar a conversa`);
       </div>
 
       {/* Main Form */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xs mb-6 space-y-5">
+      <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 shadow-xs mb-6 space-y-5">
         {/* 1. Class Topic */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-            1. Assunto da Aula
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+            1. Tema ou Assunto da Aula
           </label>
           <input
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="Ex: Reuniões, Prazos & Rotina de Trabalho..."
-            className="w-full text-sm font-medium px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-slate-900"
+            placeholder="Ex: Job Interview, Conversa sobre Viagem, Tecnologia no Trabalho..."
+            className="w-full text-sm font-semibold px-4 py-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden transition-all"
           />
         </div>
 
         {/* 2. Class Day & Daily Goal */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
               2. Dia da sua Aula de Inglês
             </label>
             <select
               value={classDay}
               onChange={(e) => setClassDay(e.target.value)}
-              className="w-full text-xs sm:text-sm font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all text-slate-900 bg-white"
+              className="w-full text-xs sm:text-sm font-bold px-3.5 py-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
             >
               {CLASS_DAYS.map((day) => (
                 <option key={day} value={day}>
@@ -195,19 +183,16 @@ put off - adiar a conversa`);
                 </option>
               ))}
             </select>
-            <p className="text-2xs text-slate-400 mt-1 font-medium">
-              O plano começa hoje e destaca o dia da sua aula no calendário da semana.
-            </p>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
               3. Meta Diária de Treino
             </label>
             <select
               value={dailyMinutes}
               onChange={(e) => setDailyMinutes(Number(e.target.value))}
-              className="w-full text-xs sm:text-sm font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all text-slate-900 bg-white"
+              className="w-full text-xs sm:text-sm font-bold px-3.5 py-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
             >
               {DAILY_TIME_OPTIONS.map((opt) => (
                 <option key={opt.minutes} value={opt.minutes}>
@@ -215,76 +200,66 @@ put off - adiar a conversa`);
                 </option>
               ))}
             </select>
-            <p className="text-2xs text-slate-400 mt-1 font-medium">
-              Exercícios divididos em blocos ágeis de 5 min para encaixar na sua rotina.
-            </p>
           </div>
         </div>
 
-        {/* 3. Class Notes & Vocabulary Box with live detection */}
+        {/* 3. Class Notes Box */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
-              4. Anotações & Vocabulário da Aula ({parsedItems.length} identificados)
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
+              4. Anotações & Vocabulário ({parsedItems.length} detectados)
             </label>
             <button
               type="button"
               onClick={handleUseExample}
-              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer"
+              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
             >
-              Usar outro exemplo
+              <Lightbulb className="w-3.5 h-3.5" />
+              <span>Inserir exemplo para teste</span>
             </button>
           </div>
 
-          <p className="text-xs text-slate-500 font-medium mb-3 leading-relaxed">
-            Cole como você anota no caderno: com a palavra em inglês, o significado em português e a
-            pronúncia aproximada. O sistema lê e organiza tudo automaticamente:
-          </p>
-
           <textarea
-            rows={7}
+            rows={6}
             value={rawNotes}
             onChange={(e) => setRawNotes(e.target.value)}
-            placeholder={`schedule - agendar / eskedul - confundi na aula\nactually - na verdade / actshually\nlook forward to - aguardar ansiosamente\noverwhelmed - sobrecarregado`}
-            className="w-full text-sm font-mono p-4 rounded-2xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all text-slate-800"
+            placeholder={`Digite ou cole aqui como anotou no caderno.\n\nExemplo:\nschedule - agendar / eskedul - confundi com timetable na aula\nactually - na verdade (não é atualmente)\nlook forward to - aguardar ansiosamente\noverwhelmed - sobrecarregado`}
+            className="w-full text-sm font-mono p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden transition-all"
           />
 
           {/* Live recognition preview */}
-          <div className="mt-4 p-4 bg-slate-50 border border-slate-200/90 rounded-2xl">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>O que o sistema reconheceu nas suas anotações:</span>
-              </span>
-              <span className="text-2xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                {parsedItems.length} termos prontos para o plano
-              </span>
-            </div>
+          {parsedItems.length > 0 && (
+            <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Vocabulário identificado:</span>
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
+                  {parsedItems.length} termos prontos
+                </span>
+              </div>
 
-            {parsedItems.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {parsedItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-start justify-between gap-2 shadow-2xs"
+                    className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-start justify-between gap-2 shadow-2xs"
                   >
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-black text-slate-900 text-xs">{item.english}</span>
+                        <span className="font-black text-slate-900 dark:text-white text-xs">
+                          {item.english}
+                        </span>
                         {item.pronunciation && (
-                          <span className="text-2xs font-semibold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded">
+                          <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded">
                             /{item.pronunciation}/
                           </span>
                         )}
                       </div>
                       {item.portuguese && (
-                        <div className="text-2xs text-slate-600 font-medium">
-                          Significa: {item.portuguese}
-                        </div>
-                      )}
-                      {item.note && (
-                        <div className="text-2xs text-amber-700 font-medium">
-                          Nota: {item.note}
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                          {item.portuguese}
                         </div>
                       )}
                     </div>
@@ -292,25 +267,21 @@ put off - adiar a conversa`);
                     <button
                       type="button"
                       onClick={() => speakWord(item.english)}
-                      className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
-                      title="Ouvir"
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer"
+                      title="Ouvir pronúncia"
                     >
                       <Volume2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic">
-                Digite ou cole anotações acima para ver a identificação em tempo real.
-              </p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {statusMessage && (
-          <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-xs sm:text-sm text-amber-900 font-medium flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-2xl text-xs sm:text-sm text-amber-900 dark:text-amber-300 font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <span>{statusMessage}</span>
           </div>
         )}
@@ -321,7 +292,7 @@ put off - adiar a conversa`);
             <button
               type="button"
               onClick={onCancel}
-              className="px-5 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer transition-colors"
+              className="px-5 py-3.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
             >
               Cancelar
             </button>
@@ -331,21 +302,21 @@ put off - adiar a conversa`);
             type="button"
             onClick={handleGeneratePlan}
             disabled={isGenerating}
-            className={`flex-1 py-3.5 px-6 text-white font-bold text-sm rounded-xl uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            className={`flex-1 py-3.5 px-6 text-white font-black text-xs sm:text-sm rounded-2xl tracking-wide transition-all cursor-pointer flex items-center justify-center gap-2 ${
               isGenerating
                 ? 'bg-emerald-400 cursor-wait'
-                : 'bg-emerald-600 hover:bg-emerald-500 shadow-xs'
+                : 'btn-3d-green shadow-xs'
             }`}
           >
             {isGenerating ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Montando Programação da Semana...</span>
+                <span>Gerando seu plano de 7 dias com Gemini...</span>
               </>
             ) : (
               <>
                 <Calendar className="w-4 h-4" />
-                <span>Gerar Ciclo Semanal (7 Dias · {dailyMinutes} min/dia)</span>
+                <span>Gerar Plano de 7 Dias ({dailyMinutes} min/dia)</span>
               </>
             )}
           </button>

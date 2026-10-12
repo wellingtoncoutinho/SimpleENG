@@ -1,40 +1,54 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Award, Check, Sparkles, LogOut } from 'lucide-react';
+import {
+  X,
+  User,
+  Mail,
+  Phone,
+  Check,
+  Flame,
+  Award,
+  BookOpen,
+  LogOut,
+  Clock,
+  Calendar,
+} from 'lucide-react';
 import { UserProfile } from '../types/user';
 import { CEFRLevel } from '../types/lesson';
 import { soundEffects } from '../utils/audio';
-import { Language, translations } from '../utils/i18n';
 
 interface UserProfileModalProps {
   user: UserProfile;
   isOpen: boolean;
   onClose: () => void;
   onUpdateUser: (updated: UserProfile) => void;
-  lang?: Language;
+  onLogout?: () => void;
 }
+
+const ALL_LEVELS: { level: CEFRLevel; title: string; desc: string }[] = [
+  { level: 'A1', title: 'A1 - Iniciante', desc: 'Frases simples do dia a dia' },
+  { level: 'A2', title: 'A2 - Básico', desc: 'Compreensão de frases simples e rotinas' },
+  { level: 'B1', title: 'B1 - Intermediário', desc: 'Viagens, conversas e trabalho básico' },
+  { level: 'B2', title: 'B2 - Intermediário Alto', desc: 'Fluência espontânea e reuniões' },
+  { level: 'C1', title: 'C1 - Avançado', desc: 'Inglês natural, profissional e nuances' },
+  { level: 'C2', title: 'C2 - Proficiente', desc: 'Domínio natural equivalente a nativo' },
+];
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   user,
   isOpen,
   onClose,
   onUpdateUser,
-  lang = 'pt',
+  onLogout,
 }) => {
   const [name, setName] = useState<string>(user.name);
   const [email, setEmail] = useState<string>(user.email);
+  const [phone, setPhone] = useState<string>(user.phone || '');
   const [level, setLevel] = useState<CEFRLevel>(user.level);
   const [dailyMinutesGoal, setDailyMinutesGoal] = useState<number>(user.dailyMinutesGoal || 20);
   const [classDay, setClassDay] = useState<string>(user.classDay || 'Quarta-feira');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
   if (!isOpen) return null;
-
-  const levels: { level: CEFRLevel; title: string; desc: string }[] = [
-    { level: 'A2', title: 'A2 - Básico', desc: 'Compreensão de frases simples e rotineiras' },
-    { level: 'B1', title: 'B1 - Intermediário', desc: 'Viagens, conversas e trabalho básico' },
-    { level: 'B2', title: 'B2 - Intermediário Avançado', desc: 'Conversa fluida, expressões e debates' },
-    { level: 'C1', title: 'C1 - Avançado', desc: 'Inglês natural, profissional e nuances' },
-  ];
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +57,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       ...user,
       name: name.trim() || 'Estudante',
       email: email.trim() || 'user@example.com',
+      phone: phone.trim(),
       level,
       dailyMinutesGoal,
       classDay,
@@ -56,50 +71,100 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full shadow-2xl border-2 border-slate-200 dark:border-slate-800 overflow-hidden my-6">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
-              <User className="w-4 h-4 text-emerald-700" />
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 flex items-center justify-center font-black text-sm border border-emerald-300/40">
+              {level}
             </div>
-            <h3 className="text-sm sm:text-base font-bold text-slate-900">
-              {lang === 'pt' ? 'Meu Perfil & Nível de Inglês' : 'My Profile & English Level'}
-            </h3>
+            <div>
+              <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
+                Meu Perfil & Preferências
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Ajuste seu nível e objetivos de estudo
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {/* Stats strip */}
+        <div className="grid grid-cols-3 gap-2 p-4 bg-slate-50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 text-center">
+          <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="flex items-center justify-center gap-1 text-emerald-600 font-black text-sm">
+              <Flame className="w-4 h-4 fill-emerald-600" />
+              <span>{user.streakDays || 1} dias</span>
+            </div>
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Ofensiva</div>
+          </div>
+
+          <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="flex items-center justify-center gap-1 text-amber-500 font-black text-sm">
+              <Award className="w-4 h-4" />
+              <span>{user.totalXp || 0} XP</span>
+            </div>
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Pontos</div>
+          </div>
+
+          <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="flex items-center justify-center gap-1 text-blue-500 font-black text-sm">
+              <BookOpen className="w-4 h-4" />
+              <span>{user.lessonsCompleted || 0}</span>
+            </div>
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Lições</div>
+          </div>
+        </div>
+
         {/* Form Body */}
-        <form onSubmit={handleSave} className="p-6 space-y-4">
-          {/* Name Field */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-              {lang === 'pt' ? 'Nome do Aluno' : 'Your Name'}
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Well"
-                className="w-full text-xs sm:text-sm font-semibold pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none text-slate-800"
-              />
+        <form onSubmit={handleSave} className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+          {/* Name & Phone */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Nome
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Seu nome"
+                  className="w-full text-xs font-semibold pl-10 pr-3.5 py-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Telefone / WhatsApp
+              </label>
+              <div className="relative">
+                <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                  className="w-full text-xs font-semibold pl-10 pr-3.5 py-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Email Field */}
+          {/* Email */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-              {lang === 'pt' ? 'E-mail de Cadastro' : 'Account Email'}
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              E-mail
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -108,18 +173,18 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seuemail@exemplo.com"
-                className="w-full text-xs sm:text-sm font-semibold pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none text-slate-800"
+                className="w-full text-xs font-semibold pl-10 pr-3.5 py-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
               />
             </div>
           </div>
 
           {/* English Level Selection */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-              {lang === 'pt' ? 'Seu Nível Atual de Inglês (CEFR)' : 'Current English Level (CEFR)'}
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+              Nível Atual de Inglês (CEFR)
             </label>
-            <div className="space-y-1.5">
-              {levels.map((item) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {ALL_LEVELS.map((item) => (
                 <button
                   key={item.level}
                   type="button"
@@ -127,36 +192,37 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     soundEffects.playTap();
                     setLevel(item.level);
                   }}
-                  className={`w-full p-2.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
+                  className={`p-2.5 rounded-2xl border-2 text-left transition-all cursor-pointer ${
                     level === item.level
-                      ? 'border-emerald-500 bg-emerald-50/70 shadow-2xs'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 font-bold shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  <div>
-                    <div className="text-xs sm:text-sm font-bold text-slate-900">{item.title}</div>
-                    <div className="text-2xs text-slate-500 font-medium">{item.desc}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black">{item.level}</span>
+                    {level === item.level && (
+                      <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
+                    )}
                   </div>
-                  {level === item.level && (
-                    <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    </div>
-                  )}
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                    {item.desc}
+                  </div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Daily Study Minutes Goal & Class Day */}
-          <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                Meta Diária
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Meta Diária</span>
               </label>
               <select
                 value={dailyMinutesGoal}
                 onChange={(e) => setDailyMinutesGoal(Number(e.target.value))}
-                className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none bg-white text-slate-800"
+                className="w-full text-xs font-bold p-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
               >
                 <option value={10}>10 min / dia</option>
                 <option value={15}>15 min / dia</option>
@@ -166,13 +232,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                Dia da Aula
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Dia da Aula</span>
               </label>
               <select
                 value={classDay}
                 onChange={(e) => setClassDay(e.target.value)}
-                className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none bg-white text-slate-800"
+                className="w-full text-xs font-bold p-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
               >
                 <option value="Segunda-feira">Segunda-feira</option>
                 <option value="Terça-feira">Terça-feira</option>
@@ -185,20 +252,37 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           </div>
 
-          {/* Save Button */}
-          <button
-            type="submit"
-            className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-wide text-xs shadow-xs"
-          >
-            {savedSuccess ? (
-              <>
-                <Check className="w-4 h-4" />
-                <span>{lang === 'pt' ? 'Perfil Atualizado!' : 'Profile Saved!'}</span>
-              </>
-            ) : (
-              <span>{lang === 'pt' ? 'Salvar Alterações' : 'Save Changes'}</span>
+          {/* Action buttons */}
+          <div className="pt-2 space-y-2">
+            <button
+              type="submit"
+              className="w-full py-3 px-4 rounded-2xl text-white font-black text-xs tracking-wide flex items-center justify-center gap-2 btn-3d-green shadow-xs cursor-pointer"
+            >
+              {savedSuccess ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Perfil Salvo com Sucesso!</span>
+                </>
+              ) : (
+                <span>Salvar Alterações</span>
+              )}
+            </button>
+
+            {onLogout && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playTap();
+                  onLogout();
+                  onClose();
+                }}
+                className="w-full py-2.5 px-4 rounded-2xl border-2 border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sair da Conta (Logout)</span>
+              </button>
             )}
-          </button>
+          </div>
         </form>
       </div>
     </div>
