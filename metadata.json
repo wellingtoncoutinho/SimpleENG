@@ -1,0 +1,6 @@
+{
+  "name": "SimpleENG - Pedagogical Micro-Lesson Generator",
+  "description": "Transform English conversation notes into interactive Duolingo-style micro-lessons with audio synthesis, pronunciation checks, tactile game mechanics, and mascot Engy.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
