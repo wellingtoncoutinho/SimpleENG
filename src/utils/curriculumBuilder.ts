@@ -79,14 +79,17 @@ export function buildCustomLesson(
   const primaryItem = items[0] || { id: '1', english: 'practice' };
 
   const exercises: Exercise[] = [];
+  const exerciseCount = Math.max(5, Math.min(items.length * 2, 6));
 
-  items.slice(0, 6).forEach((item, index) => {
+  for (let index = 0; index < exerciseCount; index++) {
+    const item = items[index % items.length] || primaryItem;
     const word = item.english;
     const meaning = item.portuguese || '';
     const note = item.note || notes || '';
     const pron = item.pronunciation ? `[som aproximado: "${item.pronunciation}"]` : '';
+    const typeMod = index % 5;
 
-    if (index === 0) {
+    if (typeMod === 0) {
       // Exercise 1: ALWAYS sentence_build (Duolingo style word bank warm up)
       const targetSentence =
         items.length > 1
@@ -97,7 +100,7 @@ export function buildCustomLesson(
       const shuffledBank = [...wordsInSentence, ...distractors].sort(() => Math.random() - 0.5);
 
       exercises.push({
-        id: `sb_${index}_${Date.now()}`,
+        id: `sb_${index}_${Date.now()}_${index}`,
         type: 'sentence_build',
         targetWord: word,
         instruction: 'Listen or read and assemble the sentence:',
@@ -116,7 +119,7 @@ export function buildCustomLesson(
         audioSpeedDefault: 1.0,
         slowSpeedAvailable: true,
       });
-    } else if (index === 1) {
+    } else if (typeMod === 1) {
       // Exercise 2: listen_type
       const audioSentence = `She mentioned that ${word} was essential for the entire team.`;
       const wordsInSentence = audioSentence.replace(/[.,!?]/g, '').split(' ');
@@ -124,7 +127,7 @@ export function buildCustomLesson(
       const shuffledBank = [...wordsInSentence, ...distractors].sort(() => Math.random() - 0.5);
 
       exercises.push({
-        id: `lt_${index}_${Date.now()}`,
+        id: `lt_${index}_${Date.now()}_${index}`,
         type: 'listen_type',
         targetWord: word,
         instruction: 'Listen carefully and assemble or type what you hear:',
@@ -147,13 +150,13 @@ export function buildCustomLesson(
         audioSpeedDefault: 1.0,
         slowSpeedAvailable: true,
       });
-    } else if (index === 2) {
+    } else if (typeMod === 2) {
       // Exercise 3: grammar_fix
       const wrongSentence = `I always forget about ${word} in the morning.`;
       const expectedSentence = `I always remember to check my ${word} in the morning.`;
 
       exercises.push({
-        id: `gf_${index}_${Date.now()}`,
+        id: `gf_${index}_${Date.now()}_${index}`,
         type: 'grammar_fix',
         targetWord: word,
         instruction: 'Correct the sentence to fix the grammar or preposition issue:',
@@ -174,12 +177,12 @@ export function buildCustomLesson(
         explanationPt: `Exato! Fixar a combinação correta de "${word}" evita os erros mais comuns de nós brasileiros.`,
         audioSpeedDefault: 1.0,
       });
-    } else if (index === 3) {
+    } else if (typeMod === 3) {
       // Exercise 4: speak_verify
       const spokenSentence = `It is important to understand ${word} in this context.`;
 
       exercises.push({
-        id: `sv_${index}_${Date.now()}`,
+        id: `sv_${index}_${Date.now()}_${index}`,
         type: 'speak_verify',
         targetWord: word,
         instruction: 'Read the phrase aloud using your microphone:',
@@ -204,7 +207,7 @@ export function buildCustomLesson(
     } else {
       // Exercise 5: roleplay_prompt with Mascot Leo
       exercises.push({
-        id: `rp_${index}_${Date.now()}`,
+        id: `rp_${index}_${Date.now()}_${index}`,
         type: 'roleplay_prompt',
         targetWord: word,
         instruction: 'Answer Leo in English using the target vocabulary:',
@@ -227,7 +230,7 @@ export function buildCustomLesson(
         audioSpeedDefault: 1.0,
       });
     }
-  });
+  }
 
   return {
     moduleMeta: {
@@ -361,6 +364,7 @@ export function buildWeeklyPlan(
     },
   ];
 
+  const blocksCount = Math.max(2, Math.min(6, Math.round(dailyMinutes / 5)));
   const days: DayPlan[] = [];
 
   for (let d = 0; d < 7; d++) {
@@ -389,30 +393,80 @@ export function buildWeeklyPlan(
       dayLabel = `Dia ${d + 1} · Dia da Aula`;
     }
 
-    // Pick 2-3 target words for this day using spaced repetition rotation
-    const startIndex = (d * 2) % safeItems.length;
-    const dayItems = [
-      safeItems[startIndex % safeItems.length],
-      safeItems[(startIndex + 1) % safeItems.length],
-      safeItems[(startIndex + 2) % safeItems.length],
-    ];
+    // Distribute vocabulary items systematically:
+    // Days 1 to 6 (d = 0..5): Every single word in safeItems is guaranteed to be partitioned and covered!
+    // Day 7 (d = 6): Comprehensive Weekly Consolidation reviewing key vocabulary across the entire week.
+    const totalItemsCount = safeItems.length;
+    let dayItems: ParsedVocabularyItem[] = [];
+
+    if (d < 6) {
+      if (totalItemsCount <= 6) {
+        // Few items: rotate with 2-3 overlapping items per day so all items get repeated practice
+        const start = (d * 2) % totalItemsCount;
+        dayItems = [
+          safeItems[start],
+          safeItems[(start + 1) % totalItemsCount],
+          safeItems[(start + 2) % totalItemsCount],
+        ];
+      } else {
+        // Clean mathematical partition across the 6 discovery days (e.g., 49 items -> 8 to 9 words/day)
+        const startIndex = Math.floor((d * totalItemsCount) / 6);
+        const endIndex = Math.floor(((d + 1) * totalItemsCount) / 6);
+        const slice = safeItems.slice(startIndex, endIndex);
+        dayItems = slice.length > 0 ? slice : [safeItems[d % totalItemsCount]];
+      }
+    } else {
+      // Day 7: Comprehensive Weekly Review
+      // Samples key items across the entire week (beginning, middle, end)
+      if (totalItemsCount <= 8) {
+        dayItems = [...safeItems];
+      } else {
+        const reviewSample: ParsedVocabularyItem[] = [];
+        const step = Math.max(1, Math.floor(totalItemsCount / 8));
+        for (let i = 0; i < totalItemsCount && reviewSample.length < 8; i += step) {
+          reviewSample.push(safeItems[i]);
+        }
+        dayItems = reviewSample.length > 0 ? reviewSample : safeItems.slice(0, 4);
+      }
+    }
 
     const blocks: LessonBlock[] = [];
 
-    for (let b = 0; b < 4; b++) {
-      const template = BLOCK_TEMPLATES[b];
-      const blockWords = [dayItems[b % dayItems.length].english];
+    for (let b = 0; b < blocksCount; b++) {
+      const template = BLOCK_TEMPLATES[b % BLOCK_TEMPLATES.length];
 
-      // Create a targeted 5-minute micro-lesson for this block
+      // Distribute the day's vocabulary across this day's blocks
+      let blockItems: ParsedVocabularyItem[] = [];
+      if (dayItems.length <= blocksCount) {
+        // Few items: block takes primary item + secondary companion
+        const primary = dayItems[b % dayItems.length];
+        const secondary = dayItems[(b + 1) % dayItems.length];
+        blockItems = [primary];
+        if (secondary && secondary.id !== primary.id) {
+          blockItems.push(secondary);
+        }
+      } else {
+        // Many items (e.g. 8 words on this day): slice dayItems proportionally across the blocks
+        const bStart = Math.floor((b * dayItems.length) / blocksCount);
+        const bEnd = Math.floor(((b + 1) * dayItems.length) / blocksCount);
+        blockItems = dayItems.slice(bStart, bEnd);
+        if (blockItems.length === 0) {
+          blockItems = [dayItems[b % dayItems.length]];
+        }
+      }
+
+      const blockWords = blockItems.map((i) => i.english);
+
+      // Create a targeted 5-minute micro-lesson for this block containing all assigned words
       const blockLesson = buildCustomLesson(
         `${topic} - ${dayName} (${template.title.split(':')[0]})`,
         level,
-        [dayItems[b % dayItems.length], dayItems[(b + 1) % dayItems.length]],
+        blockItems,
         rawNotes
       );
 
       blocks.push({
-        id: `block_d${d}_b${b}_${Date.now()}`,
+        id: `block_d${d}_b${b}_${Date.now()}_${b}`,
         blockNumber: b + 1,
         title: template.title,
         subtitle: template.subtitle,
@@ -449,7 +503,7 @@ export function buildWeeklyPlan(
     cefrLevel: level,
     classDay,
     dailyMinutesGoal: dailyMinutes,
-    blocksPerDay: 4,
+    blocksPerDay: blocksCount,
     rawNotes,
     parsedItems: safeItems,
     days,
