@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Flame, Sparkles, Check, X, Calendar, ArrowRight } from 'lucide-react';
 import { soundEffects } from '../utils/audio';
 import { LearnerMascot } from './LearnerMascot';
@@ -16,19 +16,38 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
   lessonsCompleted = 0,
   onStartLesson,
 }) => {
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const isIgnited = streakDays > 0;
+  const [isOpen, setIsOpen] = useState<boolean>(false);
 
-  const handleClick = () => {
+  // If user completed 0 lessons, streak is strictly 0
+  const effectiveStreak = (lessonsCompleted || 0) === 0 ? 0 : Math.max(0, streakDays || 0);
+  const isIgnited = effectiveStreak > 0;
+
+  const handleToggle = () => {
     soundEffects.playTap();
-    setShowModal(true);
+    setIsOpen((prev) => !prev);
   };
+
+  const handleClose = () => {
+    soundEffects.playTap();
+    setIsOpen(false);
+  };
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
   // Current day index in week (0 = Monday, 6 = Sunday)
   const todayIdx = (new Date().getDay() + 6) % 7;
 
   return (
-    <>
+    <div className="relative inline-block">
       <style>{`
         @keyframes flameFlicker {
           0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.4)); }
@@ -45,7 +64,7 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
       {/* Header Pill Button */}
       <button
         type="button"
-        onClick={handleClick}
+        onClick={handleToggle}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border transition-all cursor-pointer select-none group ${
           isIgnited
             ? 'bg-gradient-to-r from-amber-500/10 via-orange-500/15 to-red-500/10 dark:from-amber-950/40 dark:to-orange-950/40 border-orange-400/80 dark:border-orange-500/60 shadow-xs hover:border-orange-500 hover:scale-105 active:scale-95'
@@ -53,7 +72,7 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
         }`}
         title={
           isIgnited
-            ? `Ofensiva ativa: ${streakDays} dia(s) seguido(s)! Clique para detalhes.`
+            ? `Ofensiva ativa: ${effectiveStreak} dia(s) seguido(s)! Clique para detalhes.`
             : 'Sua ofensiva está em 0. Complete sua primeira atividade hoje para acender o fogo!'
         }
       >
@@ -72,14 +91,24 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
               : 'text-slate-500 dark:text-slate-400 group-hover:text-amber-600'
           }`}
         >
-          {streakDays}
+          {effectiveStreak}
         </span>
       </button>
 
-      {/* Motivational Streak Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border-2 border-slate-200 dark:border-slate-800 animate-in zoom-in-95 relative overflow-hidden">
+      {/* Popover Dropdown (Anchored directly under the button) */}
+      {isOpen && (
+        <>
+          {/* Backdrop overlay: clicking anywhere outside closes the popover */}
+          <div
+            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-in fade-in cursor-default"
+            onClick={handleClose}
+          />
+
+          {/* Popover Card */}
+          <div
+            className="absolute right-0 top-full mt-2 w-80 sm:w-88 max-w-[calc(100vw-24px)] z-50 bg-white dark:bg-slate-900 rounded-3xl p-5 text-center shadow-2xl border-2 border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 origin-top-right overflow-hidden max-h-[calc(100vh-5rem)] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Background Glow */}
             <div
               className={`absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full blur-3xl pointer-events-none ${
@@ -87,49 +116,50 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
               }`}
             />
 
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* Header with Title and Close Button */}
+            <div className="flex items-center justify-between mb-3 relative">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800/80">
+                <Flame
+                  className={`w-3.5 h-3.5 ${
+                    isIgnited ? 'text-orange-500 fill-orange-500 anim-flame' : 'text-slate-400'
+                  }`}
+                />
+                <span className="text-[11px] font-black text-orange-700 dark:text-orange-300">
+                  {isIgnited ? `${effectiveStreak} dias seguidos` : 'Ofensiva: 0 dias'}
+                </span>
+              </div>
 
-            {/* Mascot & Flame Illustration */}
-            <div className="relative flex justify-center mb-3 pt-2">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Mascot Illustration */}
+            <div className="relative flex justify-center mb-2">
               <LearnerMascot mood={isIgnited ? 'celebrate' : 'speaking'} size="xs" />
             </div>
 
-            {/* Title & Streak Number */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800/80 mb-2">
-              <Flame
-                className={`w-4 h-4 ${
-                  isIgnited ? 'text-orange-500 fill-orange-500 anim-flame' : 'text-amber-500'
-                }`}
-              />
-              <span className="text-xs font-black text-orange-700 dark:text-orange-300">
-                {isIgnited ? `${streakDays} dias seguidos!` : 'Ofensiva: 0 dias'}
-              </span>
-            </div>
-
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">
-              {isIgnited
-                ? 'Sua chama está acesa! 🔥'
-                : 'Acenda sua Ofensiva Hoje! 🔥'}
+            {/* Title */}
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1.5">
+              {isIgnited ? 'Sua chama está acesa! 🔥' : 'Acenda sua Ofensiva Hoje! 🔥'}
             </h3>
 
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-5">
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
               {isIgnited
                 ? 'Você está mantendo o hábito diário de praticar seu inglês. Treine todos os dias para não deixar o fogo apagar!'
-                : 'Complete sua primeira lição de 5 minutos hoje para acender o fogo e começar sua sequência ininterrupta de estudos!'}
+                : 'Sua sequência está em 0. Conclua sua primeira atividade de 5 minutos hoje para acender a chama e manter o ritmo!'}
             </p>
 
             {/* Mini Weekly Tracker */}
-            <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 mb-5">
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 mb-4 text-left">
               <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
                 <span>Esta semana</span>
-                <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-black">
                   {lessonsCompleted} atividade(s) concluída(s)
                 </span>
               </div>
@@ -137,14 +167,16 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
               <div className="grid grid-cols-7 gap-1">
                 {WEEK_DAYS.map((day, idx) => {
                   const isToday = idx === todayIdx;
-                  const isChecked = isIgnited && idx <= todayIdx;
+                  // Only check days within the active streak window
+                  const isChecked =
+                    isIgnited && idx <= todayIdx && todayIdx - idx < effectiveStreak;
 
                   return (
                     <div
                       key={day}
                       className={`flex flex-col items-center p-1.5 rounded-xl border text-center transition-all ${
                         isToday
-                          ? 'border-orange-500 bg-orange-50/80 dark:bg-orange-950/40 text-orange-900 dark:text-orange-200'
+                          ? 'border-orange-500 bg-orange-50/80 dark:bg-orange-950/40 text-orange-900 dark:text-orange-200 shadow-2xs'
                           : isChecked
                           ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200'
                           : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400'
@@ -155,7 +187,7 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
                         {isChecked ? (
                           <Flame className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
                         ) : isToday ? (
-                          <div className="w-2.5 h-2.5 rounded-full bg-orange-400 animate-pulse" />
+                          <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
                         ) : (
                           <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
                         )}
@@ -166,22 +198,32 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
               </div>
             </div>
 
-            {/* CTA Button */}
-            <button
-              type="button"
-              onClick={() => {
-                soundEffects.playTap();
-                setShowModal(false);
-                if (onStartLesson) onStartLesson();
-              }}
-              className="w-full py-3.5 px-4 btn-3d-green text-white font-black text-sm rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-            >
-              <span>{isIgnited ? 'Continuar Praticando' : 'Bora Começar Agora!'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playTap();
+                  setIsOpen(false);
+                  if (onStartLesson) onStartLesson();
+                }}
+                className="w-full py-3 px-4 btn-3d-green text-white font-black text-xs rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-sm tracking-wide"
+              >
+                <span>{isIgnited ? 'Continuar Praticando' : 'Começar Treino Agora!'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClose}
+                className="w-full py-2 px-3 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
-    </>
+    </div>
   );
 };

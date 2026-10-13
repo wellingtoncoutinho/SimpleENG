@@ -25,6 +25,7 @@ import { StreakBadge } from './components/StreakBadge';
 import { UserProfileModal } from './components/UserProfileModal';
 import { AuthModal } from './components/AuthModal';
 import { LoginScreen } from './components/LoginScreen';
+import { OnboardingTour } from './components/OnboardingTour';
 import { soundEffects } from './utils/audio';
 import { Language, translations } from './utils/i18n';
 import {
@@ -44,6 +45,13 @@ export default function App() {
   const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(false);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [showTour, setShowTour] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('simpleeng_tour_seen') !== 'true';
+    } catch {
+      return false;
+    }
+  });
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [activeBlockContext, setActiveBlockContext] = useState<{
     dayIndex: number;
@@ -86,7 +94,12 @@ export default function App() {
       const saved = localStorage.getItem('talktune_user');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.email) return parsed;
+        if (parsed && parsed.email) {
+          if ((parsed.lessonsCompleted || 0) === 0) {
+            parsed.streakDays = 0;
+          }
+          return parsed;
+        }
       }
     } catch {
       // ignore
@@ -162,14 +175,18 @@ export default function App() {
   };
 
   const handleUpdateUser = (updated: UserProfile) => {
-    setUser(updated);
-    if (updated.appLanguage && updated.appLanguage !== lang) {
-      setLang(updated.appLanguage);
+    const sanitized: UserProfile = {
+      ...updated,
+      streakDays: (updated.lessonsCompleted || 0) === 0 ? 0 : (updated.streakDays || 0),
+    };
+    setUser(sanitized);
+    if (sanitized.appLanguage && sanitized.appLanguage !== lang) {
+      setLang(sanitized.appLanguage);
     }
     try {
-      localStorage.setItem('talktune_user', JSON.stringify(updated));
-      if (updated.id && updated.isAuthenticated) {
-        saveUserProfileToCloud(updated.id, updated);
+      localStorage.setItem('talktune_user', JSON.stringify(sanitized));
+      if (sanitized.id && sanitized.isAuthenticated) {
+        saveUserProfileToCloud(sanitized.id, sanitized);
       }
     } catch {
       // ignore
@@ -200,6 +217,13 @@ export default function App() {
       setLang(authenticatedUser.appLanguage);
     }
     setShowAuthModal(false);
+    try {
+      if (localStorage.getItem('simpleeng_tour_seen') !== 'true') {
+        setShowTour(true);
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const handleUpdateWeeklyPlan = (updatedPlan: WeeklyPlan | null) => {
@@ -393,7 +417,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             {/* Interactive Motivational Streak Badge */}
             <StreakBadge
-              streakDays={user.streakDays || 0}
+              streakDays={(user.lessonsCompleted || 0) === 0 ? 0 : (user.streakDays || 0)}
               lessonsCompleted={user.lessonsCompleted || 0}
               onStartLesson={() => {
                 soundEffects.playTap();
@@ -617,6 +641,10 @@ export default function App() {
         onClose={() => setShowProfileModal(false)}
         onUpdateUser={handleUpdateUser}
         onLogout={handleLogout}
+        onOpenTour={() => {
+          setShowProfileModal(false);
+          setShowTour(true);
+        }}
       />
 
       {/* Auth Modal (Register / Login) */}
@@ -625,6 +653,12 @@ export default function App() {
         initialMode={authModalMode}
         onClose={() => setShowAuthModal(false)}
         onSuccess={handleAuthSuccess}
+      />
+
+      {/* Interactive Onboarding Tour (Shows on first access & re-openable from profile) */}
+      <OnboardingTour
+        isOpen={showTour}
+        onClose={() => setShowTour(false)}
       />
     </div>
   );

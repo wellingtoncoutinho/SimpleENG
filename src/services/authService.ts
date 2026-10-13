@@ -326,7 +326,17 @@ export function subscribeToAuthChanges(
           const snap = await getDoc(userDocRef);
           if (snap.exists()) {
             const profile = snap.data() as UserProfile;
-            callback({ ...profile, id: fbUser.uid, isAuthenticated: true });
+            const sanitizedStreak = (profile.lessonsCompleted || 0) === 0 ? 0 : (profile.streakDays || 0);
+            const cleanProfile: UserProfile = {
+              ...profile,
+              streakDays: sanitizedStreak,
+              id: fbUser.uid,
+              isAuthenticated: true,
+            };
+            if (profile.streakDays !== sanitizedStreak) {
+              saveUserProfileToCloud(fbUser.uid, cleanProfile);
+            }
+            callback(cleanProfile);
             return;
           }
         } catch (error) {
@@ -358,6 +368,10 @@ export function subscribeToAuthChanges(
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.isAuthenticated) {
+          if ((parsed.lessonsCompleted || 0) === 0) {
+            parsed.streakDays = 0;
+            localStorage.setItem('talktune_user', JSON.stringify(parsed));
+          }
           callback(parsed);
           return () => {};
         }

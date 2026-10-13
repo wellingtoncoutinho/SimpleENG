@@ -12,6 +12,7 @@ import {
   Clock,
   Calendar,
   Globe,
+  HelpCircle,
 } from 'lucide-react';
 import { UserProfile } from '../types/user';
 import { CEFRLevel } from '../types/lesson';
@@ -23,6 +24,7 @@ interface UserProfileModalProps {
   onClose: () => void;
   onUpdateUser: (updated: UserProfile) => void;
   onLogout?: () => void;
+  onOpenTour?: () => void;
 }
 
 const ALL_LEVELS: { level: CEFRLevel; title: string; desc: string }[] = [
@@ -40,6 +42,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
   onUpdateUser,
   onLogout,
+  onOpenTour,
 }) => {
   const [name, setName] = useState<string>(user.name);
   const [email, setEmail] = useState<string>(user.email);
@@ -329,6 +332,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <span>Salvar Alterações</span>
               )}
             </button>
+
+            {onOpenTour && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playTap();
+                  onOpenTour();
+                }}
+                className="w-full py-2.5 px-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-emerald-400 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Ver Tutorial do App Novamente</span>
+              </button>
+            )}
 
             {onLogout && (
               <button
