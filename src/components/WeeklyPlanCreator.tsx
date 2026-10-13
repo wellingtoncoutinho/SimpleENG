@@ -56,6 +56,7 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
   onPlanCreated,
   onCancel,
 }) => {
+  const t = translations[lang];
   const [topic, setTopic] = useState<string>('');
   const [classDay, setClassDay] = useState<string>(user.classDay || 'Quarta-feira');
   const [dailyMinutes, setDailyMinutes] = useState<number>(user.dailyMinutesGoal || 20);
@@ -135,13 +136,13 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-full mb-2.5 border border-emerald-200/80 dark:border-emerald-800">
             <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Novo Roteiro de Estudos</span>
+            <span>{t.creatorTitle}</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight mb-1.5">
-            Cadastrar Anotações da Aula
+            {t.creatorTitle}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium leading-relaxed">
-            Cole as palavras, frases ou correções da sua última aula de conversação. O SimpleENG vai montar um ciclo de 7 dias com exercícios interativos e práticos.
+            {t.creatorSubtitle}
           </p>
         </div>
 
@@ -155,13 +156,13 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
         {/* 1. Class Topic */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-            1. Tema ou Assunto da Aula
+            {t.topicLabel}
           </label>
           <input
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="Ex: Job Interview, Conversa sobre Viagem, Tecnologia no Trabalho..."
+            placeholder={t.topicPlaceholder}
             className="w-full text-sm font-semibold px-4 py-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden transition-all"
           />
         </div>
@@ -187,7 +188,7 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-              3. Meta Diária de Treino
+              {t.dailyGoal}
             </label>
             <select
               value={dailyMinutes}
@@ -196,7 +197,7 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
             >
               {DAILY_TIME_OPTIONS.map((opt) => (
                 <option key={opt.minutes} value={opt.minutes}>
-                  {opt.label}
+                  {opt.minutes} {t.minutesPerDay}
                 </option>
               ))}
             </select>
@@ -207,7 +208,7 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
-              4. Anotações & Vocabulário ({parsedItems.length} detectados)
+              {t.notesLabel} ({parsedItems.length} detectados)
             </label>
             <button
               type="button"
@@ -223,7 +224,7 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
             rows={6}
             value={rawNotes}
             onChange={(e) => setRawNotes(e.target.value)}
-            placeholder={`Digite ou cole aqui como anotou no caderno.\n\nExemplo:\nschedule - agendar / eskedul - confundi com timetable na aula\nactually - na verdade (não é atualmente)\nlook forward to - aguardar ansiosamente\noverwhelmed - sobrecarregado`}
+            placeholder={t.notesPlaceholder}
             className="w-full text-sm font-mono p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden transition-all"
           />
 
@@ -311,12 +312,12 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
             {isGenerating ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Gerando seu plano de 7 dias com a IA do Simple...</span>
+                <span>{t.generatingPlan}</span>
               </>
             ) : (
               <>
                 <Calendar className="w-4 h-4" />
-                <span>Gerar Plano de 7 Dias ({dailyMinutes} min/dia)</span>
+                <span>{t.generatePlanBtn}</span>
               </>
             )}
           </button>

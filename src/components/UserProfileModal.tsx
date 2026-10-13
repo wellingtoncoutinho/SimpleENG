@@ -17,6 +17,7 @@ import {
 import { UserProfile } from '../types/user';
 import { CEFRLevel } from '../types/lesson';
 import { soundEffects } from '../utils/audio';
+import { translations, Language } from '../utils/i18n';
 
 interface UserProfileModalProps {
   user: UserProfile;
@@ -68,6 +69,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   if (!isOpen) return null;
 
+  const t = translations[appLanguage || 'pt'];
+
   const handleLanguageChange = (newLang: 'pt' | 'en') => {
     soundEffects.playTap();
     setAppLanguage(newLang);
@@ -110,10 +113,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-                Meu Perfil & Preferências
+                {t.myProfile}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Ajuste seu nível e objetivos de estudo
+                {t.profileSubtitle}
               </p>
             </div>
           </div>
@@ -135,9 +138,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <Flame className={`w-4 h-4 ${
                 (user.streakDays || 0) > 0 ? 'fill-orange-500 text-orange-500' : 'text-slate-400'
               }`} />
-              <span>{user.streakDays || 0} {(user.streakDays || 0) === 1 ? 'dia' : 'dias'}</span>
+              <span>{user.streakDays || 0} {(user.streakDays || 0) === 1 ? t.streakDay : t.streakDays}</span>
             </div>
-            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Ofensiva</div>
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">{t.streakBadge}</div>
           </div>
 
           <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60">
@@ -145,7 +148,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <Award className="w-4 h-4" />
               <span>{user.totalXp || 0} XP</span>
             </div>
-            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Pontos</div>
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">{t.points}</div>
           </div>
 
           <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60">
@@ -153,7 +156,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <BookOpen className="w-4 h-4" />
               <span>{user.lessonsCompleted || 0}</span>
             </div>
-            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Lições</div>
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">{t.lessons}</div>
           </div>
         </div>
 
@@ -163,7 +166,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Nome
+                {t.name}
               </label>
               <div className="relative">
                 <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -171,7 +174,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Seu nome"
+                  placeholder={t.namePlaceholder}
                   className="w-full text-xs font-semibold pl-10 pr-3.5 py-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
                 />
               </div>
@@ -179,7 +182,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Telefone / WhatsApp
+                {t.phone}
               </label>
               <div className="relative">
                 <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -197,7 +200,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Email */}
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              E-mail
+              {t.email}
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -214,7 +217,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* English Level Selection */}
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-              Nível Atual de Inglês (CEFR)
+              {t.levelSelectLabel}
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {ALL_LEVELS.map((item) => (
@@ -250,37 +253,37 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Meta Diária</span>
+                <span>{t.dailyGoal}</span>
               </label>
               <select
                 value={dailyMinutesGoal}
                 onChange={(e) => setDailyMinutesGoal(Number(e.target.value))}
                 className="w-full text-xs font-bold p-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
               >
-                <option value={10}>10 min / dia</option>
-                <option value={15}>15 min / dia</option>
-                <option value={20}>20 min / dia (Recomendado)</option>
-                <option value={30}>30 min / dia</option>
+                <option value={10}>10 {t.minutesPerDay}</option>
+                <option value={15}>15 {t.minutesPerDay}</option>
+                <option value={20}>20 {t.minutesPerDay}</option>
+                <option value={30}>30 {t.minutesPerDay}</option>
               </select>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Dia da Aula</span>
+                <span>{t.classDay}</span>
               </label>
               <select
                 value={classDay}
                 onChange={(e) => setClassDay(e.target.value)}
                 className="w-full text-xs font-bold p-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-hidden"
               >
-                <option value="Segunda-feira">Segunda-feira</option>
-                <option value="Terça-feira">Terça-feira</option>
-                <option value="Quarta-feira">Quarta-feira</option>
-                <option value="Quinta-feira">Quinta-feira</option>
-                <option value="Sexta-feira">Sexta-feira</option>
-                <option value="Sábado">Sábado</option>
-                <option value="Domingo">Domingo</option>
+                <option value="Segunda-feira">Segunda-feira (Monday)</option>
+                <option value="Terça-feira">Terça-feira (Tuesday)</option>
+                <option value="Quarta-feira">Quarta-feira (Wednesday)</option>
+                <option value="Quinta-feira">Quinta-feira (Thursday)</option>
+                <option value="Sexta-feira">Sexta-feira (Friday)</option>
+                <option value="Sábado">Sábado (Saturday)</option>
+                <option value="Domingo">Domingo (Sunday)</option>
               </select>
             </div>
           </div>
@@ -289,7 +292,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
               <Globe className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Idioma do Aplicativo</span>
+              <span>{t.appLanguage}</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -326,10 +329,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {savedSuccess ? (
                 <>
                   <Check className="w-4 h-4" />
-                  <span>Perfil Salvo com Sucesso!</span>
+                  <span>{t.savedSuccess}</span>
                 </>
               ) : (
-                <span>Salvar Alterações</span>
+                <span>{t.saveChanges}</span>
               )}
             </button>
 
@@ -343,7 +346,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 className="w-full py-2.5 px-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-emerald-400 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
               >
                 <HelpCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Ver Tutorial do App Novamente</span>
+                <span>{t.viewTourAgain}</span>
               </button>
             )}
 
@@ -358,7 +361,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 className="w-full py-2.5 px-4 rounded-2xl border-2 border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Sair da Conta (Logout)</span>
+                <span>{t.logout}</span>
               </button>
             )}
           </div>
