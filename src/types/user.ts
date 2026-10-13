@@ -20,8 +20,8 @@ export interface UserProfile {
 }
 
 export const DEFAULT_USER: UserProfile = {
-  name: 'Wellington',
-  email: 'well@example.com',
+  name: '',
+  email: '',
   phone: '',
   level: 'B2',
   avatarStyle: 'mascot',
@@ -30,6 +30,6 @@ export const DEFAULT_USER: UserProfile = {
   dailyMinutesGoal: 20,
   classDay: 'Quarta-feira',
   streakDays: 1,
-  isAuthenticated: true,
+  isAuthenticated: false,
   appLanguage: 'pt',
 };

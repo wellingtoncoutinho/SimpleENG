@@ -9,6 +9,8 @@ import {
   Award,
   Globe,
   User as UserIcon,
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
 import { LessonPayload } from './types/lesson';
 import { UserProfile, DEFAULT_USER } from './types/user';
@@ -25,6 +27,13 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { AuthModal } from './components/AuthModal';
 import { soundEffects } from './utils/audio';
 import { Language, translations } from './utils/i18n';
+import {
+  logoutUser,
+  subscribeToAuthChanges,
+  saveUserProfileToCloud,
+  saveWeeklyPlanToCloud,
+  loadWeeklyPlanFromCloud,
+} from './services/authService';
 
 type AppView = 'weekly_planner' | 'weekly_creator' | 'generator' | 'player';
 
@@ -35,6 +44,7 @@ export default function App() {
   const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(false);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [activeBlockContext, setActiveBlockContext] = useState<{
     dayIndex: number;
     blockId: string;
@@ -110,6 +120,47 @@ export default function App() {
     return null;
   });
 
+  // Sync authentication state from Firebase (or localStorage fallback)
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthChanges(async (loggedUser) => {
+      if (loggedUser) {
+        setUser(loggedUser);
+        if (loggedUser.appLanguage) {
+          setLang(loggedUser.appLanguage);
+        }
+        // Load user's saved weekly plan from Firestore cloud
+        if (loggedUser.id) {
+          try {
+            const cloudPlan = await loadWeeklyPlanFromCloud(loggedUser.id);
+            if (cloudPlan) {
+              setWeeklyPlan(cloudPlan);
+              localStorage.setItem('talktune_weekly_plan', JSON.stringify(cloudPlan));
+            }
+          } catch (err) {
+            console.warn('Error fetching plan from cloud:', err);
+          }
+        }
+      } else {
+        // If logged out
+        setUser((prev) => (prev.isAuthenticated ? DEFAULT_USER : prev));
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const openLoginModal = () => {
+    soundEffects.playTap();
+    setAuthModalMode('login');
+    setShowAuthModal(true);
+  };
+
+  const openRegisterModal = () => {
+    soundEffects.playTap();
+    setAuthModalMode('register');
+    setShowAuthModal(true);
+  };
+
   const handleUpdateUser = (updated: UserProfile) => {
     setUser(updated);
     if (updated.appLanguage && updated.appLanguage !== lang) {
@@ -117,6 +168,9 @@ export default function App() {
     }
     try {
       localStorage.setItem('talktune_user', JSON.stringify(updated));
+      if (updated.id && updated.isAuthenticated) {
+        saveUserProfileToCloud(updated.id, updated);
+      }
     } catch {
       // ignore
     }
@@ -132,12 +186,13 @@ export default function App() {
     });
   };
 
-  const handleLogout = () => {
-    const loggedOutUser: UserProfile = {
-      ...user,
-      isAuthenticated: false,
-    };
-    handleUpdateUser(loggedOutUser);
+  const handleLogout = async () => {
+    await logoutUser();
+    setUser(DEFAULT_USER);
+    setWeeklyPlan(null);
+    localStorage.removeItem('talktune_weekly_plan');
+    setShowProfileModal(false);
+    setAuthModalMode('login');
     setShowAuthModal(true);
   };
 
@@ -156,6 +211,9 @@ export default function App() {
         localStorage.setItem('talktune_weekly_plan', JSON.stringify(updatedPlan));
       } else {
         localStorage.removeItem('talktune_weekly_plan');
+      }
+      if (user.id && user.isAuthenticated) {
+        saveWeeklyPlanToCloud(user.id, updatedPlan);
       }
     } catch {
       // ignore
@@ -306,6 +364,17 @@ export default function App() {
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 <span>Treino Rápido</span>
               </button>
+
+              {!user.isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={openLoginModal}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Aba de Login</span>
+                </button>
+              )}
             </nav>
           )}
 
@@ -374,16 +443,27 @@ export default function App() {
                 </span>
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  soundEffects.playTap();
-                  setShowAuthModal(true);
-                }}
-                className="px-3.5 py-1.5 btn-3d-green text-white font-black text-xs rounded-2xl cursor-pointer"
-              >
-                Entrar / Cadastrar
-              </button>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={openLoginModal}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-black transition-colors cursor-pointer flex items-center gap-1.5"
+                  title="Acessar minha conta existente"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Entrar</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={openRegisterModal}
+                  className="px-3 sm:px-3.5 py-1.5 btn-3d-green text-white font-black text-xs rounded-2xl cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  title="Criar nova conta gratuita"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Cadastrar</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -454,6 +534,10 @@ export default function App() {
             lang={lang}
             onStartBlock={handleStartWeeklyBlock}
             onOpenNewPlanCreator={() => setCurrentView('weekly_creator')}
+            onOpenAuth={(mode) => {
+              if (mode === 'login') openLoginModal();
+              else openRegisterModal();
+            }}
           />
         )}
 
@@ -537,6 +621,7 @@ export default function App() {
       {/* Auth Modal (Register / Login) */}
       <AuthModal
         isOpen={showAuthModal}
+        initialMode={authModalMode}
         onClose={() => setShowAuthModal(false)}
         onSuccess={handleAuthSuccess}
       />

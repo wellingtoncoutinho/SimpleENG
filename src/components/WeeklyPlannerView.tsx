@@ -30,6 +30,7 @@ interface WeeklyPlannerViewProps {
   lang?: Language;
   onStartBlock: (block: LessonBlock, dayIndex: number) => void;
   onOpenNewPlanCreator: () => void;
+  onOpenAuth?: (mode: 'login' | 'register') => void;
 }
 
 export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
@@ -38,6 +39,7 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
   lang = 'pt',
   onStartBlock,
   onOpenNewPlanCreator,
+  onOpenAuth,
 }) => {
   const t = translations[lang];
 
@@ -61,26 +63,41 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-3">
-            Olá, {user.name}! Pronto para estudar sua última aula?
+            {user.isAuthenticated && user.name
+              ? `Olá, ${user.name}! Pronto para estudar sua última aula?`
+              : 'Pronto para transformar suas aulas de inglês em fluência?'}
           </h1>
 
           <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed mb-8">
             Você ainda não cadastrou as anotações da sua aula semanal. Cole as palavras, frases e correções do seu professor para criarmos um <strong>roteiro de 7 dias prático e dinâmico</strong>, com 20 minutos de estudo diário!
           </p>
 
-          {/* Primary Action Button */}
-          <div className="flex justify-center mb-10">
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
             <button
               type="button"
               onClick={() => {
                 soundEffects.playTap();
                 onOpenNewPlanCreator();
               }}
-              className="py-4 px-8 rounded-2xl text-white font-black text-base sm:text-lg btn-3d-green shadow-md cursor-pointer flex items-center gap-3"
+              className="w-full sm:w-auto py-3.5 px-6 rounded-2xl text-white font-black text-sm sm:text-base btn-3d-green shadow-md cursor-pointer flex items-center justify-center gap-2.5"
             >
               <Plus className="w-5 h-5 stroke-[3]" />
               <span>Cadastrar Anotações da Minha Aula</span>
             </button>
+
+            {!user.isAuthenticated && onOpenAuth && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playTap();
+                  onOpenAuth('login');
+                }}
+                className="w-full sm:w-auto py-3.5 px-6 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-black text-sm sm:text-base hover:border-emerald-500 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>Acessar Minha Conta</span>
+              </button>
+            )}
           </div>
 
           {/* 3 Step Features */}
