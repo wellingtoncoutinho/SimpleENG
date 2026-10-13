@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Check, X, Lightbulb, ArrowRight, Volume2 } from 'lucide-react';
+import { Check, X, Lightbulb, ArrowRight, Volume2, SkipForward, HelpCircle } from 'lucide-react';
 import { playTextToSpeech, soundEffects } from '../utils/audio';
 import { Language, translations } from '../utils/i18n';
 
-export type FeedbackStatus = 'idle' | 'correct' | 'incorrect';
+export type FeedbackStatus = 'idle' | 'correct' | 'incorrect' | 'skipped';
 
 interface FeedbackBannerProps {
   status: FeedbackStatus;
@@ -15,6 +15,7 @@ interface FeedbackBannerProps {
   hintPt?: string;
   lang?: Language;
   onCheck: () => void;
+  onSkip?: () => void;
   onContinue: () => void;
   canCheck: boolean;
 }
@@ -29,6 +30,7 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
   hintPt,
   lang = 'pt',
   onCheck,
+  onSkip,
   onContinue,
   canCheck,
 }) => {
@@ -81,25 +83,45 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
             ? 'bg-emerald-50 dark:bg-emerald-950/90 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100'
             : status === 'incorrect'
             ? 'bg-rose-50 dark:bg-rose-950/90 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-100'
+            : status === 'skipped'
+            ? 'bg-sky-50 dark:bg-sky-950/90 border-sky-300 dark:border-sky-800 text-sky-950 dark:text-sky-100'
             : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white'
         }`}
       >
-        <div className="max-w-3xl mx-auto px-4 py-4 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* Status Message or Hint Button */}
+        <div className="max-w-3xl mx-auto px-4 py-3 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          {/* Status Message or Hint & Skip Buttons */}
           {status === 'idle' && (
-            <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3">
+            <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 sm:gap-3">
+              {/* Skip / Don't Know Button */}
+              {onSkip && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playTap();
+                    onSkip();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-2 border-slate-200 dark:border-slate-700 rounded-2xl shadow-xs transition-all cursor-pointer"
+                  title="Não sei a resposta / Pular este exercício"
+                >
+                  <SkipForward className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                  <span>Não sei / Pular</span>
+                </button>
+              )}
+
+              {/* Hint Button */}
               <button
                 type="button"
                 onClick={() => {
                   soundEffects.playTap();
                   setShowHint(true);
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 border-2 border-amber-300 rounded-2xl shadow-[0_3px_0_#d97706] active:translate-y-0.5 active:shadow-[0_1px_0_#d97706] transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 border-2 border-amber-300 rounded-2xl shadow-[0_3px_0_#d97706] active:translate-y-0.5 active:shadow-[0_1px_0_#d97706] transition-all cursor-pointer"
               >
-                <Lightbulb className="w-4 h-4 text-amber-700" />
+                <Lightbulb className="w-3.5 h-3.5 text-amber-700" />
                 <span>{t.hintBtn}</span>
               </button>
-              <span className="text-xs text-slate-400 hidden sm:inline font-medium">
+
+              <span className="text-xs text-slate-400 hidden md:inline font-medium ml-1">
                 {t.pressEnterToCheck}
               </span>
             </div>
@@ -111,7 +133,7 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                 <Check className="w-6 h-6 stroke-[3]" />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-emerald-900 font-black text-lg sm:text-xl tracking-tight leading-tight">
+                <h4 className="text-emerald-900 dark:text-emerald-200 font-black text-lg sm:text-xl tracking-tight leading-tight">
                   {t.correctBannerTitle}
                 </h4>
               </div>
@@ -125,27 +147,59 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-rose-900 font-black text-base sm:text-lg tracking-tight">
+                  <h4 className="text-rose-900 dark:text-rose-200 font-black text-base sm:text-lg tracking-tight">
                     {lang === 'pt' ? 'Você errou. Resposta correta:' : 'Incorrect. Correct answer:'}
                   </h4>
                   <button
                     type="button"
                     onClick={handlePlaySolutionAudio}
-                    className="p-1 rounded-md text-rose-700 hover:bg-rose-100 cursor-pointer"
+                    className="p-1 rounded-md text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 cursor-pointer"
                     title={t.nativePronunciationTip}
                   >
                     <Volume2 className={`w-4 h-4 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
                   </button>
                 </div>
                 {/* Clear, highlighted correct phrase */}
-                <p className="text-emerald-900 font-extrabold text-sm sm:text-base leading-snug break-words bg-white/70 border border-emerald-200/80 px-3 py-1.5 rounded-xl my-1.5 shadow-2xs">
+                <p className="text-emerald-900 dark:text-emerald-200 font-extrabold text-sm sm:text-base leading-snug break-words bg-white/80 dark:bg-slate-800/80 border border-emerald-200 dark:border-emerald-800/80 px-3 py-1.5 rounded-xl my-1.5 shadow-2xs">
                   {expectedAnswer}
                 </p>
-                {/* Minimal breakdown showing where the discrepancy occurred */}
+                {/* Minimal breakdown showing user's answer */}
                 {userAnswer && (
-                  <p className="text-rose-800 text-xs font-semibold leading-tight">
+                  <p className="text-rose-800 dark:text-rose-300 text-xs font-semibold leading-tight">
                     <span className="text-rose-500 font-normal">{lang === 'pt' ? 'O que você colocou: ' : 'You answered: '}</span>
-                    <span className="line-through text-rose-700">{userAnswer}</span>
+                    <span className="line-through text-rose-700 dark:text-rose-400">{userAnswer}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {status === 'skipped' && (
+            <div className="w-full sm:flex-1 flex items-start gap-3 animate-in fade-in duration-200">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-sky-500 text-white flex items-center justify-center flex-shrink-0 shadow-md mt-0.5">
+                <HelpCircle className="w-6 h-6 stroke-[2.5]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sky-900 dark:text-sky-200 font-black text-base sm:text-lg tracking-tight">
+                    {lang === 'pt' ? 'Tudo bem! Veja a resposta para aprender:' : "That's okay! Here is the answer to learn:"}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={handlePlaySolutionAudio}
+                    className="p-1 rounded-md text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 cursor-pointer"
+                    title={t.nativePronunciationTip}
+                  >
+                    <Volume2 className={`w-4 h-4 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
+                  </button>
+                </div>
+                {/* Highlighted expected answer */}
+                <p className="text-sky-950 dark:text-sky-100 font-extrabold text-sm sm:text-base leading-snug break-words bg-white/80 dark:bg-slate-800/80 border border-sky-200 dark:border-sky-800/80 px-3 py-1.5 rounded-xl my-1.5 shadow-2xs">
+                  {expectedAnswer}
+                </p>
+                {activeExplanation && (
+                  <p className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-relaxed">
+                    💡 {activeExplanation}
                   </p>
                 )}
               </div>
@@ -162,7 +216,7 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                 className={`w-full sm:w-44 py-3.5 px-6 font-black text-base rounded-2xl tracking-wide uppercase transition-all duration-150 ${
                   canCheck
                     ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-[0_5px_0_#059669] active:shadow-[0_1px_0_#059669] active:translate-y-1 cursor-pointer'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed shadow-none'
                 }`}
               >
                 {t.checkBtn}
@@ -173,6 +227,16 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                 onClick={onContinue}
                 autoFocus
                 className="w-full sm:w-44 py-3.5 px-6 bg-emerald-600 hover:bg-emerald-500 active:shadow-[0_1px_0_#047857] active:translate-y-1 text-white font-black text-base rounded-2xl shadow-[0_5px_0_#047857] transition-all cursor-pointer flex items-center justify-center gap-2 tracking-wide uppercase"
+              >
+                <span>{t.continueBtn}</span>
+                <ArrowRight className="w-5 h-5 stroke-[3]" />
+              </button>
+            ) : status === 'skipped' ? (
+              <button
+                type="button"
+                onClick={onContinue}
+                autoFocus
+                className="w-full sm:w-44 py-3.5 px-6 bg-sky-600 hover:bg-sky-500 active:shadow-[0_1px_0_#0369a1] active:translate-y-1 text-white font-black text-base rounded-2xl shadow-[0_5px_0_#0369a1] transition-all cursor-pointer flex items-center justify-center gap-2 tracking-wide uppercase"
               >
                 <span>{t.continueBtn}</span>
                 <ArrowRight className="w-5 h-5 stroke-[3]" />

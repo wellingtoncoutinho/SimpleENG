@@ -19,91 +19,91 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ className = '', size = 'md
   };
 
   return (
-    <div className={`flex items-center gap-3 select-none cursor-pointer group ${className}`}>
-      {/* Illustrated Mascot Face Emblem */}
+    <div className={`flex items-center gap-2.5 sm:gap-3 select-none cursor-pointer group ${className}`}>
+      {/* Illustrated Sea Lion Mascot Emblem */}
       <div
-        className={`${iconSizes[size]} shrink-0 rounded-2xl bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-700 p-0.5 shadow-sm group-hover:scale-105 group-active:scale-95 transition-transform duration-200`}
+        className={`${iconSizes[size]} shrink-0 rounded-2xl bg-gradient-to-br from-sky-400 via-teal-500 to-emerald-600 p-0.5 shadow-sm group-hover:scale-105 group-active:scale-95 transition-transform duration-200`}
       >
         <div className="w-full h-full rounded-[14px] bg-slate-900 overflow-hidden relative flex items-center justify-center">
           {/* Subtle background glow */}
-          <div className="absolute inset-0 bg-radial from-emerald-500/30 to-transparent" />
+          <div className="absolute inset-0 bg-radial from-sky-500/30 to-transparent" />
 
-          {/* Stylized Vector Mascot Face with Earphones */}
+          {/* Stylized Sea Lion Mascot Face */}
           <svg
             viewBox="0 0 100 100"
             className="w-full h-full relative z-10"
             xmlns="http://www.w3.org/2000/svg"
           >
             <defs>
-              {/* Hair gradient - blonde / light warm brown */}
-              <linearGradient id="logoHair" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#DFAD78" />
-                <stop offset="50%" stopColor="#C68F55" />
-                <stop offset="100%" stopColor="#9B6634" />
-              </linearGradient>
-
-              {/* Skin tone */}
-              <linearGradient id="logoSkin" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#FFE0C8" />
-                <stop offset="100%" stopColor="#F7C5A8" />
+              <linearGradient id="logoSeal" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#38BDF8" />
+                <stop offset="60%" stopColor="#0284C7" />
+                <stop offset="100%" stopColor="#0369A1" />
               </linearGradient>
             </defs>
 
-            {/* Neck & black collar */}
-            <rect x="42" y="74" width="16" height="14" rx="4" fill="url(#logoSkin)" />
-            <path d="M 28 84 Q 50 96 72 84 L 74 100 L 26 100 Z" fill="#1E293B" />
-            <path d="M 40 84 Q 50 90 60 84" stroke="#10B981" strokeWidth="2" fill="none" />
-
-            {/* Ears with white in-ear buds */}
-            <circle cx="27" cy="54" r="7" fill="url(#logoSkin)" stroke="#B48265" strokeWidth="1" />
-            <circle cx="73" cy="54" r="7" fill="url(#logoSkin)" stroke="#B48265" strokeWidth="1" />
-            
-            {/* White earbuds */}
-            <rect x="26" y="52" width="4" height="6" rx="2" fill="#FFFFFF" />
-            <rect x="70" y="52" width="4" height="6" rx="2" fill="#FFFFFF" />
-            {/* White earphone wires */}
-            <path d="M 28 58 Q 36 78 48 84" stroke="#FFFFFF" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-            <path d="M 72 58 Q 64 78 52 84" stroke="#FFFFFF" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-
-            {/* Cute Rounded Face */}
+            {/* Sea Lion Head & Body */}
             <path
-              d="M 30 46 C 28 66 38 78 50 78 C 62 78 72 66 70 46 C 70 28 58 24 50 24 C 42 24 30 28 30 46 Z"
-              fill="url(#logoSkin)"
+              d="M 50 16 C 72 16 84 32 84 56 C 84 76 74 92 50 92 C 26 92 16 76 16 56 C 16 32 28 16 50 16 Z"
+              fill="url(#logoSeal)"
             />
 
-            {/* Eyes - big friendly anime style */}
-            <ellipse cx="41" cy="50" rx="3.5" ry="4.5" fill="#3B2212" />
-            <circle cx="42" cy="48" r="1.3" fill="#FFFFFF" />
-            
-            <ellipse cx="59" cy="50" rx="3.5" ry="4.5" fill="#3B2212" />
-            <circle cx="60" cy="48" r="1.3" fill="#FFFFFF" />
+            {/* Side Ear Flaps */}
+            <path d="M 18 45 C 13 45 12 52 17 55 Z" fill="#0369A1" />
+            <path d="M 82 45 C 87 45 88 52 83 55 Z" fill="#0369A1" />
 
-            {/* Eyebrows */}
-            <path d="M 37 42 Q 42 40 46 43" stroke="#875628" strokeWidth="2" fill="none" strokeLinecap="round" />
-            <path d="M 63 42 Q 58 40 54 43" stroke="#875628" strokeWidth="2" fill="none" strokeLinecap="round" />
+            {/* Cream Snout */}
+            <ellipse cx="50" cy="62" rx="16" ry="11" fill="#FEF08A" />
 
-            {/* Cute nose */}
-            <path d="M 50 52 L 48.5 56 L 51.5 56" stroke="#D79E7C" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+            {/* Whiskers */}
+            <path d="M 38 60 Q 24 58 16 60" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            <path d="M 38 64 Q 24 66 18 70" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            <path d="M 62 60 Q 76 58 84 60" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            <path d="M 62 64 Q 76 66 82 70" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" fill="none" />
 
-            {/* Neat Goatee & Mustache (Bigodinho do Leo) */}
-            <path d="M 44 60 Q 50 58 56 60" stroke="#875628" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-            <ellipse cx="50" cy="69" rx="2.5" ry="1.2" fill="#875628" opacity="0.8" />
-            <path d="M 42 72 Q 50 76 58 72" stroke="#875628" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeDasharray="1.5,1.5" />
-
-            {/* Warm smile */}
-            <path d="M 45 62 Q 50 66 55 62" stroke="#9A3412" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-
-            {/* Rosy cheeks */}
-            <circle cx="34" cy="56" r="3" fill="#F43F5E" opacity="0.3" />
-            <circle cx="66" cy="56" r="3" fill="#F43F5E" opacity="0.3" />
-
-            {/* Styled Hair - Blonde/light brown spikes and textured bangs */}
+            {/* Shiny Nose */}
             <path
-              d="M 28 42 C 26 30 36 18 50 18 C 64 18 74 30 72 42 C 72 38 68 28 62 26 C 56 24 54 30 48 26 C 42 22 36 28 32 34 C 30 36 28 40 28 42 Z"
-              fill="url(#logoHair)"
+              d="M 46 56 C 46 54 54 54 54 56 C 54 59 52 61 50 61 C 48 61 46 59 46 56 Z"
+              fill="#0F172A"
             />
-            {/* Fringe bangs */}
-            <path d="M 32 34 Q 40 38 42 44 Q 48 34 54 42 Q 60 36 66 42 Q 72 32 64 26" fill="url(#logoHair)" />
+            <circle cx="49" cy="56" r="1" fill="#FFFFFF" />
+
+            {/* Cute Smile */}
+            <path
+              d="M 45 64 Q 48 67 50 64 Q 52 67 55 64"
+              stroke="#0F172A"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+
+            {/* Rosy Cheeks */}
+            <circle cx="32" cy="60" r="4.5" fill="#FB7185" opacity="0.45" />
+            <circle cx="68" cy="60" r="4.5" fill="#FB7185" opacity="0.45" />
+
+            {/* Big Expressive Cartoon Eyes */}
+            <ellipse cx="36" cy="44" rx="6.5" ry="8" fill="#0F172A" />
+            <circle cx="34.5" cy="41.5" r="2.8" fill="#FFFFFF" />
+            <circle cx="39" cy="46" r="1.3" fill="#FFFFFF" />
+
+            <ellipse cx="64" cy="44" rx="6.5" ry="8" fill="#0F172A" />
+            <circle cx="62.5" cy="41.5" r="2.8" fill="#FFFFFF" />
+            <circle cx="67" cy="46" r="1.3" fill="#FFFFFF" />
+
+            {/* Cute Eyebrows */}
+            <path d="M 31 33 Q 36 30 41 33" stroke="#0284C7" strokeWidth="2" strokeLinecap="round" fill="none" />
+            <path d="M 59 33 Q 64 30 69 33" stroke="#0284C7" strokeWidth="2" strokeLinecap="round" fill="none" />
+
+            {/* Wireless White & Emerald Headphones */}
+            <path
+              d="M 22 44 C 22 18 78 18 78 44"
+              stroke="#F8FAFC"
+              strokeWidth="3.2"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <rect x="15" y="40" width="7" height="13" rx="3.5" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1" />
+            <rect x="78" y="40" width="7" height="13" rx="3.5" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1" />
           </svg>
         </div>
       </div>
@@ -115,7 +115,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ className = '', size = 'md
             Simple<span className="text-emerald-500">ENG</span>
           </span>
         </div>
-        <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-bold tracking-tight mt-1 whitespace-nowrap">
+        <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-bold tracking-tight mt-0.5 sm:mt-1 whitespace-nowrap">
           Simplificando seu Inglês
         </p>
       </div>

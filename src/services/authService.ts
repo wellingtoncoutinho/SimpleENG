@@ -4,6 +4,8 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from './firebase';
@@ -28,7 +30,7 @@ export function formatAuthError(error: any): string {
   const code = error?.code || '';
   switch (code) {
     case 'auth/email-already-in-use':
-      return 'Este e-mail já está cadastrado. Você pode alternar para a aba "Já Tenho Conta".';
+      return 'Este e-mail já está cadastrado. Alterne para a aba "Entrar" para acessar.';
     case 'auth/invalid-email':
       return 'O formato do e-mail é inválido. Por favor, verifique.';
     case 'auth/user-not-found':
@@ -42,6 +44,14 @@ export function formatAuthError(error: any): string {
       return 'Muitas tentativas consecutivas. Aguarde alguns instantes antes de tentar novamente.';
     case 'auth/network-request-failed':
       return 'Falha na conexão com a internet. Verifique sua rede.';
+    case 'auth/popup-closed-by-user':
+      return 'A janela de login com o Google foi fechada antes de concluir.';
+    case 'auth/popup-blocked':
+      return 'O navegador bloqueou a janela pop-up do Google. Permita pop-ups para continuar.';
+    case 'auth/account-exists-with-different-credential':
+      return 'Já existe uma conta com este mesmo e-mail associada a outro método.';
+    case 'permission-denied':
+      return 'Acesso negado pelas regras do banco de dados Firebase. Atualize as regras no console do Firebase.';
     default:
       return error?.message || 'Ocorreu um erro na autenticação. Tente novamente.';
   }
@@ -80,7 +90,12 @@ export async function registerUser(input: RegisterInput): Promise<UserProfile> {
       createdAt: new Date().toISOString(),
     };
 
-    await setDoc(doc(db, 'users', fbUser.uid), userProfile);
+    try {
+      await setDoc(doc(db, 'users', fbUser.uid), userProfile);
+    } catch (dbErr) {
+      console.warn('Firestore write warning:', dbErr);
+    }
+
     localStorage.setItem('talktune_user', JSON.stringify(userProfile));
     return userProfile;
   } else {
@@ -102,7 +117,6 @@ export async function registerUser(input: RegisterInput): Promise<UserProfile> {
       createdAt: new Date().toISOString(),
     };
 
-    // Store in mock accounts list
     try {
       const existingRaw = localStorage.getItem('talktune_mock_users');
       const usersList = existingRaw ? JSON.parse(existingRaw) : [];
@@ -129,38 +143,45 @@ export async function loginUser(email: string, password: string): Promise<UserPr
 
     // Fetch user profile from Firestore
     const userDocRef = doc(db, 'users', fbUser.uid);
-    const userSnap = await getDoc(userDocRef);
-
-    if (userSnap.exists()) {
-      const data = userSnap.data() as UserProfile;
-      const profile: UserProfile = {
-        ...data,
-        id: fbUser.uid,
-        isAuthenticated: true,
-      };
-      localStorage.setItem('talktune_user', JSON.stringify(profile));
-      return profile;
-    } else {
-      // If doc didn't exist for some reason, create default profile
-      const fallbackProfile: UserProfile = {
-        id: fbUser.uid,
-        name: fbUser.displayName || cleanEmail.split('@')[0],
-        email: cleanEmail,
-        phone: '',
-        level: 'B2',
-        dailyMinutesGoal: 20,
-        classDay: 'Quarta-feira',
-        appLanguage: 'pt',
-        totalXp: 0,
-        lessonsCompleted: 0,
-        streakDays: 1,
-        isAuthenticated: true,
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(userDocRef, fallbackProfile);
-      localStorage.setItem('talktune_user', JSON.stringify(fallbackProfile));
-      return fallbackProfile;
+    try {
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data() as UserProfile;
+        const profile: UserProfile = {
+          ...data,
+          id: fbUser.uid,
+          isAuthenticated: true,
+        };
+        localStorage.setItem('talktune_user', JSON.stringify(profile));
+        return profile;
+      }
+    } catch (e) {
+      console.warn('Error reading Firestore profile:', e);
     }
+
+    // Default profile if Firestore read failed or doc doesn't exist
+    const fallbackProfile: UserProfile = {
+      id: fbUser.uid,
+      name: fbUser.displayName || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      phone: '',
+      level: 'B2',
+      dailyMinutesGoal: 20,
+      classDay: 'Quarta-feira',
+      appLanguage: 'pt',
+      totalXp: 0,
+      lessonsCompleted: 0,
+      streakDays: 1,
+      isAuthenticated: true,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      await setDoc(userDocRef, fallbackProfile, { merge: true });
+    } catch {
+      // ignore
+    }
+    localStorage.setItem('talktune_user', JSON.stringify(fallbackProfile));
+    return fallbackProfile;
   } else {
     // Fallback: Local storage check
     try {
@@ -182,7 +203,6 @@ export async function loginUser(email: string, password: string): Promise<UserPr
       if (e.message.includes('Senha')) throw e;
     }
 
-    // Default mock user if not found in list
     const mockProfile: UserProfile = {
       id: 'user_' + Date.now(),
       name: cleanEmail.split('@')[0],
@@ -200,6 +220,80 @@ export async function loginUser(email: string, password: string): Promise<UserPr
     };
     localStorage.setItem('talktune_user', JSON.stringify(mockProfile));
     return mockProfile;
+  }
+}
+
+/**
+ * Login with Google 1-Click Popup
+ */
+export async function loginWithGoogle(): Promise<UserProfile> {
+  if (isFirebaseConfigured() && auth && db) {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const userCredential = await signInWithPopup(auth, provider);
+    const fbUser = userCredential.user;
+
+    const userDocRef = doc(db, 'users', fbUser.uid);
+    try {
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data() as UserProfile;
+        const profile: UserProfile = {
+          ...data,
+          id: fbUser.uid,
+          isAuthenticated: true,
+        };
+        localStorage.setItem('talktune_user', JSON.stringify(profile));
+        return profile;
+      }
+    } catch (err) {
+      console.warn('Could not read user profile from Firestore:', err);
+    }
+
+    // First time Google user: create new profile
+    const newProfile: UserProfile = {
+      id: fbUser.uid,
+      name: fbUser.displayName || 'Aluno SimpleENG',
+      email: fbUser.email?.toLowerCase() || '',
+      phone: fbUser.phoneNumber || '',
+      level: 'B2',
+      dailyMinutesGoal: 20,
+      classDay: 'Quarta-feira',
+      appLanguage: 'pt',
+      totalXp: 0,
+      lessonsCompleted: 0,
+      streakDays: 1,
+      isAuthenticated: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      await setDoc(userDocRef, newProfile);
+    } catch (err) {
+      console.warn('Could not write Google profile to Firestore:', err);
+    }
+
+    localStorage.setItem('talktune_user', JSON.stringify(newProfile));
+    return newProfile;
+  } else {
+    // Fallback mock Google user
+    const mockGoogle: UserProfile = {
+      id: 'google_' + Date.now(),
+      name: 'Aluno Google',
+      email: 'aluno.google@gmail.com',
+      phone: '',
+      level: 'B2',
+      dailyMinutesGoal: 20,
+      classDay: 'Quarta-feira',
+      appLanguage: 'pt',
+      totalXp: 0,
+      lessonsCompleted: 0,
+      streakDays: 1,
+      isAuthenticated: true,
+      createdAt: new Date().toISOString(),
+    };
+    localStorage.setItem('talktune_user', JSON.stringify(mockGoogle));
+    return mockGoogle;
   }
 }
 
@@ -293,12 +387,24 @@ export async function saveUserProfileToCloud(
 }
 
 /**
- * Save weekly plan to Firestore
+ * Save weekly plan to Firestore and localStorage backup
  */
 export async function saveWeeklyPlanToCloud(
   userId: string,
   plan: WeeklyPlan | null
 ): Promise<void> {
+  // Always update local backup cache immediately
+  try {
+    if (plan) {
+      localStorage.setItem('talktune_weekly_plan', JSON.stringify(plan));
+    } else {
+      localStorage.removeItem('talktune_weekly_plan');
+    }
+  } catch {
+    // ignore
+  }
+
+  // Sync to Firestore cloud
   if (isFirebaseConfigured() && db && userId) {
     try {
       const planRef = doc(db, 'plans', userId);
@@ -314,20 +420,39 @@ export async function saveWeeklyPlanToCloud(
 }
 
 /**
- * Load weekly plan from Firestore
+ * Load weekly plan from Firestore with fallback to localStorage
  */
 export async function loadWeeklyPlanFromCloud(
   userId: string
 ): Promise<WeeklyPlan | null> {
+  // 1. Try Firestore cloud first
   if (isFirebaseConfigured() && db && userId) {
     try {
       const snap = await getDoc(doc(db, 'plans', userId));
       if (snap.exists()) {
-        return snap.data() as WeeklyPlan;
+        const cloudPlan = snap.data() as WeeklyPlan;
+        if (cloudPlan && cloudPlan.days && cloudPlan.days.length > 0) {
+          localStorage.setItem('talktune_weekly_plan', JSON.stringify(cloudPlan));
+          return cloudPlan;
+        }
       }
     } catch (error) {
       console.warn('Error loading weekly plan from cloud:', error);
     }
   }
+
+  // 2. Fallback to localStorage backup
+  try {
+    const saved = localStorage.getItem('talktune_weekly_plan');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.days && parsed.days.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   return null;
 }

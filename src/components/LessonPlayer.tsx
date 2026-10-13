@@ -145,6 +145,13 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     }
   };
 
+  const handleSkip = () => {
+    soundEffects.playTap();
+    setFeedbackStatus('skipped');
+    setMascotMood('supportive');
+    setIncorrectCount(prev => prev + 1);
+  };
+
   const handleContinue = () => {
     soundEffects.playTap();
     setFeedbackStatus('idle');
@@ -274,7 +281,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         )}
       </main>
 
-      {/* Sticky Duolingo Feedback Banner */}
+      {/* Sticky Feedback Banner */}
       <FeedbackBanner
         status={feedbackStatus}
         userAnswer={userAnswer}
@@ -285,6 +292,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         hintPt={currentExercise.hintPt}
         lang={lang}
         onCheck={handleCheckAnswer}
+        onSkip={handleSkip}
         onContinue={handleContinue}
         canCheck={canCheck}
       />

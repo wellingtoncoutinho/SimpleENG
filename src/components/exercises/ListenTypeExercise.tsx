@@ -125,7 +125,6 @@ export const ListenTypeExercise: React.FC<ListenTypeExerciseProps> = ({
   };
 
   const handlePlay = (speed: number = 1.0) => {
-    if (isPlaying) return;
     setIsPlaying(true);
     setCurrentSpeed(speed);
     soundEffects.playTap();

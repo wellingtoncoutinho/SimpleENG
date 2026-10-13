@@ -25,6 +25,7 @@ import { LearnerMascot } from './components/LearnerMascot';
 import { BrandLogo } from './components/BrandLogo';
 import { UserProfileModal } from './components/UserProfileModal';
 import { AuthModal } from './components/AuthModal';
+import { LoginScreen } from './components/LoginScreen';
 import { soundEffects } from './utils/audio';
 import { Language, translations } from './utils/i18n';
 import {
@@ -192,8 +193,6 @@ export default function App() {
     setWeeklyPlan(null);
     localStorage.removeItem('talktune_weekly_plan');
     setShowProfileModal(false);
-    setAuthModalMode('login');
-    setShowAuthModal(true);
   };
 
   const handleAuthSuccess = (authenticatedUser: UserProfile) => {
@@ -304,11 +303,16 @@ export default function App() {
     soundEffects.playCorrect();
   };
 
+  // Mandatory Authentication: User can only access the app after logging in
+  if (!user.isAuthenticated) {
+    return <LoginScreen onSuccess={handleAuthSuccess} />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 overflow-x-hidden max-w-full w-full">
       {/* Top Global Navigation Bar - Modern, Duolingo aesthetic */}
       <header className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b-2 border-slate-200/80 dark:border-slate-800 sticky top-0 z-30 shadow-2xs">
-        <div className="max-w-4xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-3">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-3 w-full">
           {/* Brand Logo */}
           <div onClick={() => setCurrentView('weekly_planner')} className="cursor-pointer">
             <BrandLogo size="sm" />

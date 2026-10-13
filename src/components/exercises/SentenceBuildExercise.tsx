@@ -121,7 +121,6 @@ export const SentenceBuildExercise: React.FC<SentenceBuildExerciseProps> = ({
   };
 
   const handlePlaySentence = (speed: number = 1.0) => {
-    if (isPlayingAudio) return;
     setIsPlayingAudio(true);
     setCurrentSpeed(speed);
     soundEffects.playTap();
