@@ -48,8 +48,10 @@ export function formatAuthError(error: any): string {
       return 'A janela de login com o Google foi fechada antes de concluir.';
     case 'auth/popup-blocked':
       return 'O navegador bloqueou a janela pop-up do Google. Permita pop-ups para continuar.';
-    case 'auth/account-exists-with-different-credential':
-      return 'Já existe uma conta com este mesmo e-mail associada a outro método.';
+    case 'auth/unauthorized-domain':
+      return 'Domínio não autorizado no Firebase. Adicione o domínio do seu site (Vercel) no Firebase Console: Authentication > Configurações > Domínios autorizados.';
+    case 'auth/operation-not-allowed':
+      return 'O provedor Google não está ativado. Ative em Firebase Console > Authentication > Método de login > Google.';
     case 'permission-denied':
       return 'Acesso negado pelas regras do banco de dados Firebase. Atualize as regras no console do Firebase.';
     default:
