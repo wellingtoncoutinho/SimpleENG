@@ -85,7 +85,7 @@ export async function registerUser(input: RegisterInput): Promise<UserProfile> {
       appLanguage: input.appLanguage,
       totalXp: 0,
       lessonsCompleted: 0,
-      streakDays: 1,
+      streakDays: 0,
       isAuthenticated: true,
       createdAt: new Date().toISOString(),
     };
@@ -112,7 +112,7 @@ export async function registerUser(input: RegisterInput): Promise<UserProfile> {
       appLanguage: input.appLanguage,
       totalXp: 0,
       lessonsCompleted: 0,
-      streakDays: 1,
+      streakDays: 0,
       isAuthenticated: true,
       createdAt: new Date().toISOString(),
     };
@@ -171,7 +171,7 @@ export async function loginUser(email: string, password: string): Promise<UserPr
       appLanguage: 'pt',
       totalXp: 0,
       lessonsCompleted: 0,
-      streakDays: 1,
+      streakDays: 0,
       isAuthenticated: true,
       createdAt: new Date().toISOString(),
     };
@@ -214,7 +214,7 @@ export async function loginUser(email: string, password: string): Promise<UserPr
       appLanguage: 'pt',
       totalXp: 0,
       lessonsCompleted: 0,
-      streakDays: 1,
+      streakDays: 0,
       isAuthenticated: true,
       createdAt: new Date().toISOString(),
     };
@@ -262,7 +262,7 @@ export async function loginWithGoogle(): Promise<UserProfile> {
       appLanguage: 'pt',
       totalXp: 0,
       lessonsCompleted: 0,
-      streakDays: 1,
+      streakDays: 0,
       isAuthenticated: true,
       createdAt: new Date().toISOString(),
     };
@@ -288,7 +288,7 @@ export async function loginWithGoogle(): Promise<UserProfile> {
       appLanguage: 'pt',
       totalXp: 0,
       lessonsCompleted: 0,
-      streakDays: 1,
+      streakDays: 0,
       isAuthenticated: true,
       createdAt: new Date().toISOString(),
     };
@@ -344,7 +344,7 @@ export function subscribeToAuthChanges(
           appLanguage: 'pt',
           totalXp: 0,
           lessonsCompleted: 0,
-          streakDays: 1,
+          streakDays: 0,
           isAuthenticated: true,
         });
       } else {

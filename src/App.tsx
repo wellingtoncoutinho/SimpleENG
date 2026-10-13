@@ -3,11 +3,9 @@ import {
   Calendar,
   PlusCircle,
   Zap,
-  Flame,
   Sun,
   Moon,
   Award,
-  Globe,
   User as UserIcon,
   LogIn,
   UserPlus,
@@ -23,6 +21,7 @@ import { LessonGenerator } from './components/LessonGenerator';
 import { LessonPlayer } from './components/LessonPlayer';
 import { LearnerMascot } from './components/LearnerMascot';
 import { BrandLogo } from './components/BrandLogo';
+import { StreakBadge } from './components/StreakBadge';
 import { UserProfileModal } from './components/UserProfileModal';
 import { AuthModal } from './components/AuthModal';
 import { LoginScreen } from './components/LoginScreen';
@@ -284,9 +283,17 @@ export default function App() {
       if (currentDay && currentDay.isCompleted) {
         updatedUser = {
           ...updatedUser,
-          streakDays: (updatedUser.streakDays || 1) + 1,
+          streakDays: Math.max(1, (user.streakDays || 0) + 1),
         };
       }
+    }
+
+    // If user completes their first activity, ignite streak to 1
+    if ((updatedUser.streakDays || 0) === 0) {
+      updatedUser = {
+        ...updatedUser,
+        streakDays: 1,
+      };
     }
 
     handleUpdateUser(updatedUser);
@@ -384,25 +391,15 @@ export default function App() {
 
           {/* Right Header Navigation: Streak, Dark Mode & User Profile */}
           <div className="flex items-center gap-2">
-            {/* Streak Counter Pill */}
-            <div
-              className="flex items-center gap-1 px-2.5 py-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-black"
-              title="Dias seguidos de treino"
-            >
-              <Flame className="w-4 h-4 text-emerald-600 fill-emerald-600" />
-              <span>{user.streakDays || 1}</span>
-            </div>
-
-            {/* Language Switcher Button */}
-            <button
-              type="button"
-              onClick={toggleLanguage}
-              className="px-2.5 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 flex items-center gap-1.5 text-slate-700 dark:text-slate-200 text-xs font-black transition-colors cursor-pointer"
-              title="Alternar idioma (PT/EN)"
-            >
-              <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>{lang === 'pt' ? 'PT' : 'EN'}</span>
-            </button>
+            {/* Interactive Motivational Streak Badge */}
+            <StreakBadge
+              streakDays={user.streakDays || 0}
+              lessonsCompleted={user.lessonsCompleted || 0}
+              onStartLesson={() => {
+                soundEffects.playTap();
+                setCurrentView('generator');
+              }}
+            />
 
             {/* Dark Mode Switcher Button */}
             <button

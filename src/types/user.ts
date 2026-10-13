@@ -29,7 +29,7 @@ export const DEFAULT_USER: UserProfile = {
   lessonsCompleted: 0,
   dailyMinutesGoal: 20,
   classDay: 'Quarta-feira',
-  streakDays: 1,
+  streakDays: 0,
   isAuthenticated: false,
   appLanguage: 'pt',
 };

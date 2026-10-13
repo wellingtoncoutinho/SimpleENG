@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   User,
@@ -50,7 +50,30 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [appLanguage, setAppLanguage] = useState<'pt' | 'en'>(user.appLanguage || 'pt');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
+  // Sync state when user or modal visibility changes
+  useEffect(() => {
+    if (isOpen) {
+      setName(user.name);
+      setEmail(user.email);
+      setPhone(user.phone || '');
+      setLevel(user.level);
+      setDailyMinutesGoal(user.dailyMinutesGoal || 20);
+      setClassDay(user.classDay || 'Quarta-feira');
+      setAppLanguage(user.appLanguage || 'pt');
+    }
+  }, [user, isOpen]);
+
   if (!isOpen) return null;
+
+  const handleLanguageChange = (newLang: 'pt' | 'en') => {
+    soundEffects.playTap();
+    setAppLanguage(newLang);
+    // Immediately apply language across the whole app
+    onUpdateUser({
+      ...user,
+      appLanguage: newLang,
+    });
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,9 +126,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         {/* Stats strip */}
         <div className="grid grid-cols-3 gap-2 p-4 bg-slate-50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 text-center">
           <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60">
-            <div className="flex items-center justify-center gap-1 text-emerald-600 font-black text-sm">
-              <Flame className="w-4 h-4 fill-emerald-600" />
-              <span>{user.streakDays || 1} dias</span>
+            <div className={`flex items-center justify-center gap-1 font-black text-sm ${
+              (user.streakDays || 0) > 0 ? 'text-orange-500' : 'text-slate-400 dark:text-slate-500'
+            }`}>
+              <Flame className={`w-4 h-4 ${
+                (user.streakDays || 0) > 0 ? 'fill-orange-500 text-orange-500' : 'text-slate-400'
+              }`} />
+              <span>{user.streakDays || 0} {(user.streakDays || 0) === 1 ? 'dia' : 'dias'}</span>
             </div>
             <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Ofensiva</div>
           </div>
@@ -264,10 +291,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  soundEffects.playTap();
-                  setAppLanguage('pt');
-                }}
+                onClick={() => handleLanguageChange('pt')}
                 className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer text-center ${
                   appLanguage === 'pt'
                     ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-800 dark:text-emerald-300'
@@ -278,10 +302,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  soundEffects.playTap();
-                  setAppLanguage('en');
-                }}
+                onClick={() => handleLanguageChange('en')}
                 className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer text-center ${
                   appLanguage === 'en'
                     ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-800 dark:text-emerald-300'
