@@ -184,7 +184,7 @@ export const SentenceBuildExercise: React.FC<SentenceBuildExerciseProps> = ({
 
         <button
           type="button"
-          onClick={() => handlePlaySentence(0.7)}
+          onClick={() => handlePlaySentence(0.6)}
           className={`group flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-800 border-2 border-amber-300 shadow-[0_4px_0_#d97706] active:shadow-[0_1px_0_#d97706] active:translate-y-1 transition-all cursor-pointer ${
             isPlayingAudio && currentSpeed < 1.0 ? 'ring-4 ring-amber-300 ring-offset-2 animate-pulse' : ''
           }`}

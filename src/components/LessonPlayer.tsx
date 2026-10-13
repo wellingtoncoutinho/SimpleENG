@@ -192,10 +192,24 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   };
 
   const handleSkip = () => {
+    if (!currentExercise) return;
     soundEffects.playTap();
     setFeedbackStatus('skipped');
     setMascotMood('supportive');
     setIncorrectCount(prev => prev + 1);
+
+    const skipTip = currentExercise.type === 'roleplay_prompt'
+      ? `Diálogo com "${currentExercise.targetWord}": você pulou. Resposta modelo: "${currentExercise.expectedAnswer}" (${currentExercise.expectedAnswerPt || ''}).`
+      : `Atividade com "${currentExercise.targetWord}": você pulou. Resposta esperada: "${currentExercise.expectedAnswer}" (${currentExercise.expectedAnswerPt || ''}).`;
+
+    setSessionErrors(prev => [
+      ...prev,
+      {
+        targetWord: currentExercise.targetWord,
+        mistake: userAnswer || 'Exercício pulado',
+        tip: skipTip,
+      },
+    ]);
   };
 
   const handleContinue = () => {
@@ -251,7 +265,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   const canCheck = userAnswer.trim().length > 0;
 
   return (
-    <div className="min-h-screen flex flex-col justify-between pb-32">
+    <div className="min-h-screen flex flex-col justify-between pb-48 sm:pb-36">
       {/* Header */}
       <LessonHeader
         currentIndex={currentIndex}

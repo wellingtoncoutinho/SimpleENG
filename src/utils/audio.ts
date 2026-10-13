@@ -141,6 +141,78 @@ export function isSentenceAudioPlaying(): boolean {
   return isMainSentenceSpeaking;
 }
 
+const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+let cachedBestVoice: SpeechSynthesisVoice | null = null;
+
+function loadBestEnglishVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  // 1. Premium/Natural en-US voices (iOS Safari & Android Chrome)
+  const premiumUs = voices.find(v => 
+    v.lang.startsWith('en') && (
+      v.name.includes('Samantha') ||
+      v.name.includes('Google US English') ||
+      v.name.includes('Ava') ||
+      v.name.includes('Allison') ||
+      v.name.includes('Natural') ||
+      v.name.includes('Daniel') ||
+      v.name.includes('Alex')
+    )
+  );
+  if (premiumUs) {
+    cachedBestVoice = premiumUs;
+    return premiumUs;
+  }
+
+  // 2. Any en-US voice
+  const anyUs = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US' || v.lang.replace('_', '-') === 'en-US');
+  if (anyUs) {
+    cachedBestVoice = anyUs;
+    return anyUs;
+  }
+
+  // 3. Any English voice
+  const anyEn = voices.find(v => v.lang.startsWith('en'));
+  if (anyEn) {
+    cachedBestVoice = anyEn;
+    return anyEn;
+  }
+
+  return null;
+}
+
+// Preload voices immediately and on event
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  loadBestEnglishVoice();
+  window.speechSynthesis.onvoiceschanged = () => {
+    loadBestEnglishVoice();
+  };
+}
+
+/**
+ * Calibrates speech rate specifically for mobile (iOS Safari/Android Chrome)
+ * vs desktop, preventing rushed audio and ensuring turtle/snail mode is truly slow.
+ */
+export function getCalibratedSpeechRate(requestedSpeed: number): number {
+  const isSlow = requestedSpeed < 0.85;
+
+  if (isSlow) {
+    // Snail / Turtle mode: Must be genuinely slow, deliberate, and clear
+    if (isIOS) return 0.40;
+    if (isMobile) return 0.46;
+    return 0.52;
+  }
+
+  // Normal conversational mode: Clear, pedagogical rhythm (not rushed native)
+  if (isIOS) return 0.72; // iOS WebKit 0.72 sounds like desktop 0.88
+  if (isMobile) return 0.78; // Android Chrome 0.78 is calm and articulate
+  return 0.86; // Desktop 0.86
+}
+
 /**
  * Pronounce an individual word tile.
  * CRITICAL FIX: If the main sentence/snail audio is currently playing,
@@ -168,17 +240,13 @@ export function speakWord(word: string, onEnd?: () => void) {
       }
 
       const utterance = new SpeechSynthesisUtterance(cleaned);
-      utterance.rate = 0.95;
+      utterance.rate = getCalibratedSpeechRate(0.9);
       utterance.pitch = 1.0;
       utterance.lang = 'en-US';
 
-      const voices = window.speechSynthesis.getVoices();
-      const naturalVoice = voices.find(
-        v => (v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Ava') || v.name.includes('Karen') || v.name.includes('Aaron')))
-      ) || voices.find(v => v.lang.startsWith('en'));
-
-      if (naturalVoice) {
-        utterance.voice = naturalVoice;
+      const voice = cachedBestVoice || loadBestEnglishVoice();
+      if (voice) {
+        utterance.voice = voice;
       }
 
       utterance.onend = () => {
@@ -270,17 +338,13 @@ export async function playTextToSpeech(
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(cleaned);
-      utterance.rate = Math.max(0.5, Math.min(1.5, speed));
+      utterance.rate = getCalibratedSpeechRate(speed);
       utterance.pitch = 1.0;
       utterance.lang = 'en-US';
 
-      const voices = window.speechSynthesis.getVoices();
-      const naturalVoice = voices.find(
-        v => (v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Ava')))
-      ) || voices.find(v => v.lang.startsWith('en'));
-
-      if (naturalVoice) {
-        utterance.voice = naturalVoice;
+      const voice = cachedBestVoice || loadBestEnglishVoice();
+      if (voice) {
+        utterance.voice = voice;
       }
 
       utterance.onend = () => {

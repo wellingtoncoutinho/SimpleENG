@@ -297,36 +297,70 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-sky-500 text-white flex items-center justify-center flex-shrink-0 shadow-md mt-0.5">
                 <HelpCircle className="w-6 h-6 stroke-[2.5]" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+              {isRoleplay ? (
+                <div className="flex-1 min-w-0">
                   <h4 className="text-sky-900 dark:text-sky-200 font-black text-base sm:text-lg tracking-tight">
-                    {lang === 'pt' ? 'Tudo bem! Veja a resposta para aprender:' : "That's okay! Here is the answer to learn:"}
+                    {lang === 'pt' ? 'Tudo bem pular! Veja a resposta modelo para aprender:' : "That's okay! Here is a model answer to learn:"}
                   </h4>
-                  <button
-                    type="button"
-                    onClick={handlePlaySolutionAudio}
-                    className="p-1 rounded-md text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 cursor-pointer"
-                    title={t.nativePronunciationTip}
-                  >
-                    <Volume2 className={`w-4 h-4 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
-                  </button>
+                  {expectedAnswer && (
+                    <div className="mt-1.5 p-3 bg-white/80 dark:bg-slate-800/80 border border-sky-200 dark:border-sky-800/80 rounded-2xl shadow-2xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-sky-800 dark:text-sky-300">
+                          🦁 Sugestão do Leo:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handlePlaySolutionAudio}
+                          className="p-1 rounded-md text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 cursor-pointer"
+                          title={t.nativePronunciationTip}
+                        >
+                          <Volume2 className={`w-4 h-4 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
+                        </button>
+                      </div>
+                      <p className="text-sky-950 dark:text-sky-100 font-extrabold text-sm sm:text-base leading-snug">
+                        "{expectedAnswer}"
+                      </p>
+                      {sentenceTranslation && (
+                        <p className="text-sky-900 dark:text-sky-300 text-xs mt-1 font-medium">
+                          🇧🇷 <span className="italic">"{sentenceTranslation}"</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-relaxed mt-2">
+                    💡 {lang === 'pt' ? 'Dica do Leo: Em diálogos livres, você pode responder de forma curta e direta usando a palavra obrigatória.' : 'Tip: Keep your answer short and natural including the required word.'}
+                  </p>
                 </div>
-                {/* Highlighted expected answer */}
-                <p className="text-sky-950 dark:text-sky-100 font-extrabold text-sm sm:text-base leading-snug break-words bg-white/80 dark:bg-slate-800/80 border border-sky-200 dark:border-sky-800/80 px-3 py-1.5 rounded-xl my-1.5 shadow-2xs">
-                  {expectedAnswer}
-                </p>
-                {sentenceTranslation && (
-                  <p className="text-sky-900 dark:text-sky-200 text-xs sm:text-sm font-semibold mb-1">
-                    <span className="opacity-75">🇧🇷 Tradução: </span>
-                    <span className="font-bold italic">"{sentenceTranslation}"</span>
+              ) : (
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sky-900 dark:text-sky-200 font-black text-base sm:text-lg tracking-tight">
+                      {lang === 'pt' ? 'Tudo bem! Veja a resposta para aprender:' : "That's okay! Here is the answer to learn:"}
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handlePlaySolutionAudio}
+                      className="p-1 rounded-md text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 cursor-pointer"
+                      title={t.nativePronunciationTip}
+                    >
+                      <Volume2 className={`w-4 h-4 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
+                    </button>
+                  </div>
+                  {/* Highlighted expected answer */}
+                  <p className="text-sky-950 dark:text-sky-100 font-extrabold text-sm sm:text-base leading-snug break-words bg-white/80 dark:bg-slate-800/80 border border-sky-200 dark:border-sky-800/80 px-3 py-1.5 rounded-xl my-1.5 shadow-2xs">
+                    {expectedAnswer}
                   </p>
-                )}
-                {activeExplanation && (
-                  <p className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-relaxed">
-                    💡 {activeExplanation}
+                  {sentenceTranslation && (
+                    <p className="text-sky-900 dark:text-sky-200 text-xs sm:text-sm font-semibold mb-1">
+                      <span className="opacity-75">🇧🇷 Tradução: </span>
+                      <span className="font-bold italic">"{sentenceTranslation}"</span>
+                    </p>
+                  )}
+                  <p className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-relaxed mt-1">
+                    💡 {lang === 'pt' ? 'Dica: Toque no alto-falante acima para ouvir com calma. Essa frase voltará nos seus treinos para você dominar!' : 'Tip: Tap the speaker above to hear pronunciation. This phrase will reappear in your practice!'}
                   </p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 

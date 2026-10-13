@@ -449,36 +449,83 @@ function createRichSentences(
     }
 
     default: {
-      // General verbs or terms
+      // General verbs or terms with 3 varied templates preventing repetition
+      const sbList = [
+        {
+          eng: `I want to practice using ${word} during our next conversation.`,
+          pt: `Eu quero praticar o uso de "${word}" (${nat}) durante nossa próxima conversa.`,
+        },
+        {
+          eng: `Applying ${word} in daily situations helps you build real confidence.`,
+          pt: `Aplicar "${word}" (${nat}) em situações do dia a dia ajuda a construir confiança real.`,
+        },
+        {
+          eng: `We always try to remember ${word} when speaking with native speakers.`,
+          pt: `Sempre tentamos lembrar de "${word}" (${nat}) ao falar com falantes nativos.`,
+        },
+      ];
+      const ltList = [
+        {
+          eng: `She emphasized that using ${word} correctly makes your English sound natural.`,
+          pt: `Ela enfatizou que usar "${word}" (${nat}) corretamente faz seu inglês soarem natural.`,
+        },
+        {
+          eng: `You will easily recognize ${word} once you listen to it in real dialogues.`,
+          pt: `Você vai reconhecer "${word}" (${nat}) facilmente assim que ouvi-lo em diálogos reais.`,
+        },
+        {
+          eng: `Listen to how the speaker naturally connects ${word} with the next phrase.`,
+          pt: `Ouça como o falante conecta naturalmente "${word}" (${nat}) com a próxima frase.`,
+        },
+      ];
+      const svList = [
+        {
+          eng: `I practice using ${word} in everyday conversation to gain fluency.`,
+          pt: `Eu pratico o uso de "${word}" (${nat}) em conversas do dia a dia para ganhar fluência.`,
+        },
+        {
+          eng: `Speaking ${word} with clarity is a big step towards natural communication.`,
+          pt: `Falar "${word}" (${nat}) com clareza é um grande passo rumo à comunicação natural.`,
+        },
+        {
+          eng: `I feel much more comfortable using ${word} in my routine today.`,
+          pt: `Eu me sinto bem mais confortável usando "${word}" (${nat}) na minha rotina hoje.`,
+        },
+      ];
+
+      const sb = sbList[rot];
+      const lt = ltList[rot];
+      const sv = svList[rot];
+
       return {
         sentenceBuild: {
-          english: `I want to practice using ${word} during our next conversation.`,
-          ptTranslation: `Eu quero praticar o uso de ${meaning || word} durante nossa próxima conversa.`,
-          promptPt: `Monte a frase usando "${word}" ${meaning ? `(${meaning})` : ''}:`,
+          english: sb.eng,
+          ptTranslation: sb.pt,
+          promptPt: `Monte a frase: "${sb.pt}"`,
           hintPt: `Dica: Encaixe "${word}" no objetivo da oração.`,
         },
         listenType: {
-          sentence: `She emphasized that using ${word} correctly makes your English sound natural.`,
-          ptTranslation: `Ela enfatizou que usar ${meaning || word} corretamente faz seu inglês soarem natural.`,
+          sentence: lt.eng,
+          ptTranslation: lt.pt,
           hintPt: `Dica: Ouça com atenção a pronúncia de "${word}".`,
         },
         grammarFix: {
           wrong: `We must always to remember ${word} in our sentences.`,
           correct: `We must always remember to use ${word} in our sentences.`,
           promptPt: `Corrija a estrutura com verbo auxiliar (elimine o "to" desnecessário):`,
-          ptTranslation: `Devemos sempre nos lembrar de usar ${meaning || word} em nossas frases.`,
+          ptTranslation: `Devemos sempre nos lembrar de usar "${word}" (${nat}) em nossas frases.`,
           hintPt: `Dica: Após "must" usamos o verbo na forma base sem "to".`,
         },
         speakVerify: {
-          sentence: `I practice using ${word} in everyday conversation to gain fluency.`,
-          ptTranslation: `Eu pratico o uso de ${meaning || word} em conversas do dia a dia para ganhar fluência.`,
+          sentence: sv.eng,
+          ptTranslation: sv.pt,
           hintPt: `Dica: Fale no seu ritmo normal a frase com "${word}".`,
         },
         roleplayPrompt: {
-          leoPrompt: `How do you plan to apply new vocabulary in your daily routine?`,
+          leoPrompt: `How do you plan to apply "${word}" in your daily routine?`,
           promptPt: `Leo pergunta: "Como você planeja aplicar novo vocabulário?" Responda usando "${word}":`,
           expectedAnswer: `I will use ${word} whenever I write or speak with others.`,
-          ptTranslation: `Eu vou usar ${meaning || word} sempre que escrever ou falar com outras pessoas.`,
+          ptTranslation: `Eu vou usar "${word}" (${nat}) sempre que escrever ou falar com outras pessoas.`,
           hintPt: `Dica: Formule uma resposta simples incluindo "${word}".`,
         },
       };
@@ -535,7 +582,7 @@ export function buildCustomLesson(
         hint: `Start by identifying the subject or first word tile.`,
         hintPt: richBundle.sentenceBuild.hintPt,
         explanation: `Great job! "${word}" is used naturally in full context.`,
-        explanationPt: `Perfeito! "${word}" ${meaning ? `(${meaning})` : ''} encaixado com sucesso no ritmo natural da frase.`,
+        explanationPt: `Excelente! Você fixou "${word}" (${getNaturalMeaning(word, meaning)}) com sucesso na frase.`,
         audioSpeedDefault: 1.0,
         slowSpeedAvailable: true,
       });

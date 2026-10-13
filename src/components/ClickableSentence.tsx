@@ -109,7 +109,7 @@ export const ClickableSentence: React.FC<ClickableSentenceProps> = ({
         <div
           className="absolute z-50 transform -translate-x-1/2 -translate-y-full mb-2 pointer-events-auto animate-in fade-in zoom-in-95 duration-150"
           style={{
-            left: `${activeWordData.x}px`,
+            left: `${Math.max(90, Math.min(activeWordData.x, (containerRef.current?.offsetWidth || 300) - 90))}px`,
             top: `${activeWordData.y - 6}px`,
           }}
         >
