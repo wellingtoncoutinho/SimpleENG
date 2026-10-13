@@ -1,10 +1,10 @@
 import React from 'react';
-import { X, Heart, Flame, Sparkles } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 
 interface LessonHeaderProps {
   currentIndex: number;
   totalExercises: number;
-  hearts: number;
+  hearts?: number;
   maxHearts?: number;
   xp: number;
   onExit: () => void;
@@ -13,8 +13,6 @@ interface LessonHeaderProps {
 export const LessonHeader: React.FC<LessonHeaderProps> = ({
   currentIndex,
   totalExercises,
-  hearts,
-  maxHearts = 5,
   xp,
   onExit,
 }) => {
@@ -46,18 +44,12 @@ export const LessonHeader: React.FC<LessonHeaderProps> = ({
         </div>
       </div>
 
-      {/* Stats (Hearts & XP) */}
+      {/* Stats (XP Badge) */}
       <div className="flex items-center gap-3">
         {/* XP Badge */}
-        <div className="inline-flex items-center gap-1 text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800">
+        <div className="inline-flex items-center gap-1.5 text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800 shadow-2xs">
           <Sparkles className="w-4 h-4 fill-amber-400 text-amber-500" />
           <span>{xp} XP</span>
-        </div>
-
-        {/* Hearts */}
-        <div className="inline-flex items-center gap-1 text-xs font-black text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1.5 rounded-xl border border-rose-200 dark:border-rose-800">
-          <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
-          <span>{hearts}</span>
         </div>
       </div>
     </header>

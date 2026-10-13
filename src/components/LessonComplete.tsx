@@ -14,6 +14,7 @@ interface LessonCompleteProps {
     incorrectCount: number;
     xpEarned: number;
   };
+  sessionErrors?: Array<{ targetWord: string; mistake?: string; tip?: string }>;
   lang?: Language;
   onRestart: () => void;
   onCreateNew: () => void;
@@ -22,6 +23,7 @@ interface LessonCompleteProps {
 export const LessonComplete: React.FC<LessonCompleteProps> = ({
   lesson,
   stats,
+  sessionErrors = [],
   lang = 'pt',
   onRestart,
   onCreateNew,
@@ -65,23 +67,64 @@ export const LessonComplete: React.FC<LessonCompleteProps> = ({
     });
   };
 
-  const takeaways = lang === 'pt' && lesson.reviewSummary.keyTakeawaysPt?.length
-    ? lesson.reviewSummary.keyTakeawaysPt
-    : lesson.reviewSummary.keyTakeaways;
+  const dynamicTakeaways = React.useMemo(() => {
+    const list = (lang === 'pt' && lesson.reviewSummary.keyTakeawaysPt?.length
+      ? lesson.reviewSummary.keyTakeawaysPt
+      : lesson.reviewSummary.keyTakeaways) || [];
 
-  const pitfalls = lang === 'pt' && lesson.reviewSummary.commonPitfallsToAvoidPt?.length
-    ? lesson.reviewSummary.commonPitfallsToAvoidPt
-    : lesson.reviewSummary.commonPitfallsToAvoid;
+    const cleaned = list.filter(t => t.length < 250 && !t.includes('\n'));
+    if (cleaned.length === 0) {
+      return [
+        `Vocabulário fixado: ${lesson.moduleMeta.wordsCovered.join(', ')}`,
+        'Fixação de ritmo, escuta conectada e pronúncia ativa no microfone',
+      ];
+    }
+    return cleaned;
+  }, [lesson, lang]);
+
+  const dynamicPitfalls = React.useMemo(() => {
+    const list: string[] = [];
+
+    // Prioritize actual mistakes made during this specific session
+    if (sessionErrors && sessionErrors.length > 0) {
+      sessionErrors.slice(0, 3).forEach((err) => {
+        if (err.tip && !list.includes(err.tip)) {
+          list.push(err.tip);
+        } else if (err.mistake) {
+          list.push(`Atenção com "${err.targetWord}": você respondeu "${err.mistake}". Lembre-se da estrutura correta.`);
+        }
+      });
+    }
+
+    const basePitfalls = (lang === 'pt' && lesson.reviewSummary.commonPitfallsToAvoidPt?.length
+      ? lesson.reviewSummary.commonPitfallsToAvoidPt
+      : lesson.reviewSummary.commonPitfallsToAvoid) || [];
+
+    for (const p of basePitfalls) {
+      // Skip dumped raw notes
+      if (p.length > 250 || p.includes('\n') || p.split(',').length > 5) continue;
+      if (!list.includes(p)) list.push(p);
+    }
+
+    if (list.length === 0) {
+      list.push(
+        `Atenção às preposições que acompanham os termos: ${lesson.moduleMeta.wordsCovered.slice(0, 3).join(', ')}`,
+        'Evite a tradução literal palavra por palavra do português.'
+      );
+    }
+
+    return list.slice(0, 4);
+  }, [sessionErrors, lesson, lang]);
 
   const handleCopySummary = () => {
-    const text = `SimpleENG - Resumo da Lição: ${lesson.moduleMeta.topic} (${lesson.moduleMeta.targetLevel})
-Vocabulário: ${lesson.moduleMeta.wordsCovered.join(', ')}
+    const text = `SimpleENG - Resumo do Treino: ${lesson.moduleMeta.topic} (${lesson.moduleMeta.targetLevel})
+Vocabulário Praticado: ${lesson.moduleMeta.wordsCovered.join(', ')}
 
-Regras & Dicas Principais:
-${takeaways.map(takeaway => `- ${takeaway}`).join('\n')}
+Pontos-Chave & Regras de Ouro:
+${dynamicTakeaways.map(takeaway => `• ${takeaway}`).join('\n')}
 
-Erros para Evitar:
-${pitfalls.map(p => `- ${p}`).join('\n')}`;
+Dicas de Fixação & Pontos de Atenção:
+${dynamicPitfalls.map(p => `• ${p}`).join('\n')}`;
 
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -157,7 +200,7 @@ ${pitfalls.map(p => `- ${p}`).join('\n')}`;
             <span>{t.keyTakeawaysTitle}</span>
           </div>
           <ul className="space-y-2">
-            {takeaways.map((takeaway, idx) => (
+            {dynamicTakeaways.map((takeaway, idx) => (
               <li key={idx} className="text-xs sm:text-sm text-emerald-950 font-medium leading-relaxed flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
                 <span>{takeaway}</span>
@@ -173,7 +216,7 @@ ${pitfalls.map(p => `- ${p}`).join('\n')}`;
             <span>{t.pitfallsTitle}</span>
           </div>
           <ul className="space-y-2">
-            {pitfalls.map((pitfall, idx) => (
+            {dynamicPitfalls.map((pitfall, idx) => (
               <li key={idx} className="text-xs sm:text-sm text-rose-950 font-medium leading-relaxed flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 flex-shrink-0" />
                 <span>{pitfall}</span>

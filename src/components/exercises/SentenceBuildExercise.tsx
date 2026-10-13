@@ -153,6 +153,16 @@ export const SentenceBuildExercise: React.FC<SentenceBuildExerciseProps> = ({
         <span className="font-extrabold underline decoration-emerald-400">{exercise.targetWord}</span>
       </div>
 
+      <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white text-center mb-1 tracking-tight">
+        {lang === 'pt' ? (exercise.instructionPt || 'Monte a frase em inglês:') : exercise.instruction}
+      </h2>
+
+      {exercise.promptTextPt && (
+        <p className="text-sm sm:text-base font-bold text-emerald-800 dark:text-emerald-300 text-center mb-2 max-w-lg">
+          🇧🇷 {exercise.promptTextPt}
+        </p>
+      )}
+
       {/* Audio Playback Controls: Normal (fast) + Snail (slow) like Duolingo */}
       <div className="flex items-center justify-center gap-4 my-3">
         <button

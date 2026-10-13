@@ -2,6 +2,7 @@ import React from 'react';
 import { Wrench, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Exercise } from '../../types/lesson';
 import { Language, translations } from '../../utils/i18n';
+import { ClickableSentence } from '../ClickableSentence';
 
 interface GrammarFixExerciseProps {
   exercise: Exercise;
@@ -41,17 +42,24 @@ export const GrammarFixExercise: React.FC<GrammarFixExerciseProps> = ({
         <span>Grammar Fix</span>
       </div>
 
-      <h2 className="text-xl sm:text-2xl font-black text-slate-800 text-center mb-6 tracking-tight">
+      <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white text-center mb-6 tracking-tight">
         {activeInstruction}
       </h2>
 
       {/* Flawed Sentence Card */}
-      <div className="w-full bg-rose-50/60 border-2 border-rose-200 rounded-2xl p-5 mb-6 text-center">
-        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">
+      <div className="w-full bg-rose-50/70 dark:bg-rose-950/30 border-2 border-rose-200 dark:border-rose-900 rounded-2xl p-5 mb-5 text-center">
+        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-2">
           <AlertTriangle className="w-4 h-4" /> {t.containsMistake}
         </div>
-        <p className="text-lg sm:text-xl font-bold text-slate-800 leading-relaxed">
-          "{exercise.promptText}"
+        <div className="text-lg sm:text-xl font-bold leading-relaxed my-1">
+          <ClickableSentence
+            sentence={exercise.promptText}
+            highlightWord={exercise.targetWord}
+            wordClassName="text-slate-900 dark:text-white"
+          />
+        </div>
+        <p className="text-2xs text-slate-400 dark:text-slate-500 mt-2 font-medium">
+          💡 Toque em qualquer palavra para ver a tradução (ex: clique em "{exercise.targetWord}")
         </p>
       </div>
 

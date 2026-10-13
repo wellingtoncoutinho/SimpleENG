@@ -14,7 +14,8 @@ export function isSpeechRecognitionSupported(): boolean {
 export function createSpeechRecognizer(
   onTranscript: (text: string, isFinal: boolean) => void,
   onError: (error: string) => void,
-  onEnd: () => void
+  onEnd: () => void,
+  silenceTimeoutMs: number = 3200
 ) {
   if (!isSpeechRecognitionSupported()) {
     onError('Speech recognition is not supported in this browser.');
@@ -24,42 +25,84 @@ export function createSpeechRecognizer(
   const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   const recognizer = new SpeechRecognitionClass();
 
-  recognizer.continuous = false;
+  recognizer.continuous = true;
   recognizer.interimResults = true;
   recognizer.lang = 'en-US';
 
+  let accumulatedTranscript = '';
+  let silenceTimer: any = null;
+
+  const resetSilenceTimer = () => {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+      const fullText = accumulatedTranscript.trim();
+      if (fullText) {
+        onTranscript(fullText, true);
+        try {
+          recognizer.stop();
+        } catch {
+          // Ignore
+        }
+      }
+    }, silenceTimeoutMs);
+  };
+
   recognizer.onresult = (event: any) => {
     let interim = '';
-    let final = '';
 
     for (let i = event.resultIndex; i < event.results.length; ++i) {
+      const piece = event.results[i][0].transcript;
       if (event.results[i].isFinal) {
-        final += event.results[i][0].transcript;
+        accumulatedTranscript += ' ' + piece;
       } else {
-        interim += event.results[i][0].transcript;
+        interim += ' ' + piece;
       }
     }
 
-    if (final) {
-      onTranscript(final.trim(), true);
-    } else if (interim) {
-      onTranscript(interim.trim(), false);
+    const currentFull = (accumulatedTranscript + ' ' + interim).replace(/\s+/g, ' ').trim();
+
+    if (currentFull) {
+      onTranscript(currentFull, false);
+      resetSilenceTimer();
     }
   };
 
   recognizer.onerror = (event: any) => {
     console.warn('Speech recognition error:', event.error);
+    if (silenceTimer) clearTimeout(silenceTimer);
     if (event.error === 'not-allowed') {
-      onError('Microphone permission was denied. You can also type your answer!');
+      onError('Permissão de microfone negada. Você também pode digitar sua resposta!');
     } else if (event.error === 'no-speech') {
-      onError('No speech detected. Please speak clearly into your microphone.');
+      if (!accumulatedTranscript) {
+        onError('Nenhuma voz detectada. Fale perto do microfone com clareza.');
+      }
     } else {
-      onError(`Speech error: ${event.error}`);
+      onError(`Erro de áudio: ${event.error}`);
     }
   };
 
   recognizer.onend = () => {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    const fullText = accumulatedTranscript.trim();
+    if (fullText) {
+      onTranscript(fullText, true);
+    }
     onEnd();
+  };
+
+  // Wrap stop to ensure final text is emitted
+  const originalStop = recognizer.stop.bind(recognizer);
+  recognizer.stop = () => {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    const fullText = accumulatedTranscript.trim();
+    if (fullText) {
+      onTranscript(fullText, true);
+    }
+    try {
+      originalStop();
+    } catch {
+      // Ignore
+    }
   };
 
   return recognizer;

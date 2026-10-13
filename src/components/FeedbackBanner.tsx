@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, Lightbulb, ArrowRight, Volume2, SkipForward, HelpCircle } from 'lucide-react';
+import { Check, X, Lightbulb, ArrowRight, Volume2, SkipForward, HelpCircle, RotateCcw } from 'lucide-react';
 import { playTextToSpeech, soundEffects } from '../utils/audio';
 import { Language, translations } from '../utils/i18n';
 
@@ -9,6 +9,7 @@ interface FeedbackBannerProps {
   status: FeedbackStatus;
   userAnswer: string;
   expectedAnswer: string;
+  sentenceTranslation?: string;
   explanation: string;
   explanationPt?: string;
   hint: string;
@@ -16,6 +17,7 @@ interface FeedbackBannerProps {
   lang?: Language;
   onCheck: () => void;
   onSkip?: () => void;
+  onRetry?: () => void;
   onContinue: () => void;
   canCheck: boolean;
 }
@@ -24,6 +26,7 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
   status,
   userAnswer,
   expectedAnswer,
+  sentenceTranslation,
   explanation,
   explanationPt,
   hint,
@@ -31,6 +34,7 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
   lang = 'pt',
   onCheck,
   onSkip,
+  onRetry,
   onContinue,
   canCheck,
 }) => {
@@ -39,7 +43,9 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
 
   const t = translations[lang];
   const activeExplanation = lang === 'pt' ? (explanationPt || explanation) : explanation;
-  const activeHint = lang === 'pt' ? (hintPt || hint) : hint;
+  const rawHint = lang === 'pt' ? (hintPt || hint) : hint;
+  // Clean up hint if raw notes were passed
+  const activeHint = rawHint && rawHint.length > 250 ? rawHint.split('\n')[0].slice(0, 200) + '...' : rawHint;
 
   const handlePlaySolutionAudio = () => {
     if (isPlayingAudio) return;
@@ -136,6 +142,12 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                 <h4 className="text-emerald-900 dark:text-emerald-200 font-black text-lg sm:text-xl tracking-tight leading-tight">
                   {t.correctBannerTitle}
                 </h4>
+                {sentenceTranslation && (
+                  <p className="text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-semibold mt-1">
+                    <span className="opacity-75">🇧🇷 Tradução: </span>
+                    <span className="font-bold italic">"{sentenceTranslation}"</span>
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -163,6 +175,12 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                 <p className="text-emerald-900 dark:text-emerald-200 font-extrabold text-sm sm:text-base leading-snug break-words bg-white/80 dark:bg-slate-800/80 border border-emerald-200 dark:border-emerald-800/80 px-3 py-1.5 rounded-xl my-1.5 shadow-2xs">
                   {expectedAnswer}
                 </p>
+                {sentenceTranslation && (
+                  <p className="text-rose-900 dark:text-rose-200 text-xs sm:text-sm font-semibold mb-1">
+                    <span className="opacity-75">🇧🇷 Tradução: </span>
+                    <span className="font-bold italic">"{sentenceTranslation}"</span>
+                  </p>
+                )}
                 {/* Minimal breakdown showing user's answer */}
                 {userAnswer && (
                   <p className="text-rose-800 dark:text-rose-300 text-xs font-semibold leading-tight">
@@ -197,6 +215,12 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                 <p className="text-sky-950 dark:text-sky-100 font-extrabold text-sm sm:text-base leading-snug break-words bg-white/80 dark:bg-slate-800/80 border border-sky-200 dark:border-sky-800/80 px-3 py-1.5 rounded-xl my-1.5 shadow-2xs">
                   {expectedAnswer}
                 </p>
+                {sentenceTranslation && (
+                  <p className="text-sky-900 dark:text-sky-200 text-xs sm:text-sm font-semibold mb-1">
+                    <span className="opacity-75">🇧🇷 Tradução: </span>
+                    <span className="font-bold italic">"{sentenceTranslation}"</span>
+                  </p>
+                )}
                 {activeExplanation && (
                   <p className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-relaxed">
                     💡 {activeExplanation}
@@ -242,15 +266,28 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                 <ArrowRight className="w-5 h-5 stroke-[3]" />
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={onContinue}
-                autoFocus
-                className="w-full sm:w-44 py-3.5 px-6 bg-rose-600 hover:bg-rose-500 active:shadow-[0_1px_0_#be123c] active:translate-y-1 text-white font-black text-base rounded-2xl shadow-[0_5px_0_#be123c] transition-all cursor-pointer flex items-center justify-center gap-2 tracking-wide uppercase"
-              >
-                <span>{t.gotItBtn}</span>
-                <ArrowRight className="w-5 h-5 stroke-[3]" />
-              </button>
+              <div className="w-full sm:w-auto flex items-center gap-2 sm:gap-3">
+                {onRetry && (
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    className="flex-1 sm:flex-initial sm:w-36 py-3 px-3 sm:px-4 bg-white hover:bg-rose-50 text-rose-700 dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-rose-300 border-2 border-rose-300 dark:border-rose-700 font-extrabold text-xs sm:text-sm rounded-2xl shadow-[0_4px_0_#fda4af] dark:shadow-[0_4px_0_#881337] active:translate-y-1 transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase"
+                    title="Tentar responder novamente este exercício"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Tentar de novo</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onContinue}
+                  autoFocus
+                  className="flex-1 sm:flex-initial sm:w-36 py-3 px-3 sm:px-4 bg-rose-600 hover:bg-rose-500 active:shadow-[0_1px_0_#be123c] active:translate-y-1 text-white font-black text-xs sm:text-sm rounded-2xl shadow-[0_5px_0_#be123c] transition-all cursor-pointer flex items-center justify-center gap-1.5 tracking-wide uppercase"
+                >
+                  <span>{t.gotItBtn}</span>
+                  <ArrowRight className="w-4 h-4 stroke-[3]" />
+                </button>
+              </div>
             )}
           </div>
         </div>

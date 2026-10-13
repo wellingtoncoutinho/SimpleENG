@@ -11,7 +11,6 @@ import { LessonComplete } from './LessonComplete';
 import { LearnerMascot, MascotMood } from './LearnerMascot';
 import { soundEffects } from '../utils/audio';
 import { containsRequiredWords, verifyAnswer } from '../utils/speechRecognition';
-import { Heart, RefreshCw } from 'lucide-react';
 import { Language, translations } from '../utils/i18n';
 
 interface LessonPlayerProps {
@@ -48,13 +47,14 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userAnswer, setUserAnswer] = useState<string>('');
   const [feedbackStatus, setFeedbackStatus] = useState<FeedbackStatus>('idle');
-  const [hearts, setHearts] = useState<number>(5);
   const [xp, setXp] = useState<number>(0);
   const [correctCount, setCorrectCount] = useState<number>(0);
   const [incorrectCount, setIncorrectCount] = useState<number>(0);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const [mascotMood, setMascotMood] = useState<MascotMood>('idle');
-  const [showHeartRefillModal, setShowHeartRefillModal] = useState<boolean>(false);
+  const [sessionErrors, setSessionErrors] = useState<
+    Array<{ targetWord: string; mistake?: string; tip?: string }>
+  >([]);
 
   const t = translations[lang];
   const currentExercise: Exercise | undefined = sortedExercises[currentIndex];
@@ -135,14 +135,22 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       setFeedbackStatus('incorrect');
       setMascotMood('supportive');
       setIncorrectCount(prev => prev + 1);
-      setHearts(prev => {
-        const next = Math.max(0, prev - 1);
-        if (next === 0) {
-          setShowHeartRefillModal(true);
-        }
-        return next;
-      });
+      setSessionErrors(prev => [
+        ...prev,
+        {
+          targetWord: currentExercise.targetWord,
+          mistake: userAnswer,
+          tip: currentExercise.explanationPt || currentExercise.hintPt,
+        },
+      ]);
     }
+  };
+
+  const handleRetry = () => {
+    soundEffects.playTap();
+    setUserAnswer('');
+    setFeedbackStatus('idle');
+    setMascotMood('idle');
   };
 
   const handleSkip = () => {
@@ -170,19 +178,12 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     setCurrentIndex(0);
     setUserAnswer('');
     setFeedbackStatus('idle');
-    setHearts(5);
     setXp(0);
     setCorrectCount(0);
     setIncorrectCount(0);
     setIsCompleted(false);
     setMascotMood('idle');
-    setShowHeartRefillModal(false);
-  };
-
-  const handleRefillHearts = () => {
-    setHearts(5);
-    setShowHeartRefillModal(false);
-    soundEffects.playCorrect();
+    setSessionErrors([]);
   };
 
   if (isCompleted) {
@@ -195,6 +196,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
           incorrectCount,
           xpEarned: xp,
         }}
+        sessionErrors={sessionErrors}
         lang={lang}
         onRestart={handleRestart}
         onCreateNew={onExit}
@@ -214,7 +216,6 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       <LessonHeader
         currentIndex={currentIndex}
         totalExercises={sortedExercises.length}
-        hearts={hearts}
         xp={xp}
         onExit={onExit}
       />
@@ -286,6 +287,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         status={feedbackStatus}
         userAnswer={userAnswer}
         expectedAnswer={currentExercise.expectedAnswer}
+        sentenceTranslation={currentExercise.expectedAnswerPt || currentExercise.promptTextPt}
         explanation={currentExercise.explanation}
         explanationPt={currentExercise.explanationPt}
         hint={currentExercise.hint}
@@ -293,32 +295,10 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         lang={lang}
         onCheck={handleCheckAnswer}
         onSkip={handleSkip}
+        onRetry={handleRetry}
         onContinue={handleContinue}
         canCheck={canCheck}
       />
-
-      {/* Out of Hearts Modal */}
-      {showHeartRefillModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border-2 border-rose-300 animate-in zoom-in-95">
-            <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center mx-auto mb-4">
-              <Heart className="w-9 h-9 fill-rose-500" />
-            </div>
-            <h3 className="text-xl font-black text-slate-900 mb-1">{t.outOfHeartsTitle}</h3>
-            <p className="text-slate-600 text-sm font-medium mb-6">
-              {t.outOfHeartsDesc}
-            </p>
-            <button
-              type="button"
-              onClick={handleRefillHearts}
-              className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 active:translate-y-1 text-white font-black rounded-2xl shadow-[0_4px_0_#059669] transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-wide"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>{t.refillHeartsBtn}</span>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -30,6 +30,7 @@ export interface Exercise {
   promptTextPt?: string;
   audioSentence: string | null;
   expectedAnswer: string;
+  expectedAnswerPt?: string;
   acceptableVariations: string[];
   wordBank: string[];
   requiredWords: string[];
