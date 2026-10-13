@@ -50,6 +50,30 @@ put off - adiar / post-pone
 take for granted - dar como certo (cuidado com pronomes no meio)
 commitment - compromisso sério`;
 
+/**
+ * Detects common spelling typos (e.g., accidental double consonants like 'stopp', 'runn', 'swimm')
+ * to alert the user with a friendly visual hint before generating the weekly plan.
+ */
+function looksLikePossibleTypo(term: string): boolean {
+  const w = term.trim().toLowerCase();
+  const tokens = w.split(/\s+/);
+  for (const token of tokens) {
+    if (token.length < 3) continue;
+    const suspiciousEndings = /(bb|dd|gg|mm|nn|pp|rr|tt|vv|ww)$/;
+    const validExceptions = new Set([
+      'add', 'odd', 'egg', 'inn', 'app', 'will', 'well', 'all', 'bell', 'call',
+      'fall', 'fill', 'full', 'hall', 'hill', 'kill', 'mall', 'mill', 'null',
+      'pull', 'roll', 'sell', 'tell', 'toll', 'wall', 'yell', 'butt', 'putt',
+      'off', 'cliff', 'sniff', 'cuff', 'stuff', 'stiff', 'puff', 'staff',
+      'err', 'burr', 'purr', 'shirr'
+    ]);
+    if (suspiciousEndings.test(token) && !validExceptions.has(token)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
   user,
   lang = 'pt',
@@ -241,40 +265,64 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
                 </span>
               </div>
 
+              {/* Review Tip / Warning banner */}
+              <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+                  <span className="font-bold">Revise suas palavras antes de gerar o plano:</span>{' '}
+                  Bateu o olho e viu alguma palavra escrita errada (ex: <em>stopp</em>)? Basta ajustar direto no texto acima! Você também pode tocar no ícone 🔊 de cada cartão para ouvir a pronúncia.
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {parsedItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-start justify-between gap-2 shadow-2xs"
-                  >
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-black text-slate-900 dark:text-white text-xs">
-                          {item.english}
-                        </span>
-                        {item.pronunciation && (
-                          <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded">
-                            /{item.pronunciation}/
+                {parsedItems.map((item) => {
+                  const hasSuspiciousTypo = looksLikePossibleTypo(item.english);
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-2.5 bg-white dark:bg-slate-800 border rounded-xl flex items-start justify-between gap-2 shadow-2xs transition-colors ${
+                        hasSuspiciousTypo
+                          ? 'border-amber-300 dark:border-amber-700 bg-amber-50/20'
+                          : 'border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-black text-slate-900 dark:text-white text-xs">
+                            {item.english}
                           </span>
+                          {hasSuspiciousTypo && (
+                            <span
+                              className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 px-1.5 py-0.5 rounded-md inline-flex items-center gap-0.5"
+                              title="Pode conter um erro de digitação. Verifique no texto acima!"
+                            >
+                              ⚠️ Essa palavra tá certa?
+                            </span>
+                          )}
+                          {item.pronunciation && (
+                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded">
+                              /{item.pronunciation}/
+                            </span>
+                          )}
+                        </div>
+                        {item.portuguese && (
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                            {item.portuguese}
+                          </div>
                         )}
                       </div>
-                      {item.portuguese && (
-                        <div className="text-[11px] text-slate-600 dark:text-slate-400">
-                          {item.portuguese}
-                        </div>
-                      )}
-                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => speakWord(item.english)}
-                      className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer"
-                      title="Ouvir pronúncia"
-                    >
-                      <Volume2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                      <button
+                        type="button"
+                        onClick={() => speakWord(item.english)}
+                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer shrink-0"
+                        title="Ouvir pronúncia"
+                      >
+                        <Volume2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

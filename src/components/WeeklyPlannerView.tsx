@@ -448,7 +448,7 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
               Status do Dia
             </span>
             <span className="text-xs font-black text-slate-800 dark:text-slate-200">
-              {selectedDay.blocks.filter((b) => b.isCompleted).length} de 4 blocos feitos
+              {selectedDay.blocks.filter((b) => b.isCompleted).length} de {selectedDay.blocks.length} blocos feitos
             </span>
           </div>
         </div>

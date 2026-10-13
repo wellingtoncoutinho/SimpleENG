@@ -1,4 +1,4 @@
-import { CEFRLevel, Exercise, LessonPayload } from '../types/lesson';
+import { CEFRLevel, Exercise, ExerciseType, LessonPayload } from '../types/lesson';
 import { DayPlan, LessonBlock, ParsedVocabularyItem, WeeklyPlan } from '../types/weeklyPlan';
 
 /**
@@ -341,26 +341,40 @@ export function buildWeeklyPlan(
     },
   ];
 
-  const BLOCK_TEMPLATES = [
+  const BLOCK_THEMES: Array<{
+    titleName: string;
+    subtitle: string;
+    type: ExerciseType;
+  }> = [
     {
-      title: 'Bloco 1: Banco de Palavras (Aquecimento)',
+      titleName: 'Banco de Palavras (Aquecimento)',
       subtitle: 'Toque nos blocos táteis para montar frases sem estresse.',
-      type: 'sentence_build' as const,
+      type: 'sentence_build',
     },
     {
-      title: 'Bloco 2: Treino de Ouvido & Ditado',
+      titleName: 'Treino de Ouvido & Ditado',
       subtitle: 'Ouça o áudio nativo e identifique a expressão.',
-      type: 'listen_type' as const,
+      type: 'listen_type',
     },
     {
-      title: 'Bloco 3: Pronúncia & Fala Ativa',
+      titleName: 'Correção de Pegadinhas',
+      subtitle: 'Ajuste preposições e erros comuns da sua aula.',
+      type: 'grammar_fix',
+    },
+    {
+      titleName: 'Pronúncia & Fala Ativa',
       subtitle: 'Fale no microfone e receba validação instantânea.',
-      type: 'speak_verify' as const,
+      type: 'speak_verify',
     },
     {
-      title: 'Bloco 4: Mini-Cenário & Prática Real',
-      subtitle: 'Responda no cenário e corrija possíveis deslizes.',
-      type: 'roleplay_prompt' as const,
+      titleName: 'Mini-Cenário & Prática Real',
+      subtitle: 'Responda no cenário e troque ideias com o Leo.',
+      type: 'roleplay_prompt',
+    },
+    {
+      titleName: 'Fixação Rápida & Velocidade',
+      subtitle: 'Associação rápida e consolidação do vocabulário do dia.',
+      type: 'sentence_build',
     },
   ];
 
@@ -433,7 +447,8 @@ export function buildWeeklyPlan(
     const blocks: LessonBlock[] = [];
 
     for (let b = 0; b < blocksCount; b++) {
-      const template = BLOCK_TEMPLATES[b % BLOCK_TEMPLATES.length];
+      const theme = BLOCK_THEMES[b % BLOCK_THEMES.length];
+      const blockTitle = `Bloco ${b + 1}: ${theme.titleName}`;
 
       // Distribute the day's vocabulary across this day's blocks
       let blockItems: ParsedVocabularyItem[] = [];
@@ -459,7 +474,7 @@ export function buildWeeklyPlan(
 
       // Create a targeted 5-minute micro-lesson for this block containing all assigned words
       const blockLesson = buildCustomLesson(
-        `${topic} - ${dayName} (${template.title.split(':')[0]})`,
+        `${topic} - ${dayName} (${blockTitle.split(':')[0]})`,
         level,
         blockItems,
         rawNotes
@@ -468,10 +483,10 @@ export function buildWeeklyPlan(
       blocks.push({
         id: `block_d${d}_b${b}_${Date.now()}_${b}`,
         blockNumber: b + 1,
-        title: template.title,
-        subtitle: template.subtitle,
+        title: blockTitle,
+        subtitle: theme.subtitle,
         durationMinutes: 5,
-        type: template.type,
+        type: theme.type,
         targetWords: blockWords,
         isCompleted: false,
         lesson: blockLesson,
