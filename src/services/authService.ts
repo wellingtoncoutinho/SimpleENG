@@ -96,6 +96,7 @@ export async function registerUser(input: RegisterInput): Promise<UserProfile> {
       console.warn('Firestore write warning:', dbErr);
     }
 
+    localStorage.setItem('simpleeng_user', JSON.stringify(userProfile));
     localStorage.setItem('talktune_user', JSON.stringify(userProfile));
     return userProfile;
   } else {
@@ -152,6 +153,7 @@ export async function loginUser(email: string, password: string): Promise<UserPr
           id: fbUser.uid,
           isAuthenticated: true,
         };
+        localStorage.setItem('simpleeng_user', JSON.stringify(profile));
         localStorage.setItem('talktune_user', JSON.stringify(profile));
         return profile;
       }
@@ -180,6 +182,7 @@ export async function loginUser(email: string, password: string): Promise<UserPr
     } catch {
       // ignore
     }
+    localStorage.setItem('simpleeng_user', JSON.stringify(fallbackProfile));
     localStorage.setItem('talktune_user', JSON.stringify(fallbackProfile));
     return fallbackProfile;
   } else {
@@ -195,6 +198,7 @@ export async function loginUser(email: string, password: string): Promise<UserPr
           }
           const { password: _, ...cleanProfile } = match;
           cleanProfile.isAuthenticated = true;
+          localStorage.setItem('simpleeng_user', JSON.stringify(cleanProfile));
           localStorage.setItem('talktune_user', JSON.stringify(cleanProfile));
           return cleanProfile;
         }
@@ -218,6 +222,7 @@ export async function loginUser(email: string, password: string): Promise<UserPr
       isAuthenticated: true,
       createdAt: new Date().toISOString(),
     };
+    localStorage.setItem('simpleeng_user', JSON.stringify(mockProfile));
     localStorage.setItem('talktune_user', JSON.stringify(mockProfile));
     return mockProfile;
   }
@@ -243,6 +248,7 @@ export async function loginWithGoogle(): Promise<UserProfile> {
           id: fbUser.uid,
           isAuthenticated: true,
         };
+        localStorage.setItem('simpleeng_user', JSON.stringify(profile));
         localStorage.setItem('talktune_user', JSON.stringify(profile));
         return profile;
       }
@@ -273,6 +279,7 @@ export async function loginWithGoogle(): Promise<UserProfile> {
       console.warn('Could not write Google profile to Firestore:', err);
     }
 
+    localStorage.setItem('simpleeng_user', JSON.stringify(newProfile));
     localStorage.setItem('talktune_user', JSON.stringify(newProfile));
     return newProfile;
   } else {
@@ -292,6 +299,7 @@ export async function loginWithGoogle(): Promise<UserProfile> {
       isAuthenticated: true,
       createdAt: new Date().toISOString(),
     };
+    localStorage.setItem('simpleeng_user', JSON.stringify(mockGoogle));
     localStorage.setItem('talktune_user', JSON.stringify(mockGoogle));
     return mockGoogle;
   }
@@ -308,6 +316,7 @@ export async function logoutUser(): Promise<void> {
       console.warn('SignOut error:', error);
     }
   }
+  localStorage.removeItem('simpleeng_user');
   localStorage.removeItem('talktune_user');
 }
 
@@ -321,6 +330,17 @@ export function subscribeToAuthChanges(
     const firestoreDb = db;
     return onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
+        // Check local profile cache first for instant fallback data
+        let localCachedProfile: UserProfile | null = null;
+        try {
+          const raw = localStorage.getItem('simpleeng_user') || localStorage.getItem('talktune_user');
+          if (raw) {
+            localCachedProfile = JSON.parse(raw);
+          }
+        } catch {
+          // ignore
+        }
+
         try {
           const userDocRef = doc(firestoreDb, 'users', fbUser.uid);
           const snap = await getDoc(userDocRef);
@@ -332,31 +352,51 @@ export function subscribeToAuthChanges(
               streakDays: sanitizedStreak,
               id: fbUser.uid,
               isAuthenticated: true,
+              hasSeenTour: profile.hasSeenTour || localCachedProfile?.hasSeenTour || false,
             };
             if (profile.streakDays !== sanitizedStreak) {
               saveUserProfileToCloud(fbUser.uid, cleanProfile);
+            }
+            try {
+              localStorage.setItem('simpleeng_user', JSON.stringify(cleanProfile));
+              localStorage.setItem('talktune_user', JSON.stringify(cleanProfile));
+            } catch {
+              // ignore
             }
             callback(cleanProfile);
             return;
           }
         } catch (error) {
-          console.warn('Error fetching user profile:', error);
+          console.warn('Error fetching user profile from Firestore:', error);
         }
 
-        // Fallback profile if Firestore read failed
-        callback({
+        // Resilient fallback profile (preserves local preferences if Firestore read failed)
+        const recoveredProfile: UserProfile = {
           id: fbUser.uid,
-          name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Aluno',
-          email: fbUser.email || '',
-          level: 'B2',
-          dailyMinutesGoal: 20,
-          classDay: 'Quarta-feira',
-          appLanguage: 'pt',
-          totalXp: 0,
-          lessonsCompleted: 0,
-          streakDays: 0,
+          name: localCachedProfile?.name || fbUser.displayName || fbUser.email?.split('@')[0] || 'Aluno',
+          email: fbUser.email || localCachedProfile?.email || '',
+          phone: localCachedProfile?.phone || '',
+          level: localCachedProfile?.level || 'B2',
+          dailyMinutesGoal: localCachedProfile?.dailyMinutesGoal || 20,
+          classDay: localCachedProfile?.classDay || 'Quarta-feira',
+          appLanguage: localCachedProfile?.appLanguage || 'pt',
+          totalXp: localCachedProfile?.totalXp || 0,
+          lessonsCompleted: localCachedProfile?.lessonsCompleted || 0,
+          streakDays: localCachedProfile?.streakDays || 0,
+          hasSeenTour: localCachedProfile?.hasSeenTour || false,
           isAuthenticated: true,
-        });
+        };
+
+        try {
+          localStorage.setItem('simpleeng_user', JSON.stringify(recoveredProfile));
+          localStorage.setItem('talktune_user', JSON.stringify(recoveredProfile));
+        } catch {
+          // ignore
+        }
+
+        // Try pushing recovered profile to Firestore in background
+        saveUserProfileToCloud(fbUser.uid, recoveredProfile);
+        callback(recoveredProfile);
       } else {
         callback(null);
       }
@@ -364,12 +404,13 @@ export function subscribeToAuthChanges(
   } else {
     // Local storage check
     try {
-      const saved = localStorage.getItem('talktune_user');
+      const saved = localStorage.getItem('simpleeng_user') || localStorage.getItem('talktune_user');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.isAuthenticated) {
           if ((parsed.lessonsCompleted || 0) === 0) {
             parsed.streakDays = 0;
+            localStorage.setItem('simpleeng_user', JSON.stringify(parsed));
             localStorage.setItem('talktune_user', JSON.stringify(parsed));
           }
           callback(parsed);
@@ -391,6 +432,17 @@ export async function saveUserProfileToCloud(
   userId: string,
   profile: Partial<UserProfile>
 ): Promise<void> {
+  // Always update local cache immediately
+  try {
+    const raw = localStorage.getItem('simpleeng_user') || localStorage.getItem('talktune_user');
+    const existing = raw ? JSON.parse(raw) : {};
+    const merged = { ...existing, ...profile, id: userId, isAuthenticated: true };
+    localStorage.setItem('simpleeng_user', JSON.stringify(merged));
+    localStorage.setItem('talktune_user', JSON.stringify(merged));
+  } catch {
+    // ignore
+  }
+
   if (isFirebaseConfigured() && db && userId) {
     try {
       await setDoc(doc(db, 'users', userId), profile, { merge: true });
@@ -407,11 +459,16 @@ export async function saveWeeklyPlanToCloud(
   userId: string,
   plan: WeeklyPlan | null
 ): Promise<void> {
-  // Always update local backup cache immediately
+  // Always update local backup caches immediately
   try {
     if (plan) {
-      localStorage.setItem('talktune_weekly_plan', JSON.stringify(plan));
+      const serialized = JSON.stringify(plan);
+      localStorage.setItem('simpleeng_weekly_plan', serialized);
+      localStorage.setItem('simpleeng_weekly_plan_' + userId, serialized);
+      localStorage.setItem('talktune_weekly_plan', serialized);
     } else {
+      localStorage.removeItem('simpleeng_weekly_plan');
+      localStorage.removeItem('simpleeng_weekly_plan_' + userId);
       localStorage.removeItem('talktune_weekly_plan');
     }
   } catch {
@@ -446,7 +503,10 @@ export async function loadWeeklyPlanFromCloud(
       if (snap.exists()) {
         const cloudPlan = snap.data() as WeeklyPlan;
         if (cloudPlan && cloudPlan.days && cloudPlan.days.length > 0) {
-          localStorage.setItem('talktune_weekly_plan', JSON.stringify(cloudPlan));
+          const serialized = JSON.stringify(cloudPlan);
+          localStorage.setItem('simpleeng_weekly_plan', serialized);
+          localStorage.setItem('simpleeng_weekly_plan_' + userId, serialized);
+          localStorage.setItem('talktune_weekly_plan', serialized);
           return cloudPlan;
         }
       }
@@ -455,12 +515,22 @@ export async function loadWeeklyPlanFromCloud(
     }
   }
 
-  // 2. Fallback to localStorage backup
+  // 2. Fallback to localStorage backups (supports user-specific and generic keys)
   try {
-    const saved = localStorage.getItem('talktune_weekly_plan');
+    const saved =
+      localStorage.getItem('simpleeng_weekly_plan_' + userId) ||
+      localStorage.getItem('simpleeng_weekly_plan') ||
+      localStorage.getItem('talktune_weekly_plan');
+
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && parsed.days && parsed.days.length > 0) {
+        // Resave to user-specific key
+        localStorage.setItem('simpleeng_weekly_plan_' + userId, saved);
+        // Background sync back to cloud so future cloud queries succeed
+        if (isFirebaseConfigured() && db && userId) {
+          setDoc(doc(db, 'plans', userId), parsed).catch(() => {});
+        }
         return parsed;
       }
     }

@@ -106,7 +106,7 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
 
           {/* Popover Card */}
           <div
-            className="absolute right-0 top-full mt-2 w-80 sm:w-88 max-w-[calc(100vw-24px)] z-50 bg-white dark:bg-slate-900 rounded-3xl p-5 text-center shadow-2xl border-2 border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 origin-top-right overflow-hidden max-h-[calc(100vh-5rem)] overflow-y-auto"
+            className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-18 sm:top-full sm:mt-2 w-auto sm:w-88 max-w-sm sm:max-w-[calc(100vw-24px)] mx-auto z-50 bg-white dark:bg-slate-900 rounded-3xl p-5 text-center shadow-2xl border-2 border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 sm:origin-top-right overflow-hidden max-h-[calc(100vh-6rem)] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Background Glow */}

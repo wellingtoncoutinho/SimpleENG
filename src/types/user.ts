@@ -16,6 +16,7 @@ export interface UserProfile {
   lastActiveDate?: string;
   isAuthenticated: boolean;
   appLanguage: 'pt' | 'en';
+  hasSeenTour?: boolean;
   createdAt?: string;
 }
 
@@ -32,4 +33,5 @@ export const DEFAULT_USER: UserProfile = {
   streakDays: 0,
   isAuthenticated: false,
   appLanguage: 'pt',
+  hasSeenTour: false,
 };

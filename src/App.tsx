@@ -56,13 +56,7 @@ export default function App() {
   const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(false);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
-  const [showTour, setShowTour] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('simpleeng_tour_seen') !== 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [showTour, setShowTour] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [activeBlockContext, setActiveBlockContext] = useState<{
     dayIndex: number;
@@ -99,10 +93,10 @@ export default function App() {
     setIsDark((prev) => !prev);
   };
 
-  // User Profile State (persisted in localStorage)
+  // User Profile State (persisted in localStorage with cloud sync)
   const [user, setUser] = useState<UserProfile>(() => {
     try {
-      const saved = localStorage.getItem('talktune_user');
+      const saved = localStorage.getItem('simpleeng_user') || localStorage.getItem('talktune_user');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.email) {
@@ -121,7 +115,9 @@ export default function App() {
   // Weekly Plan State (Clean default: starts null if user never created one!)
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(() => {
     try {
-      const saved = localStorage.getItem('talktune_weekly_plan');
+      const saved =
+        localStorage.getItem('simpleeng_weekly_plan') ||
+        localStorage.getItem('talktune_weekly_plan');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.days && parsed.days.length > 0 && parsed.days[0].shortDayName) {
@@ -152,13 +148,21 @@ export default function App() {
         if (loggedUser.appLanguage) {
           setLang(loggedUser.appLanguage);
         }
-        // Load user's saved weekly plan from Firestore cloud
+        // Load user's saved weekly plan from Firestore cloud (or local backup)
         if (loggedUser.id) {
           try {
             const cloudPlan = await loadWeeklyPlanFromCloud(loggedUser.id);
             if (cloudPlan) {
               setWeeklyPlan(cloudPlan);
-              localStorage.setItem('talktune_weekly_plan', JSON.stringify(cloudPlan));
+            } else {
+              // If cloudPlan is null, check if current state has a valid plan and sync it up to the cloud!
+              setWeeklyPlan((currentPlan) => {
+                if (currentPlan && currentPlan.days && currentPlan.days.length > 0) {
+                  saveWeeklyPlanToCloud(loggedUser.id!, currentPlan);
+                  return currentPlan;
+                }
+                return null;
+              });
             }
           } catch (err) {
             console.warn('Error fetching plan from cloud:', err);
@@ -195,6 +199,7 @@ export default function App() {
       setLang(sanitized.appLanguage);
     }
     try {
+      localStorage.setItem('simpleeng_user', JSON.stringify(sanitized));
       localStorage.setItem('talktune_user', JSON.stringify(sanitized));
       if (sanitized.id && sanitized.isAuthenticated) {
         saveUserProfileToCloud(sanitized.id, sanitized);
@@ -218,7 +223,14 @@ export default function App() {
     await logoutUser();
     setUser(DEFAULT_USER);
     setWeeklyPlan(null);
-    localStorage.removeItem('talktune_weekly_plan');
+    try {
+      localStorage.removeItem('simpleeng_user');
+      localStorage.removeItem('talktune_user');
+      localStorage.removeItem('simpleeng_weekly_plan');
+      localStorage.removeItem('talktune_weekly_plan');
+    } catch {
+      // ignore
+    }
     setShowProfileModal(false);
   };
 
@@ -228,8 +240,13 @@ export default function App() {
       setLang(authenticatedUser.appLanguage);
     }
     setShowAuthModal(false);
+
+    // Only show tour once right after user registers/logs in if they haven't seen it yet
     try {
-      if (localStorage.getItem('simpleeng_tour_seen') !== 'true') {
+      const tourSeenLocal =
+        localStorage.getItem('simpleeng_tour_seen') === 'true' ||
+        (authenticatedUser.id && localStorage.getItem('simpleeng_tour_seen_' + authenticatedUser.id) === 'true');
+      if (!authenticatedUser.hasSeenTour && !tourSeenLocal) {
         setShowTour(true);
       }
     } catch {
@@ -241,9 +258,18 @@ export default function App() {
     setWeeklyPlan(updatedPlan);
     try {
       if (updatedPlan) {
-        localStorage.setItem('talktune_weekly_plan', JSON.stringify(updatedPlan));
+        const serialized = JSON.stringify(updatedPlan);
+        localStorage.setItem('simpleeng_weekly_plan', serialized);
+        localStorage.setItem('talktune_weekly_plan', serialized);
+        if (user.id) {
+          localStorage.setItem('simpleeng_weekly_plan_' + user.id, serialized);
+        }
       } else {
+        localStorage.removeItem('simpleeng_weekly_plan');
         localStorage.removeItem('talktune_weekly_plan');
+        if (user.id) {
+          localStorage.removeItem('simpleeng_weekly_plan_' + user.id);
+        }
       }
       if (user.id && user.isAuthenticated) {
         saveWeeklyPlanToCloud(user.id, updatedPlan);
@@ -666,10 +692,22 @@ export default function App() {
         onSuccess={handleAuthSuccess}
       />
 
-      {/* Interactive Onboarding Tour (Shows on first access & re-openable from profile) */}
+      {/* Interactive Onboarding Tour (Shows once on registration & re-openable from profile) */}
       <OnboardingTour
         isOpen={showTour}
-        onClose={() => setShowTour(false)}
+        onClose={() => {
+          setShowTour(false);
+          try {
+            localStorage.setItem('simpleeng_tour_seen', 'true');
+            if (user.id) {
+              localStorage.setItem('simpleeng_tour_seen_' + user.id, 'true');
+              saveUserProfileToCloud(user.id, { hasSeenTour: true });
+            }
+          } catch {
+            // ignore
+          }
+          setUser((prev) => ({ ...prev, hasSeenTour: true }));
+        }}
       />
     </div>
   );
