@@ -54,7 +54,7 @@ export const ClickableSentence: React.FC<ClickableSentenceProps> = ({
 
     const translation =
       getWordTranslation(cleaned, targetVocabMap) ||
-      `Expressão em inglês: "${cleaned}"`;
+      'Palavra em contexto (ouça a pronúncia no 🔊)';
 
     setActiveWordData({
       word: cleaned,

@@ -3,6 +3,9 @@ import { Check, X, Lightbulb, ArrowRight, Volume2, SkipForward, HelpCircle, Rota
 import { playTextToSpeech, soundEffects } from '../utils/audio';
 import { Language, translations } from '../utils/i18n';
 
+import { ExerciseType } from '../types/lesson';
+import { RoleplayEvaluation } from '../utils/roleplayEvaluator';
+
 export type FeedbackStatus = 'idle' | 'correct' | 'incorrect' | 'skipped';
 
 interface FeedbackBannerProps {
@@ -15,6 +18,8 @@ interface FeedbackBannerProps {
   hint: string;
   hintPt?: string;
   lang?: Language;
+  exerciseType?: ExerciseType;
+  roleplayEvaluation?: RoleplayEvaluation | null;
   onCheck: () => void;
   onSkip?: () => void;
   onRetry?: () => void;
@@ -32,6 +37,8 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
   hint,
   hintPt,
   lang = 'pt',
+  exerciseType,
+  roleplayEvaluation,
   onCheck,
   onSkip,
   onRetry,
@@ -41,6 +48,7 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
   const [showHint, setShowHint] = useState<boolean>(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
 
+  const isRoleplay = exerciseType === 'roleplay_prompt';
   const t = translations[lang];
   const activeExplanation = lang === 'pt' ? (explanationPt || explanation) : explanation;
   const rawHint = lang === 'pt' ? (hintPt || hint) : hint;
@@ -134,21 +142,62 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
           )}
 
           {status === 'correct' && (
-            <div className="w-full sm:flex-1 flex items-center gap-3 animate-in fade-in duration-200">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+            <div className="w-full sm:flex-1 flex items-start gap-3 animate-in fade-in duration-200">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0 shadow-md mt-0.5">
                 <Check className="w-6 h-6 stroke-[3]" />
               </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-emerald-900 dark:text-emerald-200 font-black text-lg sm:text-xl tracking-tight leading-tight">
-                  {t.correctBannerTitle}
-                </h4>
-                {sentenceTranslation && (
-                  <p className="text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-semibold mt-1">
-                    <span className="opacity-75">🇧🇷 Tradução: </span>
-                    <span className="font-bold italic">"{sentenceTranslation}"</span>
-                  </p>
-                )}
-              </div>
+              {isRoleplay ? (
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-emerald-900 dark:text-emerald-200 font-black text-base sm:text-lg tracking-tight leading-tight">
+                    {roleplayEvaluation?.summaryFeedback || t.correctBannerTitle}
+                  </h4>
+                  {/* User's sentence & Portuguese gloss */}
+                  <div className="mt-1.5 bg-white/80 dark:bg-slate-800/80 border border-emerald-200 dark:border-emerald-800/80 px-3 py-1.5 rounded-xl shadow-2xs text-xs sm:text-sm">
+                    <p className="text-emerald-950 dark:text-emerald-100 font-bold">
+                      💬 Sua resposta: <span className="font-extrabold italic">"{userAnswer}"</span>
+                    </p>
+                    {roleplayEvaluation?.userSentencePt && (
+                      <p className="text-emerald-800 dark:text-emerald-300 text-xs mt-0.5 font-medium">
+                        🇧🇷 Tradução aproximada: <span className="italic">"{roleplayEvaluation.userSentencePt}"</span>
+                      </p>
+                    )}
+                  </div>
+                  {/* Minor corrections if applicable */}
+                  {roleplayEvaluation && roleplayEvaluation.corrections.length > 0 && (
+                    <div className="mt-2 space-y-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-2 rounded-xl text-xs">
+                      {roleplayEvaluation.corrections.map((c, i) => (
+                        <p key={i} className="text-amber-900 dark:text-amber-200 font-medium">
+                          💡 <span className="font-bold underline">{c.mistake}</span> ➔ <span className="font-bold text-emerald-700 dark:text-emerald-300">{c.fix}</span>: {c.tip}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {/* Leo's sample answer clearly marked as alternative */}
+                  {expectedAnswer && (
+                    <div className="mt-2 text-xs text-emerald-900 dark:text-emerald-200 font-medium">
+                      <span className="font-bold">🦁 Resposta modelo do Leo: </span>
+                      <span className="italic">"{expectedAnswer}"</span>
+                      {sentenceTranslation && (
+                        <span className="opacity-80 block text-2xs sm:text-xs">
+                          (Tradução do modelo: "{sentenceTranslation}")
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-emerald-900 dark:text-emerald-200 font-black text-lg sm:text-xl tracking-tight leading-tight">
+                    {t.correctBannerTitle}
+                  </h4>
+                  {sentenceTranslation && (
+                    <p className="text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-semibold mt-1">
+                      <span className="opacity-75">🇧🇷 Tradução: </span>
+                      <span className="font-bold italic">"{sentenceTranslation}"</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -157,38 +206,89 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-rose-500 text-white flex items-center justify-center flex-shrink-0 shadow-md mt-0.5">
                 <X className="w-6 h-6 stroke-[3]" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+              {isRoleplay ? (
+                <div className="flex-1 min-w-0">
                   <h4 className="text-rose-900 dark:text-rose-200 font-black text-base sm:text-lg tracking-tight">
-                    {lang === 'pt' ? 'Você errou. Resposta correta:' : 'Incorrect. Correct answer:'}
+                    {roleplayEvaluation?.summaryFeedback || (lang === 'pt' ? 'Atenção aos ajustes da sua frase:' : 'Check the adjustments:')}
                   </h4>
-                  <button
-                    type="button"
-                    onClick={handlePlaySolutionAudio}
-                    className="p-1 rounded-md text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 cursor-pointer"
-                    title={t.nativePronunciationTip}
-                  >
-                    <Volume2 className={`w-4 h-4 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
-                  </button>
+                  {/* Student's answer */}
+                  <div className="mt-1.5 bg-white/80 dark:bg-slate-800/80 border border-rose-200 dark:border-rose-800/80 px-3 py-1.5 rounded-xl shadow-2xs text-xs sm:text-sm">
+                    <p className="text-rose-950 dark:text-rose-100 font-bold">
+                      💬 O que você respondeu: <span className="font-extrabold italic">"{userAnswer}"</span>
+                    </p>
+                  </div>
+                  {/* Detailed Grammar Corrections */}
+                  {roleplayEvaluation && roleplayEvaluation.corrections.length > 0 && (
+                    <div className="mt-2 space-y-1.5 bg-rose-100/70 dark:bg-rose-900/40 border border-rose-200 dark:border-rose-800 p-2.5 rounded-xl">
+                      <p className="text-xs font-bold text-rose-900 dark:text-rose-200">
+                        Ajustes sugeridos pelo Leo:
+                      </p>
+                      {roleplayEvaluation.corrections.map((c, i) => (
+                        <p key={i} className="text-rose-900 dark:text-rose-200 text-xs font-semibold leading-snug">
+                          • <span className="font-bold line-through">{c.mistake}</span> ➔ <span className="font-bold text-emerald-700 dark:text-emerald-300">{c.fix}</span>: {c.tip}
+                        </p>
+                      ))}
+                      {roleplayEvaluation.naturalSuggestion && (
+                        <div className="mt-1.5 pt-1.5 border-t border-rose-200 dark:border-rose-800">
+                          <p className="text-xs text-slate-800 dark:text-slate-200 font-bold">
+                            ✨ Como soaria natural: <span className="text-emerald-700 dark:text-emerald-300 font-extrabold">"{roleplayEvaluation.naturalSuggestion}"</span>
+                          </p>
+                          {roleplayEvaluation.naturalSuggestionPt && (
+                            <p className="text-2xs text-slate-600 dark:text-slate-400 italic font-medium">
+                              🇧🇷 ({roleplayEvaluation.naturalSuggestionPt})
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Leo's sample answer clearly marked as alternative */}
+                  {expectedAnswer && (
+                    <div className="mt-2 text-xs text-rose-900 dark:text-rose-200 font-medium">
+                      <span className="font-bold">🦁 Resposta modelo do Leo: </span>
+                      <span className="italic">"{expectedAnswer}"</span>
+                      {sentenceTranslation && (
+                        <span className="opacity-80 block text-2xs sm:text-xs">
+                          (Tradução do modelo: "{sentenceTranslation}")
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {/* Clear, highlighted correct phrase */}
-                <p className="text-emerald-900 dark:text-emerald-200 font-extrabold text-sm sm:text-base leading-snug break-words bg-white/80 dark:bg-slate-800/80 border border-emerald-200 dark:border-emerald-800/80 px-3 py-1.5 rounded-xl my-1.5 shadow-2xs">
-                  {expectedAnswer}
-                </p>
-                {sentenceTranslation && (
-                  <p className="text-rose-900 dark:text-rose-200 text-xs sm:text-sm font-semibold mb-1">
-                    <span className="opacity-75">🇧🇷 Tradução: </span>
-                    <span className="font-bold italic">"{sentenceTranslation}"</span>
+              ) : (
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-rose-900 dark:text-rose-200 font-black text-base sm:text-lg tracking-tight">
+                      {lang === 'pt' ? 'Você errou. Resposta correta:' : 'Incorrect. Correct answer:'}
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handlePlaySolutionAudio}
+                      className="p-1 rounded-md text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 cursor-pointer"
+                      title={t.nativePronunciationTip}
+                    >
+                      <Volume2 className={`w-4 h-4 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
+                    </button>
+                  </div>
+                  {/* Clear, highlighted correct phrase */}
+                  <p className="text-emerald-900 dark:text-emerald-200 font-extrabold text-sm sm:text-base leading-snug break-words bg-white/80 dark:bg-slate-800/80 border border-emerald-200 dark:border-emerald-800/80 px-3 py-1.5 rounded-xl my-1.5 shadow-2xs">
+                    {expectedAnswer}
                   </p>
-                )}
-                {/* Minimal breakdown showing user's answer */}
-                {userAnswer && (
-                  <p className="text-rose-800 dark:text-rose-300 text-xs font-semibold leading-tight">
-                    <span className="text-rose-500 font-normal">{lang === 'pt' ? 'O que você colocou: ' : 'You answered: '}</span>
-                    <span className="line-through text-rose-700 dark:text-rose-400">{userAnswer}</span>
-                  </p>
-                )}
-              </div>
+                  {sentenceTranslation && (
+                    <p className="text-rose-900 dark:text-rose-200 text-xs sm:text-sm font-semibold mb-1">
+                      <span className="opacity-75">🇧🇷 Tradução: </span>
+                      <span className="font-bold italic">"{sentenceTranslation}"</span>
+                    </p>
+                  )}
+                  {/* Minimal breakdown showing user's answer */}
+                  {userAnswer && (
+                    <p className="text-rose-800 dark:text-rose-300 text-xs font-semibold leading-tight">
+                      <span className="text-rose-500 font-normal">{lang === 'pt' ? 'O que você colocou: ' : 'You answered: '}</span>
+                      <span className="line-through text-rose-700 dark:text-rose-400">{userAnswer}</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

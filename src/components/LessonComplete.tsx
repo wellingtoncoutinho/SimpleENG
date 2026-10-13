@@ -82,16 +82,24 @@ export const LessonComplete: React.FC<LessonCompleteProps> = ({
     return cleaned;
   }, [lesson, lang]);
 
+  const hasSessionMistakes = sessionErrors && sessionErrors.length > 0;
+
   const dynamicPitfalls = React.useMemo(() => {
     const list: string[] = [];
 
     // Prioritize actual mistakes made during this specific session
     if (sessionErrors && sessionErrors.length > 0) {
-      sessionErrors.slice(0, 3).forEach((err) => {
-        if (err.tip && !list.includes(err.tip)) {
-          list.push(err.tip);
+      sessionErrors.slice(0, 4).forEach((err) => {
+        if (err.tip) {
+          const sanitizedTip = err.tip
+            .replace(/^(Exato!|Perfeito!|Muito bem!|Excelente!)\s*/i, '')
+            .trim();
+          if (sanitizedTip && !list.includes(sanitizedTip)) {
+            list.push(sanitizedTip);
+          }
         } else if (err.mistake) {
-          list.push(`Atenção com "${err.targetWord}": você respondeu "${err.mistake}". Lembre-se da estrutura correta.`);
+          const note = `Atenção com "${err.targetWord}": você respondeu "${err.mistake}". Lembre-se da estrutura correta.`;
+          if (!list.includes(note)) list.push(note);
         }
       });
     }
@@ -101,14 +109,15 @@ export const LessonComplete: React.FC<LessonCompleteProps> = ({
       : lesson.reviewSummary.commonPitfallsToAvoid) || [];
 
     for (const p of basePitfalls) {
-      // Skip dumped raw notes
+      // Skip dumped raw notes or praise strings
       if (p.length > 250 || p.includes('\n') || p.split(',').length > 5) continue;
+      if (/^(Exato!|Perfeito!|Muito bem!|Excelente!)/i.test(p)) continue;
       if (!list.includes(p)) list.push(p);
     }
 
     if (list.length === 0) {
       list.push(
-        `Atenção às preposições que acompanham os termos: ${lesson.moduleMeta.wordsCovered.slice(0, 3).join(', ')}`,
+        `Atenção às preposições e combinações com: ${lesson.moduleMeta.wordsCovered.slice(0, 3).join(', ')}`,
         'Evite a tradução literal palavra por palavra do português.'
       );
     }
@@ -209,16 +218,20 @@ ${dynamicPitfalls.map(p => `• ${p}`).join('\n')}`;
           </ul>
         </div>
 
-        {/* Pitfalls to Avoid */}
-        <div className="bg-rose-50/70 border-2 border-rose-200 rounded-3xl p-5 shadow-xs">
-          <div className="flex items-center gap-2 text-rose-800 font-black text-sm mb-3">
-            <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
-            <span>{t.pitfallsTitle}</span>
+        {/* Pitfalls or Session Mistakes */}
+        <div className={`border-2 rounded-3xl p-5 shadow-xs ${hasSessionMistakes ? 'bg-rose-50/80 border-rose-200' : 'bg-amber-50/70 border-amber-200'}`}>
+          <div className={`flex items-center gap-2 font-black text-sm mb-3 ${hasSessionMistakes ? 'text-rose-800' : 'text-amber-800'}`}>
+            <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${hasSessionMistakes ? 'text-rose-600' : 'text-amber-600'}`} />
+            <span>
+              {hasSessionMistakes
+                ? (lang === 'pt' ? 'Erros Desta Aula & O Que Praticar' : 'Session Mistakes & Practice Tips')
+                : (lang === 'pt' ? 'Dicas de Ouro & Pontos de Atenção' : t.pitfallsTitle)}
+            </span>
           </div>
           <ul className="space-y-2">
             {dynamicPitfalls.map((pitfall, idx) => (
-              <li key={idx} className="text-xs sm:text-sm text-rose-950 font-medium leading-relaxed flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 flex-shrink-0" />
+              <li key={idx} className={`text-xs sm:text-sm font-medium leading-relaxed flex items-start gap-2 ${hasSessionMistakes ? 'text-rose-950' : 'text-amber-950'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${hasSessionMistakes ? 'bg-rose-500' : 'bg-amber-500'}`} />
                 <span>{pitfall}</span>
               </li>
             ))}

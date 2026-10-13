@@ -3,9 +3,8 @@
  * Provides instant Portuguese translations when learners click any word in exercises.
  */
 
-// Common English words to Portuguese translation dictionary
 export const COMMON_WORD_DICTIONARY: Record<string, string> = {
-  // Common verbs
+  // Common verbs & conjugations
   went: 'fui / foi / fomos / foram (passado de go)',
   go: 'ir',
   goes: 'vai',
@@ -27,6 +26,7 @@ export const COMMON_WORD_DICTIONARY: Record<string, string> = {
   schedule: 'agendar / cronograma / horário',
   scheduled: 'agendado',
   look: 'olhar / parecer',
+  looked: 'olhou / pareceu',
   forward: 'em frente / adiante',
   afraid: 'com medo / receoso',
   overwhelmed: 'sobrecarregado(a) / aflito(a)',
@@ -118,14 +118,133 @@ export const COMMON_WORD_DICTIONARY: Record<string, string> = {
   learned: 'aprendeu',
   teach: 'ensinar',
   taught: 'ensinou',
-  improve: 'melhorar',
-  improved: 'melhorou',
+  improve: 'melhorar / aprimorar',
+  improved: 'melhorou / aprimorou',
+  enjoy: 'aproveitar / curtir / gostar de',
+  enjoyed: 'aproveitou / curtiu',
+  enjoys: 'aproveita / curte',
+  cook: 'cozinhar / cozinheiro',
+  cooked: 'cozinhou',
+  cooking: 'cozinhar / cozinhando / culinária',
+  relax: 'relaxar / descansar',
+  relaxed: 'relaxou / relaxado',
+  relaxing: 'relaxante / relaxando',
+  spend: 'passar (tempo) / gastar (dinheiro)',
+  spent: 'passou (tempo) / gastou',
+  spending: 'passando / gastando',
+  join: 'participar de / juntar-se a',
+  joined: 'participou de',
+  postpone: 'adiar',
+  postponed: 'adiou',
+  hesitate: 'hesitar',
+  hesitated: 'hesitou',
+  pause: 'fazer pausa / pausar',
+  paused: 'pausou',
+  deliver: 'entregar / cumprir',
+  delivered: 'entregou',
+  unwind: 'descontrair / relaxar',
+  adapt: 'adaptar',
+  adapted: 'adaptou',
+  grow: 'crescer / desenvolver',
+  grew: 'cresceu',
+  grown: 'crescido',
+  balance: 'equilibrar / equilíbrio',
+  balanced: 'equilibrou',
+  matter: 'importar / questão',
+  matters: 'importa',
+  mattered: 'importou',
+  buy: 'comprar',
+  bought: 'comprou',
+  bring: 'trazer',
+  brought: 'trouxe',
+  catch: 'pegar / alcançar',
+  caught: 'pegou',
+  choose: 'escolher',
+  chose: 'escolheu',
+  chosen: 'escolhido',
+  come: 'vir / chegar',
+  came: 'veio',
+  cost: 'custar',
+  cut: 'cortar',
+  drive: 'dirigir',
+  drove: 'dirigiu',
+  eat: 'comer',
+  ate: 'comeu',
+  eaten: 'comido',
+  drink: 'beber',
+  drank: 'bebeu',
+  find: 'encontrar / achar',
+  found: 'encontrou / achou',
+  fly: 'voar',
+  flew: 'voou',
+  keep: 'manter / guardar',
+  kept: 'manteve',
+  leave: 'sair / deixar',
+  left: 'saiu / deixou / esquerda',
+  lose: 'perder',
+  lost: 'perdeu / perdido',
+  pay: 'pagar',
+  paid: 'pagou',
+  put: 'colocar / pôr',
+  read: 'ler / leu',
+  run: 'correr',
+  ran: 'correu',
+  send: 'enviar',
+  sent: 'enviou',
+  set: 'definir / conjunto',
+  show: 'mostrar',
+  showed: 'mostrou',
+  shown: 'mostrado',
+  sit: 'sentar',
+  sat: 'sentou',
+  sleep: 'dormir',
+  slept: 'dormiu',
+  stand: 'ficar de pé / suportar',
+  stood: 'ficou de pé',
+  swim: 'nadar',
+  swam: 'nadou',
+  throw: 'jogar / arremessar',
+  threw: 'jogou',
+  wake: 'acordar',
+  woke: 'acordou',
+  wear: 'vestir / usar (roupa)',
+  wore: 'vestiu',
+  win: 'vencer / ganhar',
+  won: 'venceu / ganhou',
+  write: 'escrever',
+  wrote: 'escreveu',
+  written: 'escrito',
 
-  // Pronouns & possessives
+  // Auxiliaries & modal verbs
+  am: 'sou / estou',
+  is: 'é / está',
+  are: 'são / estão / é / está',
+  was: 'era / foi / estava',
+  were: 'eram / foram / estavam',
+  been: 'sido / estado',
+  being: 'sendo / estando',
+  have: 'ter / ter feito',
+  has: 'tem',
+  had: 'tinha / teve',
+  having: 'tendo',
+  do: 'fazer / auxiliar do presente',
+  does: 'faz / auxiliar do presente',
+  did: 'fez / auxiliar do passado',
+  done: 'feito',
+  can: 'posso / pode / consegue',
+  could: 'poderia / podia / conseguiu',
+  would: 'iria / gostaria de',
+  should: 'deveria / deve',
+  must: 'deve / tem que',
+  will: 'vai / irá (futuro)',
+  may: 'pode (permissão/probabilidade)',
+  might: 'poderia / talvez',
+
+  // Pronouns & Possessives
   i: 'eu',
   me: 'me / mim',
   my: 'meu / minha / meus / minhas',
-  mine: 'meu / minha (no final da frase)',
+  mine: 'meu / minha (no final)',
   you: 'você / vocês',
   your: 'seu / sua / seus / suas',
   yours: 'seu / sua',
@@ -145,17 +264,30 @@ export const COMMON_WORD_DICTIONARY: Record<string, string> = {
   hers: 'dela',
   it: 'isto / ele / ela (neutro)',
   its: 'seu / dele (neutro)',
+  who: 'quem',
+  whom: 'a quem',
+  whose: 'de quem',
+  what: 'o que / qual',
+  where: 'onde',
+  when: 'quando',
+  why: 'por que',
+  how: 'como',
+  which: 'qual / que',
+  that: 'aquele / aquela / que',
+  this: 'este / esta / isto',
+  these: 'estes / estas',
+  those: 'aqueles / aquelas',
 
   // Prepositions & Connectors
   with: 'com',
   without: 'sem',
   in: 'em / dentro de',
-  on: 'em cima de / sobre / no / na',
-  at: 'em (lugar específico / horário)',
+  on: 'em / sobre / em cima de',
+  at: 'em (lugar ou horário específico)',
   for: 'para / por / durante',
   to: 'para / a / até',
   from: 'de / a partir de',
-  by: 'por / de / perto de',
+  by: 'por / de / perto de / até',
   about: 'sobre / a respeito de / quase',
   into: 'para dentro de',
   onto: 'para cima de',
@@ -174,17 +306,110 @@ export const COMMON_WORD_DICTIONARY: Record<string, string> = {
   though: 'embora / no entanto',
   even: 'mesmo / até',
   however: 'contudo / no entanto',
-  instead: 'em vez disso',
+  instead: 'em vez disso / ao invés',
   meanwhile: 'enquanto isso',
   furthermore: 'além disso',
-  nevertheless: 'não obstante / mesmo assim',
+  nevertheless: 'mesmo assim / contudo',
   and: 'e',
   but: 'mas / porém',
   or: 'ou',
   so: 'então / por isso / tão',
   as: 'como / enquanto / já que',
+  of: 'de / do / da',
+  off: 'de folga / fora / desligado',
 
-  // Common Adverbs & Modifiers
+  // Common Nouns
+  skills: 'habilidades / competências',
+  skill: 'habilidade',
+  communication: 'comunicação',
+  gym: 'academia',
+  family: 'família',
+  routine: 'rotina',
+  daily: 'diário / rotina diária',
+  days: 'dias',
+  day: 'dia',
+  time: 'tempo / hora / momento',
+  times: 'vezes / momentos',
+  free: 'livre / gratuito',
+  place: 'lugar',
+  cup: 'xícara / copo',
+  coffee: 'café',
+  walk: 'caminhada / passeio',
+  store: 'loja',
+  bread: 'pão',
+  conference: 'conferência / evento',
+  speaker: 'falante / palestrante / alto-falante',
+  speakers: 'falantes',
+  conversation: 'conversa / conversação',
+  chance: 'chance / oportunidade',
+  confidence: 'confiança',
+  advice: 'conselho / recomendação',
+  pause: 'pausa',
+  quality: 'qualidade',
+  results: 'resultados',
+  result: 'resultado',
+  peace: 'paz / tranquilidade',
+  mind: 'mente',
+  difference: 'diferença',
+  topic: 'tópico / tema',
+  rule: 'regra',
+  rules: 'regras',
+  audience: 'público / plateia',
+  front: 'frente',
+  priorities: 'prioridades',
+  priority: 'prioridade',
+  context: 'contexto',
+  sentence: 'frase / sentença',
+  phrase: 'expressão / frase',
+  word: 'palavra',
+  words: 'palavras',
+  project: 'projeto',
+  team: 'equipe / time',
+  morning: 'manhã',
+  afternoon: 'tarde',
+  evening: 'noite (início)',
+  night: 'noite',
+  class: 'aula',
+  lesson: 'lição / aula',
+  teacher: 'professor(a)',
+  student: 'aluno(a)',
+  students: 'alunos',
+  colleague: 'colega de trabalho',
+  colleagues: 'colegas de trabalho',
+  friend: 'amigo(a)',
+  friends: 'amigos',
+  partner: 'parceiro(a) / sócio(a)',
+  job: 'trabalho / emprego',
+  task: 'tarefa',
+  tasks: 'tarefas',
+  week: 'semana',
+  weekend: 'fim de semana',
+  month: 'mês',
+  year: 'ano',
+  mistake: 'erro / engano',
+  mistakes: 'erros',
+  preposition: 'preposição',
+  prepositions: 'preposições',
+  grammar: 'gramática',
+  audio: 'áudio',
+  voice: 'voz',
+  level: 'nível',
+
+  // Common Adjectives & Adverbs
+  single: 'único / só (every single = todo santo)',
+  every: 'cada / todo / todos',
+  fresh: 'fresco / novo',
+  quiet: 'tranquilo / calmo / quieto',
+  native: 'nativo',
+  close: 'próximo / perto / íntimo',
+  confident: 'confiante',
+  rewarding: 'recompensador / gratificante',
+  solid: 'sólido / firme / seguro',
+  outside: 'ao ar livre / do lado de fora',
+  effective: 'eficaz / eficiente',
+  huge: 'enorme / gigante',
+  unwind: 'descontraído / relaxado',
+  actually: 'na verdade / de fato',
   usually: 'geralmente / normalmente',
   always: 'sempre',
   never: 'nunca',
@@ -197,7 +422,7 @@ export const COMMON_WORD_DICTIONARY: Record<string, string> = {
   almost: 'quase',
   already: 'já',
   still: 'ainda',
-  yet: 'ainda (com negativa ou pergunta)',
+  yet: 'ainda (com negativa)',
   soon: 'em breve / logo',
   today: 'hoje',
   yesterday: 'ontem',
@@ -206,57 +431,12 @@ export const COMMON_WORD_DICTIONARY: Record<string, string> = {
   then: 'então / depois',
   here: 'aqui',
   there: 'lá / ali',
-  actually: 'na verdade / de fato',
-  currently: 'atualmente',
-  eventually: 'com o tempo / no final das contas',
-  probably: 'provavelmente',
-  definitely: 'com certeza / definitivamente',
-  obviously: 'obviamente',
   together: 'juntos',
-
-  // Common Nouns
-  context: 'contexto',
-  sentence: 'frase / sentença',
-  phrase: 'expressão / locução',
-  word: 'palavra',
-  words: 'palavras',
-  routine: 'rotina',
-  daily: 'diário / cotidiano',
-  project: 'projeto',
-  team: 'equipe / time',
-  entire: 'inteiro / todo',
-  morning: 'manhã',
-  afternoon: 'tarde',
-  evening: 'noite (início da noite)',
-  night: 'noite',
-  class: 'aula',
-  lesson: 'lição / aula',
-  teacher: 'professor(a)',
-  student: 'aluno(a)',
-  colleague: 'colega de trabalho',
-  colleagues: 'colegas de trabalho',
-  friend: 'amigo(a)',
-  friends: 'amigos',
-  partner: 'parceiro(a) / sócio(a)',
-  job: 'emprego / trabalho',
-  task: 'tarefa',
-  tasks: 'tarefas',
-  time: 'tempo / hora / vez',
-  day: 'dia',
-  days: 'dias',
-  week: 'semana',
-  month: 'mês',
-  year: 'ano',
-  conversation: 'conversa / bate-papo',
-  mistake: 'erro / engano',
-  mistakes: 'erros',
-  preposition: 'preposição',
-  grammar: 'gramática',
-  accent: 'sotaque',
-  audio: 'áudio / som',
-  voice: 'voz',
-
-  // Common Adjectives
+  much: 'muito / muita',
+  more: 'mais',
+  less: 'menos',
+  last: 'último / passado',
+  next: 'próximo',
   important: 'importante',
   essential: 'essencial / fundamental',
   natural: 'natural',
@@ -271,18 +451,18 @@ export const COMMON_WORD_DICTIONARY: Record<string, string> = {
   slow: 'devagar / lento',
   good: 'bom / boa',
   better: 'melhor',
-  best: 'o melhor / a melhor',
-  bad: 'ruim / mau',
+  best: 'o melhor',
+  bad: 'ruim',
   worse: 'pior',
   worst: 'o pior',
-  new: 'novo / nova',
-  old: 'velho / antigo',
-  great: 'ótimo / excelente / grande',
-  rude: 'grosseiro(a) / mal-educado(a)',
-  polite: 'educado(a)',
-  ready: 'pronto(a)',
-  busy: 'ocupado(a)',
-  calm: 'calmo(a) / tranquilo(a)',
+  new: 'novo',
+  old: 'antigo / velho',
+  great: 'ótimo / grande',
+  busy: 'ocupado',
+  calm: 'calmo',
+  ready: 'pronto',
+  polite: 'educado',
+  rude: 'mal-educado / grosseiro',
 };
 
 /**
@@ -308,10 +488,20 @@ export function getWordTranslation(
 
   // 1. Target vocabulary check (from lesson)
   if (targetVocabMap) {
-    if (targetVocabMap[clean]) return targetVocabMap[clean];
+    if (targetVocabMap[clean]) {
+      const val = targetVocabMap[clean];
+      // Only return if it looks like a clean translation, not a long teacher note
+      if (val.length < 50 && !val.toLowerCase().startsWith('ao inves')) {
+        return val;
+      }
+    }
     // Check multi-word keys
     for (const [key, val] of Object.entries(targetVocabMap)) {
-      if (key.toLowerCase().includes(clean)) return `${val} (parte de "${key}")`;
+      if (key.toLowerCase().includes(clean)) {
+        if (val.length < 50 && !val.toLowerCase().startsWith('ao inves')) {
+          return `${val} (parte de "${key}")`;
+        }
+      }
     }
   }
 
@@ -326,6 +516,12 @@ export function getWordTranslation(
     if (COMMON_WORD_DICTIONARY[singular]) {
       return `${COMMON_WORD_DICTIONARY[singular]} (plural)`;
     }
+    if (clean.endsWith('es') && clean.length > 4) {
+      const singularEs = clean.slice(0, -2);
+      if (COMMON_WORD_DICTIONARY[singularEs]) {
+        return `${COMMON_WORD_DICTIONARY[singularEs]} (plural)`;
+      }
+    }
   }
 
   // 4. Simple -ed past tense rule
@@ -334,6 +530,10 @@ export function getWordTranslation(
     if (COMMON_WORD_DICTIONARY[root]) {
       return `${COMMON_WORD_DICTIONARY[root]} (passado)`;
     }
+    const rootE = clean.slice(0, -1);
+    if (COMMON_WORD_DICTIONARY[rootE]) {
+      return `${COMMON_WORD_DICTIONARY[rootE]} (passado)`;
+    }
   }
 
   // 5. Simple -ing gerund rule
@@ -341,6 +541,18 @@ export function getWordTranslation(
     const root = clean.slice(0, -3);
     if (COMMON_WORD_DICTIONARY[root]) {
       return `${COMMON_WORD_DICTIONARY[root]} (-ndo)`;
+    }
+    const rootE = root + 'e';
+    if (COMMON_WORD_DICTIONARY[rootE]) {
+      return `${COMMON_WORD_DICTIONARY[rootE]} (-ndo)`;
+    }
+  }
+
+  // 6. Simple -ly adverb rule
+  if (clean.endsWith('ly') && clean.length > 4) {
+    const root = clean.slice(0, -2);
+    if (COMMON_WORD_DICTIONARY[root]) {
+      return `de forma ${COMMON_WORD_DICTIONARY[root]} / -mente`;
     }
   }
 

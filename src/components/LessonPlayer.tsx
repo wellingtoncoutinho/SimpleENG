@@ -11,6 +11,7 @@ import { LessonComplete } from './LessonComplete';
 import { LearnerMascot, MascotMood } from './LearnerMascot';
 import { soundEffects } from '../utils/audio';
 import { containsRequiredWords, verifyAnswer } from '../utils/speechRecognition';
+import { evaluateRoleplayAnswer, RoleplayEvaluation } from '../utils/roleplayEvaluator';
 import { Language, translations } from '../utils/i18n';
 
 interface LessonPlayerProps {
@@ -47,6 +48,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userAnswer, setUserAnswer] = useState<string>('');
   const [feedbackStatus, setFeedbackStatus] = useState<FeedbackStatus>('idle');
+  const [roleplayEvaluation, setRoleplayEvaluation] = useState<RoleplayEvaluation | null>(null);
   const [xp, setXp] = useState<number>(0);
   const [correctCount, setCorrectCount] = useState<number>(0);
   const [incorrectCount, setIncorrectCount] = useState<number>(0);
@@ -63,6 +65,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     if (!currentExercise || feedbackStatus !== 'idle') return;
 
     let isCorrect = false;
+    let localRoleplayEval: RoleplayEvaluation | null = null;
 
     switch (currentExercise.type) {
       case 'listen_type': {
@@ -96,11 +99,21 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         break;
       }
       case 'roleplay_prompt': {
-        const reqCheck = containsRequiredWords(
+        const evaluation = evaluateRoleplayAnswer(
           userAnswer,
           currentExercise.requiredWords || [currentExercise.targetWord]
         );
-        isCorrect = reqCheck.allPresent && userAnswer.trim().length >= 8;
+        localRoleplayEval = evaluation;
+        setRoleplayEvaluation(evaluation);
+
+        if (evaluation.missingRequiredWords.length > 0) {
+          isCorrect = false;
+        } else if (evaluation.corrections.length > 0) {
+          // Flag grammar interference blunders (went go, to gym, I cooking)
+          isCorrect = false;
+        } else {
+          isCorrect = true;
+        }
         break;
       }
       case 'grammar_fix': {
@@ -135,12 +148,36 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       setFeedbackStatus('incorrect');
       setMascotMood('supportive');
       setIncorrectCount(prev => prev + 1);
+
+      // Construct a precise, helpful, actionable tip for the student's mistake
+      let errorTip = '';
+      if (currentExercise.type === 'roleplay_prompt') {
+        if (localRoleplayEval && localRoleplayEval.missingRequiredWords.length > 0) {
+          errorTip = `No diálogo com "${currentExercise.targetWord}": faltou usar a palavra obrigatória "${localRoleplayEval.missingRequiredWords.join('", "')}".`;
+        } else if (localRoleplayEval && localRoleplayEval.corrections.length > 0) {
+          const detail = localRoleplayEval.corrections
+            .map(c => `'${c.mistake}' ➔ use '${c.fix}' (${c.tip})`)
+            .join('; ');
+          errorTip = `No diálogo com "${currentExercise.targetWord}": ${detail}`;
+        } else {
+          errorTip = `No diálogo com "${currentExercise.targetWord}": lembre-se de responder em frase completa com o vocabulário obrigatório.`;
+        }
+      } else if (currentExercise.type === 'grammar_fix') {
+        errorTip = `Cuidado com "${currentExercise.targetWord}": a forma correta é "${currentExercise.expectedAnswer}". ${currentExercise.hintPt || ''}`;
+      } else if (currentExercise.type === 'sentence_build' || currentExercise.type === 'listen_type') {
+        errorTip = `Na atividade com "${currentExercise.targetWord}": a frase correta é "${currentExercise.expectedAnswer}" (${currentExercise.expectedAnswerPt || ''}).`;
+      } else if (currentExercise.type === 'speak_verify') {
+        errorTip = `Pronúncia de "${currentExercise.targetWord}": leia com clareza "${currentExercise.expectedAnswer}".`;
+      } else {
+        errorTip = `Atenção com "${currentExercise.targetWord}": a estrutura recomendada é "${currentExercise.expectedAnswer}".`;
+      }
+
       setSessionErrors(prev => [
         ...prev,
         {
           targetWord: currentExercise.targetWord,
           mistake: userAnswer,
-          tip: currentExercise.explanationPt || currentExercise.hintPt,
+          tip: errorTip,
         },
       ]);
     }
@@ -150,6 +187,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     soundEffects.playTap();
     setUserAnswer('');
     setFeedbackStatus('idle');
+    setRoleplayEvaluation(null);
     setMascotMood('idle');
   };
 
@@ -165,6 +203,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     setFeedbackStatus('idle');
     setMascotMood('idle');
     setUserAnswer('');
+    setRoleplayEvaluation(null);
 
     if (currentIndex + 1 < sortedExercises.length) {
       setCurrentIndex(prev => prev + 1);
@@ -178,6 +217,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     setCurrentIndex(0);
     setUserAnswer('');
     setFeedbackStatus('idle');
+    setRoleplayEvaluation(null);
     setXp(0);
     setCorrectCount(0);
     setIncorrectCount(0);
@@ -293,6 +333,8 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         hint={currentExercise.hint}
         hintPt={currentExercise.hintPt}
         lang={lang}
+        exerciseType={currentExercise.type}
+        roleplayEvaluation={roleplayEvaluation}
         onCheck={handleCheckAnswer}
         onSkip={handleSkip}
         onRetry={handleRetry}

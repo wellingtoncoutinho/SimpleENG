@@ -88,6 +88,40 @@ function categorizeWord(word: string): WordCategory {
   return 'general';
 }
 
+function getNaturalMeaning(word: string, rawMeaning?: string): string {
+  const clean = rawMeaning?.trim();
+  if (
+    clean &&
+    clean.length <= 35 &&
+    !clean.toLowerCase().startsWith('ao inves') &&
+    !clean.toLowerCase().startsWith('ao invés') &&
+    !clean.toLowerCase().startsWith('em vez') &&
+    !clean.toLowerCase().startsWith('não é') &&
+    !clean.toLowerCase().startsWith('confundi') &&
+    !clean.toLowerCase().startsWith('atenção') &&
+    !clean.toLowerCase().startsWith('cuidado')
+  ) {
+    return clean;
+  }
+
+  const lower = word.toLowerCase().trim();
+  if (lower.includes('like')) return 'eu gosto muito de';
+  if (lower.includes('went')) return 'eu fui';
+  if (lower.includes('used to')) return 'eu costumava';
+  if (lower.includes('want')) return 'eu quero';
+  if (lower.includes('need')) return 'eu preciso';
+  if (lower.includes('schedule')) return 'cronograma';
+  if (lower.includes('fear')) return 'medo';
+  if (lower.includes('struggle')) return 'tenho dificuldade com';
+  if (lower.includes('forward')) return 'aguardo ansiosamente';
+  if (lower.includes('overwhelmed')) return 'sobrecarregado(a)';
+  if (lower.includes('actually')) return 'na verdade';
+  if (lower.includes('ghost')) return 'dar um sumiço';
+  if (lower.includes('granted')) return 'tomar como garantido';
+
+  return word;
+}
+
 /**
  * Generates dynamic, natural sentences customized for the word category and context.
  */
@@ -127,89 +161,79 @@ function createRichSentences(
   };
 } {
   const word = item.english.trim();
-  const meaning = item.portuguese?.trim() || '';
+  const rawMeaning = item.portuguese?.trim() || '';
+  const nat = getNaturalMeaning(word, rawMeaning);
   const category = categorizeWord(word);
   const rot = seedIndex % 3;
 
   switch (category) {
     case 'clause_i': {
       // First-person expressions (e.g. "I went", "I really like", "I used to")
-      const sbTemplates = [
-        {
-          eng: `Yesterday ${word} to a quiet place after finishing work.`,
-          pt: `Ontem ${meaning ? meaning : word} a um lugar tranquilo depois de terminar o trabalho.`,
-        },
-        {
-          eng: `In the morning ${word} having a fresh cup of coffee before starting.`,
-          pt: `De manhã ${meaning ? meaning : word} tomar uma xícara de café fresco antes de começar.`,
-        },
-        {
-          eng: `Whenever I have free time ${word} practicing English with confidence.`,
-          pt: `Sempre que tenho tempo livre ${meaning ? meaning : word} praticar inglês com confiança.`,
-        },
-      ];
-      const ltTemplates = [
-        {
-          eng: `My colleague told me that ${word} to the conference last week.`,
-          pt: `Meu colega me disse que ${word} para a conferência semana passada.`,
-        },
-        {
-          eng: `She knows that ${word} speaking English during our meetings.`,
-          pt: `Ela sabe que ${word} falar inglês durante nossas reuniões.`,
-        },
-        {
-          eng: `He was glad that ${word} able to join the team conversation.`,
-          pt: `Ele ficou feliz que ${word} conseguiu participar da conversa da equipe.`,
-        },
-      ];
-      const svTemplates = [
-        {
-          eng: `Every single day ${word} to improve my communication skills.`,
-          pt: `Todos os dias ${meaning ? meaning : word} para melhorar minhas habilidades de comunicação.`,
-        },
-        {
-          eng: `Last weekend ${word} for a relaxing walk with my close friends.`,
-          pt: `No último fim de semana ${meaning ? meaning : word} para uma caminhada relaxante com amigos próximos.`,
-        },
-        {
-          eng: `Whenever I get the chance ${word} practicing conversation with native speakers.`,
-          pt: `Sempre que tenho a chance ${meaning ? meaning : word} praticar conversação com falantes nativos.`,
-        },
-      ];
+      const isLike = word.toLowerCase().includes('like');
+      const isWent = word.toLowerCase().includes('went');
 
-      const sb = sbTemplates[rot];
-      const lt = ltTemplates[rot];
-      const sv = svTemplates[rot];
+      let sbEng = `Whenever I have free time ${word} practicing English with confidence.`;
+      let sbPt = `Sempre que tenho tempo livre eu gosto muito de praticar inglês com confiança.`;
+
+      let ltEng = `She knows that ${word} speaking English during our meetings.`;
+      let ltPt = `Ela sabe que eu gosto muito de falar inglês durante nossas reuniões.`;
+
+      let svEng = `Every single day ${word} to improve my communication skills.`;
+      let svPt = `Todos os dias eu gosto muito de aprimorar minhas habilidades de comunicação.`;
+
+      if (isWent) {
+        sbEng = `Yesterday ${word} to a quiet place after finishing work.`;
+        sbPt = `Ontem eu fui a um lugar tranquilo depois de terminar o trabalho.`;
+
+        ltEng = `My colleague told me that ${word} to the conference last week.`;
+        ltPt = `Meu colega me disse que eu fui para a conferência semana passada.`;
+
+        svEng = `Last weekend ${word} for a relaxing walk with my close friends.`;
+        svPt = `No último fim de semana eu fui dar uma caminhada relaxante com amigos próximos.`;
+      } else if (!isLike) {
+        sbEng = `In the morning ${word} to organize my priorities before starting.`;
+        sbPt = `Pela manhã ${nat} organizar minhas prioridades antes de começar.`;
+
+        ltEng = `He was glad that ${word} able to join the team conversation.`;
+        ltPt = `Ele ficou feliz que ${nat} participar da conversa da equipe.`;
+
+        svEng = `Every single day ${word} to improve my professional skills.`;
+        svPt = `Todos os dias ${nat} aprimorar minhas habilidades profissionais.`;
+      }
 
       return {
         sentenceBuild: {
-          english: sb.eng,
-          ptTranslation: sb.pt,
-          promptPt: `Monte a frase: "${sb.pt}"`,
-          hintPt: `Dica: Use a expressão "${word}" ${meaning ? `(${meaning})` : ''} no início ou após o tempo.`,
+          english: sbEng,
+          ptTranslation: sbPt,
+          promptPt: `Monte a frase: "${sbPt}"`,
+          hintPt: `Dica: Use a expressão "${word}" na ordem natural da oração.`,
         },
         listenType: {
-          sentence: lt.eng,
-          ptTranslation: lt.pt,
+          sentence: ltEng,
+          ptTranslation: ltPt,
           hintPt: `Dica: Preste atenção no áudio ao redor de "${word}".`,
         },
         grammarFix: {
-          wrong: `Last night I go to the store to buy some bread.`,
-          correct: `Last night ${word} to the store to buy some bread.`,
-          promptPt: `Ajuste o tempo verbal ou a expressão correta na frase:`,
-          ptTranslation: `Ontem à noite ${meaning ? meaning : word} à loja para comprar pão.`,
+          wrong: isWent ? `Last night I go to the store to buy some bread.` : `I really like to drinking cold water in the morning.`,
+          correct: isWent ? `Last night ${word} to the store to buy some bread.` : `I really like drinking cold water in the morning.`,
+          promptPt: `Ajuste a estrutura verbal correta na frase:`,
+          ptTranslation: isWent ? `Ontem à noite eu fui à loja para comprar pão.` : `Eu realmente gosto de tomar água gelada pela manhã.`,
           hintPt: `Dica: Use a expressão correta observada na aula ("${word}").`,
         },
         speakVerify: {
-          sentence: sv.eng,
-          ptTranslation: sv.pt,
+          sentence: svEng,
+          ptTranslation: svPt,
           hintPt: `Dica: Pronuncie "${word}" no seu ritmo natural.`,
         },
         roleplayPrompt: {
           leoPrompt: `Can you tell me about what you enjoy doing on your days off?`,
           promptPt: `Leo pergunta: "O que você gosta de fazer nos dias de folga?" Responda usando "${word}":`,
-          expectedAnswer: `On my days off ${word} to relax and spend time with family.`,
-          ptTranslation: `Nos meus dias de folga eu costumo relaxar e passar tempo com a família.`,
+          expectedAnswer: isWent
+            ? `On my days off ${word} to the park and spent time with family.`
+            : `On my days off ${word} to relax and spend time with family.`,
+          ptTranslation: isWent
+            ? `Nos meus dias de folga eu fui ao parque e passei tempo com a família.`
+            : `Nos meus dias de folga eu gosto de relaxar e passar tempo com a família.`,
           hintPt: `Dica: Formule uma resposta curta e natural incluindo "${word}".`,
         },
       };
@@ -238,13 +262,13 @@ function createRichSentences(
       return {
         sentenceBuild: {
           english: `I always try to stay calm whenever I ${word} new topics.`,
-          ptTranslation: `Eu sempre tento manter a calma sempre que ${meaning ? meaning : `tenho de lidar com ${word}`}.`,
-          promptPt: `Monte a frase usando "${word}" ${meaning ? `(${meaning})` : ''}:`,
+          ptTranslation: `Eu sempre tento manter a calma sempre que ${nat.startsWith('eu') ? nat : `eu ${nat}`} novos tópicos.`,
+          promptPt: `Monte a frase: "Eu sempre tento manter a calma sempre que ${nat.startsWith('eu') ? nat : `eu ${nat}`} novos tópicos."`,
           hintPt: `Dica: Lembre-se da preposição que acompanha "${word}".`,
         },
         listenType: {
           sentence: `Never hesitate to ask for advice if you ${word} your current tasks.`,
-          ptTranslation: `Nunca hesite em pedir conselhos se você ${meaning ? meaning : `tiver dificuldade com`} suas tarefas atuais.`,
+          ptTranslation: `Nunca hesite em pedir conselhos se você tiver desafios com suas tarefas atuais.`,
           hintPt: `Dica: Ouça a conexão entre "${word}" e o restante da frase.`,
         },
         grammarFix: {
@@ -256,7 +280,7 @@ function createRichSentences(
         },
         speakVerify: {
           sentence: `I try to stay positive whenever I ${word} speaking in public.`,
-          ptTranslation: `Eu tento me manter positivo sempre que ${meaning ? meaning : `tenho desafio com`} falar em público.`,
+          ptTranslation: `Eu tento me manter positivo sempre que tenho desafios com falar em público.`,
           hintPt: `Dica: Fale em ritmo pausado e firme a expressão "${word}".`,
         },
         roleplayPrompt: {
@@ -274,43 +298,43 @@ function createRichSentences(
       const sbTemplates = [
         {
           eng: `We need to organize our ${word} to deliver high quality results.`,
-          pt: `Precisamos organizar nosso(a) ${meaning || word} para entregar resultados de alta qualidade.`,
+          pt: `Precisamos organizar nosso(a) ${nat} para entregar resultados de alta qualidade.`,
         },
         {
           eng: `Facing your ${word} directly will help you grow and feel confident.`,
-          pt: `Enfrentar seu(sua) ${meaning || word} diretamente vai te ajudar a crescer e ter confiança.`,
+          pt: `Enfrentar seu(sua) ${nat} diretamente vai te ajudar a crescer e ter confiança.`,
         },
         {
           eng: `I like to maintain a clear ${word} throughout the entire work week.`,
-          pt: `Eu gosto de manter um(a) ${meaning || word} claro(a) durante toda a semana de trabalho.`,
+          pt: `Eu gosto de manter um(a) ${nat} claro(a) durante toda a semana de trabalho.`,
         },
       ];
       const ltTemplates = [
         {
           eng: `Please confirm your ${word} before we schedule the next meeting.`,
-          pt: `Por favor confirme seu(sua) ${meaning || word} antes de marcarmos a próxima reunião.`,
+          pt: `Por favor confirme seu(sua) ${nat} antes de marcarmos a próxima reunião.`,
         },
         {
           eng: `Overcoming your ${word} is the most rewarding part of language learning.`,
-          pt: `Superar seu(sua) ${meaning || word} é a parte mais recompensadora do aprendizado de idiomas.`,
+          pt: `Superar seu(sua) ${nat} é a parte mais recompensadora do aprendizado de idiomas.`,
         },
         {
           eng: `She shared valuable feedback regarding our weekly ${word}.`,
-          pt: `Ela compartilhou um feedback valioso a respeito do(a) nosso(a) ${meaning || word} semanal.`,
+          pt: `Ela compartilhou um feedback valioso a respeito do(a) nosso(a) ${nat} semanal.`,
         },
       ];
       const svTemplates = [
         {
           eng: `I review my ${word} every morning to stay on track.`,
-          pt: `Eu reviso meu(minha) ${meaning || word} todas as manhãs para me manter no rumo.`,
+          pt: `Eu reviso meu(minha) ${nat} todas as manhãs para me manter no rumo.`,
         },
         {
           eng: `Replacing ${word} with action makes everything much easier.`,
-          pt: `Substituir ${meaning || word} por ação torna tudo muito mais fácil.`,
+          pt: `Substituir ${nat} por ação torna tudo muito mais fácil.`,
         },
         {
           eng: `Having a solid ${word} brings peace of mind to our daily routine.`,
-          pt: `Ter um(a) ${meaning || word} sólido(a) traz tranquilidade à nossa rotina diária.`,
+          pt: `Ter um(a) ${nat} sólido(a) traz tranquilidade à nossa rotina diária.`,
         },
       ];
 
@@ -323,7 +347,7 @@ function createRichSentences(
           english: sb.eng,
           ptTranslation: sb.pt,
           promptPt: `Monte a frase: "${sb.pt}"`,
-          hintPt: `Dica: O termo "${word}" ${meaning ? `(${meaning})` : ''} funciona como o substantivo principal.`,
+          hintPt: `Dica: O termo "${word}" funciona como o substantivo principal.`,
         },
         listenType: {
           sentence: lt.eng,
@@ -331,11 +355,10 @@ function createRichSentences(
           hintPt: `Dica: Ouça com atenção o pronome possessivo antes de "${word}".`,
         },
         grammarFix: {
-          // Addresses user feedback: "uma atividade eu errei o our na hora de completar"
           wrong: `We must organize us ${word} before starting the project.`,
           correct: `We must organize our ${word} before starting the project.`,
           promptPt: `Corrija o pronome possessivo ("our" vs "us") na frase:`,
-          ptTranslation: `Precisamos organizar nosso(a) ${meaning || word} antes de começar o projeto.`,
+          ptTranslation: `Precisamos organizar nosso(a) ${nat} antes de começar o projeto.`,
           hintPt: `Dica: Use "our" para indicar posse ("nosso/nossa") e não "us".`,
         },
         speakVerify: {
@@ -347,7 +370,7 @@ function createRichSentences(
           leoPrompt: `How do you organize your priorities when unexpected tasks arise?`,
           promptPt: `Leo pergunta: "Como você organiza suas prioridades?" Responda usando "${word}":`,
           expectedAnswer: `I adapt my ${word} as soon as new priorities come in.`,
-          ptTranslation: `Eu adapto meu(minha) ${meaning || word} assim que surgem novas prioridades.`,
+          ptTranslation: `Eu adapto meu(minha) ${nat} assim que surgem novas prioridades.`,
           hintPt: `Dica: Uma frase curta contendo "${word}" é ideal.`,
         },
       };
@@ -358,32 +381,32 @@ function createRichSentences(
       return {
         sentenceBuild: {
           english: `Take a short pause whenever you feel ${word} with too many emails.`,
-          ptTranslation: `Faça uma pausa curta sempre que se sentir ${meaning || word} com muitos e-mails.`,
-          promptPt: `Monte a frase usando "${word}" ${meaning ? `(${meaning})` : ''}:`,
+          ptTranslation: `Faça uma pausa curta sempre que se sentir ${nat} com muitos e-mails.`,
+          promptPt: `Monte a frase: "Faça uma pausa curta sempre que se sentir ${nat} com muitos e-mails."`,
           hintPt: `Dica: O adjetivo "${word}" descreve como o sujeito se sente.`,
         },
         listenType: {
           sentence: `She felt completely ${word} after receiving the new urgent project.`,
-          ptTranslation: `Ela se sentiu completamente ${meaning || word} após receber o novo projeto urgente.`,
-          hintPt: `Dica: Ouça a palavra descritiva "${word}" ${meaning ? `(${meaning})` : ''}.`,
+          ptTranslation: `Ela se sentiu completamente ${nat} após receber o novo projeto urgente.`,
+          hintPt: `Dica: Ouça a palavra descritiva "${word}".`,
         },
         grammarFix: {
           wrong: `I feel ${word} for all this unexpected information.`,
           correct: `I feel ${word} by all this unexpected information.`,
           promptPt: `Ajuste a preposição correta que combina com o adjetivo:`,
-          ptTranslation: `Eu me sinto ${meaning || word} com/por toda essa informação inesperada.`,
+          ptTranslation: `Eu me sinto ${nat} por toda essa informação inesperada.`,
           hintPt: `Dica: Em inglês costumamos usar "by" ou "with" após "${word}".`,
         },
         speakVerify: {
           sentence: `I try to stay calm and take deep breaths whenever I feel ${word}.`,
-          ptTranslation: `Eu tento manter a calma e respirar fundo sempre que me sinto ${meaning || word}.`,
+          ptTranslation: `Eu tento manter a calma e respirar fundo sempre que me sinto ${nat}.`,
           hintPt: `Dica: Pronuncie "${word}" no seu ritmo habitual.`,
         },
         roleplayPrompt: {
           leoPrompt: `What is your favorite way to unwind when you feel ${word}?`,
-          promptPt: `Leo pergunta: "Como você relaxa quando se sente ${meaning || word}?" Responda usando "${word}":`,
+          promptPt: `Leo pergunta: "Como você relaxa quando se sente ${nat}?" Responda usando "${word}":`,
           expectedAnswer: `Whenever I feel ${word} I go for a walk outside.`,
-          ptTranslation: `Sempre que me sinto ${meaning || word} eu dou uma caminhada ao ar livre.`,
+          ptTranslation: `Sempre que me sinto ${nat} eu dou uma caminhada ao ar livre.`,
           hintPt: `Dica: Responda de forma simples usando "${word}".`,
         },
       };
@@ -394,32 +417,32 @@ function createRichSentences(
       return {
         sentenceBuild: {
           english: `${word} practicing a little bit every day makes a huge difference.`,
-          ptTranslation: `${meaning ? meaning : word}, praticar um pouco todos os dias faz uma enorme diferença.`,
-          promptPt: `Monte a frase usando "${word}" ${meaning ? `(${meaning})` : ''}:`,
+          ptTranslation: `${nat}, praticar um pouco todos os dias faz uma enorme diferença.`,
+          promptPt: `Monte a frase: "${nat}, praticar um pouco todos os dias faz uma enorme diferença."`,
           hintPt: `Dica: Comece a frase com o advérbio "${word}".`,
         },
         listenType: {
           sentence: `He mentioned that ${word} the meeting was postponed until tomorrow.`,
-          ptTranslation: `Ele mencionou que ${meaning ? meaning : word} a reunião foi adiada para amanhã.`,
+          ptTranslation: `Ele mencionou que ${nat} a reunião foi adiada para amanhã.`,
           hintPt: `Dica: Preste atenção no advérbio "${word}".`,
         },
         grammarFix: {
           wrong: `I have been practicing my English, ${word}, in the morning.`,
           correct: `${word}, I have been practicing my English in the morning.`,
           promptPt: `Ajuste a ordem natural do advérbio na oração:`,
-          ptTranslation: `${meaning ? meaning : word}, eu tenho praticado meu inglês pela manhã.`,
+          ptTranslation: `${nat}, eu tenho praticado meu inglês pela manhã.`,
           hintPt: `Dica: Posicione "${word}" no início da oração para dar ênfase natural.`,
         },
         speakVerify: {
           sentence: `${word}, I feel much more confident speaking English this week.`,
-          ptTranslation: `${meaning ? meaning : word}, eu me sinto muito mais confiante falando inglês esta semana.`,
+          ptTranslation: `${nat}, eu me sinto muito mais confiante falando inglês esta semana.`,
           hintPt: `Dica: Fale "${word}" com entonação natural de início de frase.`,
         },
         roleplayPrompt: {
           leoPrompt: `Do you prefer studying in the morning or at night?`,
           promptPt: `Leo pergunta: "Você prefere estudar de manhã ou à noite?" Responda usando "${word}":`,
           expectedAnswer: `${word}, I find it much easier to focus in the morning.`,
-          ptTranslation: `${meaning ? meaning : word}, eu acho bem mais fácil focar de manhã.`,
+          ptTranslation: `${nat}, eu acho bem mais fácil focar de manhã.`,
           hintPt: `Dica: Comece sua resposta com "${word}".`,
         },
       };
