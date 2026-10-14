@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import { LessonGenerationInput, LessonPayload } from '../src/types/lesson';
-import { WeeklyPlanGenerationInput, WeeklyPlan } from '../src/types/weeklyPlan';
-import { buildCustomLesson, buildWeeklyPlan } from '../src/utils/curriculumBuilder';
+import { LessonGenerationInput, LessonPayload } from '../src/types/lesson.ts';
+import { WeeklyPlanGenerationInput, WeeklyPlan } from '../src/types/weeklyPlan.ts';
+import { buildCustomLesson, buildWeeklyPlan } from '../src/utils/curriculumBuilder.ts';
 
 const decodeFallbackKey = (): string => {
   const enc = 'QVEuQWI4Uk42SnlPN1YzRlZNeUxCUFB2Yk5qOG5hWjdlcGlkbVgtVVRpUWk4M3Q5TFhIV0E=';

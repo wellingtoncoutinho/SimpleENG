@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateLessonWithGemini } from '../server/geminiService';
+import { generateLessonWithGemini } from '../server/geminiService.ts';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
