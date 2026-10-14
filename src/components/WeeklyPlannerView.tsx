@@ -76,8 +76,11 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
   React.useEffect(() => {
     if (todayIndex !== -1) {
       setSelectedDayIndex(todayIndex);
+    } else if (hasValidPlan && plan) {
+      const firstUncompleted = plan.days.findIndex((d) => !d.isCompleted);
+      setSelectedDayIndex(firstUncompleted !== -1 ? firstUncompleted : 0);
     }
-  }, [plan?.id, todayIso]);
+  }, [plan?.id, plan?.createdAt, todayIso, todayIndex]);
 
   // If no plan is active, display an inviting Empty State
   if (!plan || !plan.days || plan.days.length === 0) {

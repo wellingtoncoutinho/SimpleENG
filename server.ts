@@ -39,7 +39,7 @@ app.post('/api/generate-lesson', async (req, res) => {
 
 app.post('/api/generate-weekly-plan', async (req, res) => {
   try {
-    const { topic, level, rawNotes, parsedItems, classDay, dailyMinutesGoal } = req.body;
+    const { topic, level, rawNotes, parsedItems, classDay, dailyMinutesGoal, clientDateIso } = req.body;
     if (!topic) {
       return res.status(400).json({ error: 'Missing topic' });
     }
@@ -50,6 +50,7 @@ app.post('/api/generate-weekly-plan', async (req, res) => {
       parsedItems: parsedItems || [],
       classDay: classDay || 'Quarta-feira',
       dailyMinutesGoal: dailyMinutesGoal || 20,
+      clientDateIso,
     });
     res.json(plan);
   } catch (err: any) {

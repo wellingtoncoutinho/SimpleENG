@@ -14,7 +14,7 @@ export interface LessonBlock {
   title: string;
   subtitle: string;
   durationMinutes: number; // e.g. 5
-  type: 'sentence_build' | 'listen_type' | 'speak_verify' | 'grammar_fix' | 'roleplay_prompt' | 'mini_game';
+  type: ExerciseType | 'mini_game';
   targetWords: string[];
   isCompleted: boolean;
   completedAt?: string;
@@ -33,6 +33,7 @@ export interface DayPlan {
   dayName: string; // e.g. "Segunda-feira"
   dayLabel: string; // e.g. "Hoje · Aquecimento & Descoberta"
   theme: string;
+  themeKey?: string; // 'restaurant' | 'family' | 'work' | 'travel' | 'friends' | 'dating' | 'city'
   isToday?: boolean;
   isClassDay?: boolean;
   isCompleted: boolean;
@@ -61,4 +62,5 @@ export interface WeeklyPlanGenerationInput {
   classDay: string;
   dailyMinutesGoal: number;
   language?: 'pt' | 'en';
+  clientDateIso?: string;
 }

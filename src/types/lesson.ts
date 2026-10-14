@@ -5,7 +5,10 @@ export type ExerciseType =
   | 'speak_verify'
   | 'sentence_build'
   | 'roleplay_prompt'
-  | 'grammar_fix';
+  | 'grammar_fix'
+  | 'multiple_choice'
+  | 'match_pairs'
+  | 'fill_blank';
 
 export interface ModuleMeta {
   appName: string;
@@ -18,6 +21,12 @@ export interface ModuleMeta {
 export interface MascotWelcome {
   greeting: string;
   topicIntro: string;
+}
+
+export interface MatchPair {
+  id: string;
+  english: string;
+  portuguese: string;
 }
 
 export interface Exercise {
@@ -40,6 +49,11 @@ export interface Exercise {
   explanationPt?: string;
   audioSpeedDefault: number;
   slowSpeedAvailable?: boolean;
+
+  // Dynamic exercise extensions:
+  options?: string[]; // Multiple choice options or Fill-in-the-blank choices
+  sentenceWithBlank?: string; // For fill_blank e.g. "I wish I had _______ to avoid the traffic."
+  pairs?: MatchPair[]; // For match_pairs game
 }
 
 export interface ReviewSummary {

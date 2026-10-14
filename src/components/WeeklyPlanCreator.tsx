@@ -133,6 +133,9 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
     setStatusMessage(null);
     soundEffects.playTap();
 
+    const localNow = new Date();
+    const clientDateIso = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, '0')}-${String(localNow.getDate()).padStart(2, '0')}`;
+
     try {
       const response = await fetch('/api/generate-weekly-plan', {
         method: 'POST',
@@ -145,6 +148,7 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
           classDay,
           dailyMinutesGoal: dailyMinutes,
           language: lang,
+          clientDateIso,
         }),
       });
 
@@ -169,6 +173,7 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
         classDay,
         dailyMinutesGoal: dailyMinutes,
         language: lang,
+        clientDateIso,
       });
       setIsGenerating(false);
       onPlanCreated(directPlan);
@@ -184,7 +189,9 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
       parsedItems,
       classDay,
       dailyMinutes,
-      rawNotes
+      rawNotes,
+      undefined,
+      clientDateIso
     );
 
     setIsGenerating(false);

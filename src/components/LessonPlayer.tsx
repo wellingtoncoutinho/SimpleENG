@@ -7,6 +7,9 @@ import { SpeakVerifyExercise } from './exercises/SpeakVerifyExercise';
 import { SentenceBuildExercise } from './exercises/SentenceBuildExercise';
 import { RoleplayPromptExercise } from './exercises/RoleplayPromptExercise';
 import { GrammarFixExercise } from './exercises/GrammarFixExercise';
+import { MultipleChoiceExercise } from './exercises/MultipleChoiceExercise';
+import { FillBlankExercise } from './exercises/FillBlankExercise';
+import { MatchPairsExercise } from './exercises/MatchPairsExercise';
 import { LessonComplete } from './LessonComplete';
 import { LearnerMascot, MascotMood } from './LearnerMascot';
 import { soundEffects, prefetchAudio } from '../utils/audio';
@@ -21,13 +24,16 @@ interface LessonPlayerProps {
   onComplete?: (stats: { xpEarned: number; correctCount: number; incorrectCount: number }) => void;
 }
 
-// Pedagogical progression weights (sentence_build first, listen second, speaking/roleplay later)
+// Pedagogical progression weights (fast recognition -> dopamine match -> cloze -> voice -> roleplay)
 const EXERCISE_ORDER_WEIGHT: Record<string, number> = {
-  sentence_build: 1,
-  listen_type: 2,
-  grammar_fix: 3,
-  speak_verify: 4,
-  roleplay_prompt: 5,
+  multiple_choice: 1,
+  match_pairs: 2,
+  fill_blank: 3,
+  sentence_build: 4,
+  listen_type: 5,
+  grammar_fix: 6,
+  speak_verify: 7,
+  roleplay_prompt: 8,
 };
 
 export const LessonPlayer: React.FC<LessonPlayerProps> = ({
@@ -77,6 +83,36 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     let localRoleplayEval: RoleplayEvaluation | null = null;
 
     switch (currentExercise.type) {
+      case 'multiple_choice': {
+        const result = verifyAnswer(
+          userAnswer,
+          currentExercise.expectedAnswer,
+          currentExercise.acceptableVariations,
+          0.95
+        );
+        isCorrect = result.isCorrect;
+        break;
+      }
+      case 'match_pairs': {
+        isCorrect = userAnswer === 'completed';
+        break;
+      }
+      case 'fill_blank': {
+        const target = currentExercise.targetWord?.trim().toLowerCase();
+        const user = userAnswer.trim().toLowerCase();
+        if (target && user === target) {
+          isCorrect = true;
+        } else {
+          const result = verifyAnswer(
+            userAnswer,
+            currentExercise.expectedAnswer,
+            currentExercise.acceptableVariations,
+            0.95
+          );
+          isCorrect = result.isCorrect;
+        }
+        break;
+      }
       case 'listen_type': {
         const result = verifyAnswer(
           userAnswer,
@@ -171,6 +207,10 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         } else {
           errorTip = `No diálogo com "${currentExercise.targetWord}": lembre-se de responder em frase completa com o vocabulário obrigatório.`;
         }
+      } else if (currentExercise.type === 'multiple_choice' || currentExercise.type === 'fill_blank') {
+        errorTip = `Na atividade com "${currentExercise.targetWord}": a opção correta é "${currentExercise.expectedAnswer}". ${currentExercise.explanationPt || ''}`;
+      } else if (currentExercise.type === 'match_pairs') {
+        errorTip = `Nos pares de palavras: revise as traduções de "${currentExercise.targetWord}".`;
       } else if (currentExercise.type === 'grammar_fix') {
         errorTip = `Cuidado com "${currentExercise.targetWord}": a forma correta é "${currentExercise.expectedAnswer}". ${currentExercise.hintPt || ''}`;
       } else if (currentExercise.type === 'sentence_build' || currentExercise.type === 'listen_type') {
@@ -289,6 +329,39 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         <div className="flex justify-center mb-2">
           <LearnerMascot mood={mascotMood} size="sm" />
         </div>
+
+        {currentExercise.type === 'multiple_choice' && (
+          <MultipleChoiceExercise
+            exercise={currentExercise}
+            userAnswer={userAnswer}
+            onChangeAnswer={setUserAnswer}
+            onSubmit={handleCheckAnswer}
+            lang={lang}
+            disabled={feedbackStatus !== 'idle'}
+          />
+        )}
+
+        {currentExercise.type === 'match_pairs' && (
+          <MatchPairsExercise
+            exercise={currentExercise}
+            userAnswer={userAnswer}
+            onChangeAnswer={setUserAnswer}
+            onSubmit={handleCheckAnswer}
+            lang={lang}
+            disabled={feedbackStatus !== 'idle'}
+          />
+        )}
+
+        {currentExercise.type === 'fill_blank' && (
+          <FillBlankExercise
+            exercise={currentExercise}
+            userAnswer={userAnswer}
+            onChangeAnswer={setUserAnswer}
+            onSubmit={handleCheckAnswer}
+            lang={lang}
+            disabled={feedbackStatus !== 'idle'}
+          />
+        )}
 
         {currentExercise.type === 'listen_type' && (
           <ListenTypeExercise

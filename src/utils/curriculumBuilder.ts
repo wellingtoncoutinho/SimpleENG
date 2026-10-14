@@ -1,13 +1,80 @@
-import { CEFRLevel, Exercise, ExerciseType, LessonPayload } from '../types/lesson';
-import { DayPlan, LessonBlock, ParsedVocabularyItem, WeeklyPlan } from '../types/weeklyPlan';
+import { CEFRLevel, Exercise, ExerciseType, LessonPayload, MatchPair } from '../types/lesson.ts';
+import { DayPlan, LessonBlock, ParsedVocabularyItem, WeeklyPlan } from '../types/weeklyPlan.ts';
 
 /**
- * Intelligent Pedagogical Generator.
- * Creates authentic Duolingo-style lessons and weekly plans from student class notes.
- * Robust, highly varied sentence engine preventing repetitive templates.
+ * Intelligent Pedagogical Generator for SimpleENG.
+ * Duolingo-style gamified micro-lessons organized around 7 real-life daily scenarios:
+ * Day 1: Restaurante & Café
+ * Day 2: Família & Casa
+ * Day 3: Trabalho & Reuniões
+ * Day 4: Viagens & Aeroporto
+ * Day 5: Rolê com Amigos & Lazer
+ * Day 6: Encontros & Relacionamentos
+ * Day 7: Vida Real, Cidade & Compras
  */
 
-// Contextual pool of distractors by category for word banks (avoids repeating 'meanwhile, furthermore')
+export type DayScenarioKey =
+  | 'restaurant'
+  | 'family'
+  | 'work'
+  | 'travel'
+  | 'friends'
+  | 'dating'
+  | 'city';
+
+export interface DayScenario {
+  key: DayScenarioKey;
+  label: string;
+  theme: string;
+  contextPt: string;
+}
+
+export const DAY_SCENARIOS: DayScenario[] = [
+  {
+    key: 'restaurant',
+    label: 'Dia 1 · Restaurante & Pedidos (Dining Out)',
+    theme: 'Situações reais em restaurantes e cafés, pedindo pratos, bebidas e interagindo com garçons.',
+    contextPt: 'em um restaurante ou cafeteria',
+  },
+  {
+    key: 'family',
+    label: 'Dia 2 · Família, Casa & Convivência (Home & Family)',
+    theme: 'Conversas do dia a dia em família, rotina em casa, carinho e convivência.',
+    contextPt: 'em casa ou conversando sobre família',
+  },
+  {
+    key: 'work',
+    label: 'Dia 3 · Trabalho, Reuniões & Carreira (Work & Office)',
+    theme: 'Situações profissionais, alinhamento de prioridades, prazos, feedback e reuniões.',
+    contextPt: 'no ambiente de trabalho ou escritório',
+  },
+  {
+    key: 'travel',
+    label: 'Dia 4 · Viagens, Aeroporto & Férias (Travel & Adventures)',
+    theme: 'Check-in, aeroporto, hotel, explorando novas cidades e férias pelo mundo.',
+    contextPt: 'em viagens, no aeroporto ou hotel',
+  },
+  {
+    key: 'friends',
+    label: 'Dia 5 · Rolê com Amigos, Música & Lazer (Friends & Fun)',
+    theme: 'Combinar saídas, falar de shows, esportes, histórias engraçadas e fins de semana.',
+    contextPt: 'em um rolê descontraído com amigos',
+  },
+  {
+    key: 'dating',
+    label: 'Dia 6 · Encontros, Emoções & Relacionamentos (Dating & Real Stories)',
+    theme: 'Conversas profundas, sentimentos, dates, desabafos e memórias da vida real.',
+    contextPt: 'em um date ou conversa sobre relacionamentos',
+  },
+  {
+    key: 'city',
+    label: 'Dia 7 · Vida Real, Cidade, Compras & Desafios (City Life & Shopping)',
+    theme: 'Compras, resolver pendências na cidade, imprevistos e desafios cotidianos.',
+    contextPt: 'na cidade, fazendo compras ou resolvendo tarefas cotidianas',
+  },
+];
+
+// Contextual pool of distractors by category for word banks
 const COMMON_DISTRACTOR_POOLS: string[][] = [
   ['to', 'for', 'with', 'about'],
   ['our', 'their', 'my', 'your'],
@@ -69,7 +136,7 @@ function categorizeWord(word: string): WordCategory {
     return 'adverb';
   }
   if (
-    ['overwhelmed', 'afraid', 'busy', 'ready', 'confident', 'polite', 'rude', 'patient', 'calm'].includes(lower) ||
+    ['overwhelmed', 'afraid', 'busy', 'ready', 'confident', 'polite', 'rude', 'patient', 'calm', 'delicious'].includes(lower) ||
     lower.endsWith('ed') ||
     lower.endsWith('able') ||
     lower.endsWith('ful')
@@ -77,7 +144,7 @@ function categorizeWord(word: string): WordCategory {
     return 'adjective';
   }
   if (
-    ['schedule', 'fear', 'routine', 'commitment', 'crush', 'feedback', 'deadline', 'budget', 'meeting', 'mistake'].includes(lower) ||
+    ['schedule', 'fear', 'routine', 'commitment', 'crush', 'feedback', 'deadline', 'budget', 'meeting', 'mistake', 'bill', 'dinner'].includes(lower) ||
     lower.endsWith('tion') ||
     lower.endsWith('ment') ||
     lower.endsWith('ance')
@@ -92,7 +159,7 @@ function getNaturalMeaning(word: string, rawMeaning?: string): string {
   const clean = rawMeaning?.trim();
   if (
     clean &&
-    clean.length <= 35 &&
+    clean.length <= 40 &&
     !clean.toLowerCase().startsWith('ao inves') &&
     !clean.toLowerCase().startsWith('ao invés') &&
     !clean.toLowerCase().startsWith('em vez') &&
@@ -105,15 +172,15 @@ function getNaturalMeaning(word: string, rawMeaning?: string): string {
   }
 
   const lower = word.toLowerCase().trim();
-  if (lower.includes('like')) return 'eu gosto muito de';
-  if (lower.includes('went')) return 'eu fui';
-  if (lower.includes('used to')) return 'eu costumava';
-  if (lower.includes('want')) return 'eu quero';
-  if (lower.includes('need')) return 'eu preciso';
-  if (lower.includes('schedule')) return 'cronograma';
+  if (lower.includes('like')) return 'gosto muito de';
+  if (lower.includes('went')) return 'fui';
+  if (lower.includes('used to')) return 'costumava';
+  if (lower.includes('want')) return 'quero';
+  if (lower.includes('need')) return 'preciso de';
+  if (lower.includes('schedule')) return 'cronograma / agenda';
   if (lower.includes('fear')) return 'medo';
   if (lower.includes('struggle')) return 'tenho dificuldade com';
-  if (lower.includes('forward')) return 'aguardo ansiosamente';
+  if (lower.includes('forward')) return 'aguardo com expectativa';
   if (lower.includes('overwhelmed')) return 'sobrecarregado(a)';
   if (lower.includes('actually')) return 'na verdade';
   if (lower.includes('ghost')) return 'dar um sumiço';
@@ -122,18 +189,47 @@ function getNaturalMeaning(word: string, rawMeaning?: string): string {
   return word;
 }
 
-/**
- * Generates dynamic, natural sentences customized for the word category and context.
- */
-function createRichSentences(
-  item: ParsedVocabularyItem,
-  seedIndex: number
-): {
+export interface RichSentenceBundle {
+  multipleChoice: {
+    scenarioPt: string;
+    promptPt: string;
+    expectedAnswer: string;
+    options: string[];
+    ptTranslation: string;
+    hintPt: string;
+    explanationPt: string;
+  };
+  matchPairs: {
+    pairs: MatchPair[];
+    hintPt: string;
+  };
+  fillBlank: {
+    sentenceWithBlank: string;
+    expectedAnswer: string;
+    options: string[];
+    ptTranslation: string;
+    hintPt: string;
+    explanationPt: string;
+  };
+  speakVerify: {
+    sentence: string;
+    ptTranslation: string;
+    hintPt: string;
+    explanationPt: string;
+  };
+  roleplayPrompt: {
+    leoPrompt: string;
+    promptPt: string;
+    expectedAnswer: string;
+    ptTranslation: string;
+    hintPt: string;
+  };
   sentenceBuild: {
     english: string;
     ptTranslation: string;
     promptPt: string;
     hintPt: string;
+    distractors?: string[];
   };
   listenType: {
     sentence: string;
@@ -146,387 +242,787 @@ function createRichSentences(
     promptPt: string;
     ptTranslation: string;
     hintPt: string;
+    explanationPt: string;
   };
-  speakVerify: {
-    sentence: string;
-    ptTranslation: string;
-    hintPt: string;
+}
+
+/**
+ * Builds 4 tactile matching pairs for match_pairs minigame.
+ * Uses words from student class notes first, then supplements with thematic words.
+ */
+function createMatchPairs(
+  targetItem: ParsedVocabularyItem,
+  allItems: ParsedVocabularyItem[],
+  scenarioKey: DayScenarioKey
+): MatchPair[] {
+  const pairs: MatchPair[] = [];
+  const targetWord = targetItem.english.trim();
+  const targetPt = getNaturalMeaning(targetWord, targetItem.portuguese);
+
+  pairs.push({
+    id: `pair_0_${targetWord.toLowerCase().replace(/\s+/g, '_')}`,
+    english: targetWord,
+    portuguese: targetPt,
+  });
+
+  // Pick other words from student's items first
+  const others = allItems.filter(
+    (i) => i.english.trim().toLowerCase() !== targetWord.toLowerCase()
+  );
+  for (const other of others) {
+    if (pairs.length >= 4) break;
+    const oEng = other.english.trim();
+    const oPt = getNaturalMeaning(oEng, other.portuguese);
+    if (!pairs.some((p) => p.english.toLowerCase() === oEng.toLowerCase())) {
+      pairs.push({
+        id: `pair_${pairs.length}_${oEng.toLowerCase().replace(/\s+/g, '_')}`,
+        english: oEng,
+        portuguese: oPt,
+      });
+    }
+  }
+
+  // Supplement with scenario pairs if fewer than 4
+  const THEMATIC_PAIRS: Record<DayScenarioKey, Array<[string, string]>> = {
+    restaurant: [
+      ['bill', 'conta do restaurante'],
+      ['order', 'fazer o pedido'],
+      ['delicious', 'muito saboroso'],
+      ['table for two', 'mesa para dois'],
+    ],
+    family: [
+      ['household', 'rotina da casa'],
+      ['tradition', 'tradição familiar'],
+      ['gather', 'reunir todos'],
+      ['care', 'cuidado e afeto'],
+    ],
+    work: [
+      ['deadline', 'prazo de entrega'],
+      ['feedback', 'retorno de avaliação'],
+      ['meeting', 'reunião de equipe'],
+      ['priority', 'prioridade principal'],
+    ],
+    travel: [
+      ['boarding pass', 'cartão de embarque'],
+      ['luggage', 'bagagem de viagem'],
+      ['smooth flight', 'voo tranquilo'],
+      ['destination', 'destino da viagem'],
+    ],
+    friends: [
+      ['hang out', 'passar tempo juntos'],
+      ['catch up', 'colocar o papo em dia'],
+      ['fun', 'muita diversão'],
+      ['plans', 'planos pro fim de semana'],
+    ],
+    dating: [
+      ['crush', 'paixonite ou paquera'],
+      ['chemistry', 'sintonia mútua'],
+      ['honest', 'sincero e aberto'],
+      ['connection', 'conexão verdadeira'],
+    ],
+    city: [
+      ['errands', 'tarefas do dia a dia'],
+      ['grocery', 'compras de mercado'],
+      ['downtown', 'centro da cidade'],
+      ['convenient', 'prático e acessível'],
+    ],
   };
-  roleplayPrompt: {
-    leoPrompt: string;
-    promptPt: string;
-    expectedAnswer: string;
-    ptTranslation: string;
-    hintPt: string;
-  };
-} {
+
+  const pool = THEMATIC_PAIRS[scenarioKey] || THEMATIC_PAIRS.restaurant;
+  for (const [eng, pt] of pool) {
+    if (pairs.length >= 4) break;
+    if (!pairs.some((p) => p.english.toLowerCase() === eng.toLowerCase())) {
+      pairs.push({
+        id: `pair_theme_${pairs.length}_${eng.replace(/\s+/g, '_')}`,
+        english: eng,
+        portuguese: pt,
+      });
+    }
+  }
+
+  return pairs.slice(0, 4);
+}
+
+/**
+ * Generates bespoke, authentic sentences tailored to the Day's Scenario.
+ * Eliminates repetitive cookie-cutter templates completely!
+ */
+function createRichSentences(
+  item: ParsedVocabularyItem,
+  seedIndex: number,
+  scenarioKey: DayScenarioKey = 'restaurant',
+  allItems: ParsedVocabularyItem[] = []
+): RichSentenceBundle {
   const word = item.english.trim();
   const rawMeaning = item.portuguese?.trim() || '';
   const nat = getNaturalMeaning(word, rawMeaning);
   const category = categorizeWord(word);
-  const rot = seedIndex % 3;
+  const pairs = createMatchPairs(item, allItems, scenarioKey);
 
-  switch (category) {
-    case 'clause_i': {
-      // First-person expressions (e.g. "I went", "I really like", "I used to")
-      const isLike = word.toLowerCase().includes('like');
-      const isWent = word.toLowerCase().includes('went');
+  // Scenario-specific generator
+  switch (scenarioKey) {
+    case 'restaurant': {
+      // Day 1: Restaurante & Café
+      let mcScenario = `No restaurante: Você está à mesa e precisa se comunicar com o garçom usando "${word}".`;
+      let mcExpected = `Could you please bring us the ${word}?`;
+      let mcOptions = [mcExpected, 'I need to check my computer now.', 'Tomorrow I drive to the office.'];
+      let mcPt = `Você poderia nos trazer ${nat.startsWith('o') || nat.startsWith('a') ? nat : `o(a) ${nat}`}, por favor?`;
 
-      let sbEng = `Whenever I have free time ${word} practicing English with confidence.`;
-      let sbPt = `Sempre que tenho tempo livre eu gosto muito de praticar inglês com confiança.`;
+      let fbBlank = `Excuse me, could you please bring our ______?`;
+      let fbAnswer = word;
+      let fbOptions = [word, 'traffic', 'battery'];
+      let fbPt = `Com licença, você poderia trazer nosso(a) ${nat}?`;
 
-      let ltEng = `She knows that ${word} speaking English during our meetings.`;
-      let ltPt = `Ela sabe que eu gosto muito de falar inglês durante nossas reuniões.`;
+      let svSentence = `Everything was absolutely delicious tonight.`;
+      let svPt = `Tudo estava absolutamente delicioso hoje à noite.`;
 
-      let svEng = `Every single day ${word} to improve my communication skills.`;
-      let svPt = `Todos os dias eu gosto muito de aprimorar minhas habilidades de comunicação.`;
+      let rpLeo = `Welcome to our bistro! Are you ready to order, or do you need a minute?`;
+      let rpLeoPt = `Leo é o garçom do bistrô e pergunta: "Você está pronto para pedir ou precisa de um minuto?" Responda usando "${word}":`;
+      let rpAnswer = `Yes, we are ready to order with ${word}.`;
+      let rpPt = `Sim, estamos prontos para pedir com "${word}".`;
 
-      if (isWent) {
-        sbEng = `Yesterday ${word} to a quiet place after finishing work.`;
-        sbPt = `Ontem eu fui a um lugar tranquilo depois de terminar o trabalho.`;
-
-        ltEng = `My colleague told me that ${word} to the conference last week.`;
-        ltPt = `Meu colega me disse que eu fui para a conferência semana passada.`;
-
-        svEng = `Last weekend ${word} for a relaxing walk with my close friends.`;
-        svPt = `No último fim de semana eu fui dar uma caminhada relaxante com amigos próximos.`;
-      } else if (!isLike) {
-        sbEng = `In the morning ${word} to organize my priorities before starting.`;
-        sbPt = `Pela manhã ${nat} organizar minhas prioridades antes de começar.`;
-
-        ltEng = `He was glad that ${word} able to join the team conversation.`;
-        ltPt = `Ele ficou feliz que ${nat} participar da conversa da equipe.`;
-
-        svEng = `Every single day ${word} to improve my professional skills.`;
-        svPt = `Todos os dias ${nat} aprimorar minhas habilidades profissionais.`;
+      if (category === 'clause_i') {
+        mcExpected = `Yes, ${word} to try the house special tonight.`;
+        mcOptions = [mcExpected, 'The weather is very sunny outside.', 'I am reading a book at home.'];
+        mcPt = `Sim, ${nat} experimentar o prato especial da casa hoje.`;
+        fbBlank = `When looking at the menu, ______ to try the chef's special.`;
+        fbPt = `Olhando o cardápio, ${nat} experimentar o especial do chef.`;
+        rpAnswer = `I am ready, ${word} to order the grilled salmon.`;
+        rpPt = `Estou pronto, ${nat} pedir o salmão grelhado.`;
+      } else if (category === 'adjective') {
+        mcExpected = `The food here is wonderfully ${word} and fresh.`;
+        mcOptions = [mcExpected, 'I forgot my car keys.', 'The flight arrives at midnight.'];
+        mcPt = `A comida aqui é incrivelmente ${nat} e fresca.`;
+        fbBlank = `The dessert here is so ______ that we ordered another one.`;
+        fbPt = `A sobremesa aqui é tão ${nat} que pedimos outra.`;
+        rpAnswer = `Everything smells so ${word} in this restaurant.`;
+        rpPt = `Tudo cheira tão ${nat} neste restaurante.`;
+      } else if (category === 'phrasal_verb') {
+        mcExpected = `We always ${word} having lunch at this cozy place.`;
+        mcOptions = [mcExpected, 'The train leaves in ten minutes.', 'I need to wash my jacket.'];
+        mcPt = `Nós sempre ${nat} almoçar neste lugar aconchegante.`;
+        fbBlank = `We always ______ visiting this cafe on weekends.`;
+        fbPt = `Nós sempre ${nat} visitar este café aos fins de semana.`;
       }
 
       return {
-        sentenceBuild: {
-          english: sbEng,
-          ptTranslation: sbPt,
-          promptPt: `Monte a frase: "${sbPt}"`,
-          hintPt: `Dica: Use a expressão "${word}" na ordem natural da oração.`,
+        multipleChoice: {
+          scenarioPt: mcScenario,
+          promptPt: `Qual frase expressa melhor o momento com "${word}"?`,
+          expectedAnswer: mcExpected,
+          options: mcOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: mcPt,
+          hintPt: `Dica: Escolha a frase mais educada e natural no restaurante com "${word}".`,
+          explanationPt: `No contexto de restaurante, essa estrutura soa polida, natural e autêntica.`,
         },
-        listenType: {
-          sentence: ltEng,
-          ptTranslation: ltPt,
-          hintPt: `Dica: Preste atenção no áudio ao redor de "${word}".`,
+        matchPairs: {
+          pairs,
+          hintPt: `Dica: Toque nos blocos correspondentes para ligar os significados.`,
         },
-        grammarFix: {
-          wrong: isWent ? `Last night I go to the store to buy some bread.` : `I really like to drinking cold water in the morning.`,
-          correct: isWent ? `Last night ${word} to the store to buy some bread.` : `I really like drinking cold water in the morning.`,
-          promptPt: `Ajuste a estrutura verbal correta na frase:`,
-          ptTranslation: isWent ? `Ontem à noite eu fui à loja para comprar pão.` : `Eu realmente gosto de tomar água gelada pela manhã.`,
-          hintPt: `Dica: Use a expressão correta observada na aula ("${word}").`,
+        fillBlank: {
+          sentenceWithBlank: fbBlank,
+          expectedAnswer: fbAnswer,
+          options: fbOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: fbPt,
+          hintPt: `Dica: Encaixe "${word}" (${nat}) para completar a ideia.`,
+          explanationPt: `A palavra "${word}" completa perfeitamente o diálogo no restaurante.`,
         },
         speakVerify: {
-          sentence: svEng,
+          sentence: svSentence,
           ptTranslation: svPt,
-          hintPt: `Dica: Pronuncie "${word}" no seu ritmo natural.`,
+          hintPt: `Dica: Leia no microfone em ritmo tranquilo e natural.`,
+          explanationPt: `Pronúncia impecável! Essa frase curta é muito usada ao elogiar uma refeição.`,
         },
         roleplayPrompt: {
-          leoPrompt: `Can you tell me about what you enjoy doing on your days off?`,
-          promptPt: `Leo pergunta: "O que você gosta de fazer nos dias de folga?" Responda usando "${word}":`,
-          expectedAnswer: isWent
-            ? `On my days off ${word} to the park and spent time with family.`
-            : `On my days off ${word} to relax and spend time with family.`,
-          ptTranslation: isWent
-            ? `Nos meus dias de folga eu fui ao parque e passei tempo com a família.`
-            : `Nos meus dias de folga eu gosto de relaxar e passar tempo com a família.`,
-          hintPt: `Dica: Formule uma resposta curta e natural incluindo "${word}".`,
+          leoPrompt: rpLeo,
+          promptPt: rpLeoPt,
+          expectedAnswer: rpAnswer,
+          ptTranslation: rpPt,
+          hintPt: `Dica: Responda diretamente ao Leo incluindo "${word}".`,
+        },
+        sentenceBuild: {
+          english: mcExpected,
+          ptTranslation: mcPt,
+          promptPt: `Monte: "${mcPt}"`,
+          hintPt: `Dica: Use "${word}" na ordem correta da frase.`,
+          distractors: ['coffee', 'water', 'menu'],
+        },
+        listenType: {
+          sentence: `Could we please get our check when you have a moment?`,
+          ptTranslation: `Você poderia nos trazer a conta quando tiver um momento?`,
+          hintPt: `Dica: Ouça com atenção a fala conectada do garçom.`,
+        },
+        grammarFix: {
+          wrong: `Can you explain me the menu, please?`,
+          correct: `Can you explain the menu to me, please?`,
+          promptPt: `Ajuste a preposição correta com o verbo "explain":`,
+          ptTranslation: `Você pode me explicar o cardápio, por favor?`,
+          hintPt: `Dica: Em inglês dizemos "explain something to me" (nunca "explain me").`,
+          explanationPt: `O verbo "explain" exige a preposição "to" antes do pronome: "explain to me".`,
         },
       };
     }
 
-    case 'phrasal_verb': {
-      // Phrasal verbs / expressions (e.g. "look forward to", "struggle with", "afraid of")
-      const isStruggle = word.toLowerCase().includes('struggle');
-      const isLookForward = word.toLowerCase().includes('forward');
-      const isAfraid = word.toLowerCase().includes('afraid');
+    case 'family': {
+      // Day 2: Família, Casa & Convivência
+      let mcScenario = `Em família: Conversando com parentes sobre a rotina de casa usando "${word}".`;
+      let mcExpected = `Our family values our weekend ${word} together.`;
+      let mcOptions = [mcExpected, 'I have to reboot the router.', 'The subway is crowded.'];
+      let mcPt = `Nossa família valoriza nosso(a) ${nat} juntos no fim de semana.`;
 
-      let wrongGf = `Many students ${word} in this specific grammar topic.`;
-      let correctGf = `Many students ${word} this specific grammar topic.`;
+      let fbBlank = `Our family always enjoys spending time ______ at home.`;
+      let fbAnswer = word;
+      let fbOptions = [word, 'subway', 'printer'];
+      let fbPt = `Nossa família sempre gosta de passar tempo em casa.`;
 
-      if (isLookForward) {
-        wrongGf = `I am looking forward for seeing you next week.`;
-        correctGf = `I am looking forward to seeing you next week.`;
-      } else if (isAfraid) {
-        wrongGf = `She was afraid with speaking in front of the audience.`;
-        correctGf = `She was afraid of speaking in front of the audience.`;
-      } else if (isStruggle) {
-        wrongGf = `I usually struggle in prepositions when I speak fast.`;
-        correctGf = `I usually struggle with prepositions when I speak fast.`;
+      let svSentence = `We always support each other.`;
+      let svPt = `Nós sempre apoiamos uns aos outros.`;
+
+      let rpLeo = `What is your favorite family tradition or Sunday routine?`;
+      let rpLeoPt = `Leo pergunta sobre a sua família: "Qual é a sua tradição de família ou rotina de domingo favorita?" Responda usando "${word}":`;
+      let rpAnswer = `On Sundays we share our ${word} with everyone.`;
+      let rpPt = `Aos domingos nós compartilhamos nosso(a) ${nat} com todos.`;
+
+      if (category === 'clause_i') {
+        mcExpected = `Every Sunday ${word} cooking lunch for the whole family.`;
+        mcOptions = [mcExpected, 'The office opens at eight.', 'I need new tires.'];
+        mcPt = `Todo domingo ${nat} cozinhar o almoço para a família inteira.`;
+        fbBlank = `On peaceful weekends, ______ relaxing with my loved ones.`;
+        fbPt = `Em fins de semana tranquilos, ${nat} relaxar com quem eu amo.`;
+        rpAnswer = `On weekends ${word} spending quiet moments at home.`;
+        rpPt = `Nos fins de semana ${nat} passar momentos tranquilos em casa.`;
+      } else if (category === 'adjective') {
+        mcExpected = `Our home feels wonderfully ${word} during the holidays.`;
+        mcOptions = [mcExpected, 'I missed the train.', 'The battery is low.'];
+        mcPt = `Nossa casa fica incrivelmente ${nat} durante os feriados.`;
+        fbBlank = `Our home always feels so ______ when everyone visits.`;
+        fbPt = `Nossa casa sempre parece tão ${nat} quando todos visitam.`;
       }
 
       return {
-        sentenceBuild: {
-          english: `I always try to stay calm whenever I ${word} new topics.`,
-          ptTranslation: `Eu sempre tento manter a calma sempre que ${nat.startsWith('eu') ? nat : `eu ${nat}`} novos tópicos.`,
-          promptPt: `Monte a frase: "Eu sempre tento manter a calma sempre que ${nat.startsWith('eu') ? nat : `eu ${nat}`} novos tópicos."`,
-          hintPt: `Dica: Lembre-se da preposição que acompanha "${word}".`,
+        multipleChoice: {
+          scenarioPt: mcScenario,
+          promptPt: `Qual frase expressa melhor a convivência familiar com "${word}"?`,
+          expectedAnswer: mcExpected,
+          options: mcOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: mcPt,
+          hintPt: `Dica: Pense no ambiente acolhedor da casa com "${word}".`,
+          explanationPt: `Expressa intimidade e afeto natural no diálogo familiar em inglês.`,
         },
-        listenType: {
-          sentence: `Never hesitate to ask for advice if you ${word} your current tasks.`,
-          ptTranslation: `Nunca hesite em pedir conselhos se você tiver desafios com suas tarefas atuais.`,
-          hintPt: `Dica: Ouça a conexão entre "${word}" e o restante da frase.`,
+        matchPairs: {
+          pairs,
+          hintPt: `Dica: Ligue cada palavra da aula ao significado em português.`,
         },
-        grammarFix: {
-          wrong: wrongGf,
-          correct: correctGf,
-          promptPt: `Corrija a preposição errada que costumamos confundir:`,
-          ptTranslation: `Preste atenção à preposição correta que combina com "${word}".`,
-          hintPt: `Dica: Lembre-se da preposição exata observada na aula com o professor.`,
+        fillBlank: {
+          sentenceWithBlank: fbBlank,
+          expectedAnswer: fbAnswer,
+          options: fbOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: fbPt,
+          hintPt: `Dica: Escolha "${word}" (${nat}) para completar a frase da casa.`,
+          explanationPt: `A palavra "${word}" se encaixa perfeitamente no diálogo familiar.`,
         },
         speakVerify: {
-          sentence: `I try to stay positive whenever I ${word} speaking in public.`,
-          ptTranslation: `Eu tento me manter positivo sempre que tenho desafios com falar em público.`,
-          hintPt: `Dica: Fale em ritmo pausado e firme a expressão "${word}".`,
+          sentence: svSentence,
+          ptTranslation: svPt,
+          hintPt: `Dica: Fale no microfone com ritmo pausado.`,
+          explanationPt: `Ótima pronúncia! Essa frase de apoio mútuo é um clássico em inglês.`,
         },
         roleplayPrompt: {
-          leoPrompt: `How do you handle challenging situations during your work day?`,
-          promptPt: `Leo pergunta: "Como você lida com situações desafiadoras no trabalho?" Responda usando "${word}":`,
-          expectedAnswer: `Whenever I ${word} something difficult I ask colleagues for help.`,
-          ptTranslation: `Sempre que me deparo com algo difícil eu peço ajuda aos colegas.`,
-          hintPt: `Dica: Uma resposta direta incluindo "${word}" já é perfeita.`,
+          leoPrompt: rpLeo,
+          promptPt: rpLeoPt,
+          expectedAnswer: rpAnswer,
+          ptTranslation: rpPt,
+          hintPt: `Dica: Fale sobre a rotina da sua família incluindo "${word}".`,
+        },
+        sentenceBuild: {
+          english: mcExpected,
+          ptTranslation: mcPt,
+          promptPt: `Monte: "${mcPt}"`,
+          hintPt: `Dica: Organize as palavras com carinho na frase.`,
+          distractors: ['dinner', 'home', 'together'],
+        },
+        listenType: {
+          sentence: `My grandparents shared heartwarming stories from the past.`,
+          ptTranslation: `Meus avós compartilharam histórias comoventes do passado.`,
+          hintPt: `Dica: Ouça a pronúncia de "grandparents" e "stories".`,
+        },
+        grammarFix: {
+          wrong: `I live in this house since five years.`,
+          correct: `I have lived in this house for five years.`,
+          promptPt: `Ajuste a estrutura temporal correta ("for" vs "since"):`,
+          ptTranslation: `Eu moro nesta casa há cinco anos.`,
+          hintPt: `Dica: Para períodos de duração ("há cinco anos") usamos "for" com present perfect.`,
+          explanationPt: `Usamos "for" para duração de tempo (for 5 years) e "since" para o ponto de partida (since 2021).`,
         },
       };
     }
 
-    case 'noun': {
-      // Nouns / Concepts (e.g. "schedule", "fear", "routine", "deadline")
-      const sbTemplates = [
-        {
-          eng: `We need to organize our ${word} to deliver high quality results.`,
-          pt: `Precisamos organizar nosso(a) ${nat} para entregar resultados de alta qualidade.`,
-        },
-        {
-          eng: `Facing your ${word} directly will help you grow and feel confident.`,
-          pt: `Enfrentar seu(sua) ${nat} diretamente vai te ajudar a crescer e ter confiança.`,
-        },
-        {
-          eng: `I like to maintain a clear ${word} throughout the entire work week.`,
-          pt: `Eu gosto de manter um(a) ${nat} claro(a) durante toda a semana de trabalho.`,
-        },
-      ];
-      const ltTemplates = [
-        {
-          eng: `Please confirm your ${word} before we schedule the next meeting.`,
-          pt: `Por favor confirme seu(sua) ${nat} antes de marcarmos a próxima reunião.`,
-        },
-        {
-          eng: `Overcoming your ${word} is the most rewarding part of language learning.`,
-          pt: `Superar seu(sua) ${nat} é a parte mais recompensadora do aprendizado de idiomas.`,
-        },
-        {
-          eng: `She shared valuable feedback regarding our weekly ${word}.`,
-          pt: `Ela compartilhou um feedback valioso a respeito do(a) nosso(a) ${nat} semanal.`,
-        },
-      ];
-      const svTemplates = [
-        {
-          eng: `I review my ${word} every morning to stay on track.`,
-          pt: `Eu reviso meu(minha) ${nat} todas as manhãs para me manter no rumo.`,
-        },
-        {
-          eng: `Replacing ${word} with action makes everything much easier.`,
-          pt: `Substituir ${nat} por ação torna tudo muito mais fácil.`,
-        },
-        {
-          eng: `Having a solid ${word} brings peace of mind to our daily routine.`,
-          pt: `Ter um(a) ${nat} sólido(a) traz tranquilidade à nossa rotina diária.`,
-        },
-      ];
+    case 'work': {
+      // Day 3: Trabalho, Reuniões & Carreira
+      let mcScenario = `No trabalho: Alinhando entregas e tarefas com sua equipe usando "${word}".`;
+      let mcExpected = `We need to adjust our ${word} before the client meeting.`;
+      let mcOptions = [mcExpected, 'The soup is very hot.', 'I enjoy painting walls.'];
+      let mcPt = `Precisamos ajustar nosso(a) ${nat} antes da reunião com o cliente.`;
 
-      const sb = sbTemplates[rot];
-      const lt = ltTemplates[rot];
-      const sv = svTemplates[rot];
+      let fbBlank = `Please send me the updated ______ before the team meeting.`;
+      let fbAnswer = word;
+      let fbOptions = [word, 'sandwich', 'blanket'];
+      let fbPt = `Por favor, me envie o(a) ${nat} atualizado(a) antes da reunião.`;
+
+      let svSentence = `Let's schedule a quick call.`;
+      let svPt = `Vamos marcar uma ligação rápida.`;
+
+      let rpLeo = `How is your work week going, and what is your top priority today?`;
+      let rpLeoPt = `Leo é seu colega de trabalho e pergunta: "Como está sua semana e qual sua maior prioridade hoje?" Responda usando "${word}":`;
+      let rpAnswer = `My top priority is managing our ${word} effectively.`;
+      let rpPt = `Minha maior prioridade é gerenciar nosso(a) ${nat} com eficiência.`;
+
+      if (category === 'clause_i') {
+        mcExpected = `So far ${word} organizing my priorities for the sprint.`;
+        mcOptions = [mcExpected, 'The pizza arrived cold.', 'I love watching cartoons.'];
+        mcPt = `Até agora ${nat} organizar minhas prioridades para o projeto.`;
+        fbBlank = `During every project meeting, ______ sharing clear status updates.`;
+        fbPt = `Em toda reunião de projeto, ${nat} compartilhar atualizações claras.`;
+        rpAnswer = `Today ${word} focusing on key deliverables for the team.`;
+        rpPt = `Hoje ${nat} focar nas entregas principais para a equipe.`;
+      } else if (category === 'adjective') {
+        mcExpected = `The entire project team felt ${word} before the product launch.`;
+        mcOptions = [mcExpected, 'The ice cream melted.', 'The cinema was closed.'];
+        mcPt = `A equipe inteira do projeto se sentiu ${nat} antes do lançamento.`;
+        fbBlank = `The workload was challenging, but the team remained ______.`;
+        fbPt = `O volume de trabalho foi desafiador, mas a equipe permaneceu ${nat}.`;
+      }
 
       return {
-        sentenceBuild: {
-          english: sb.eng,
-          ptTranslation: sb.pt,
-          promptPt: `Monte a frase: "${sb.pt}"`,
-          hintPt: `Dica: O termo "${word}" funciona como o substantivo principal.`,
+        multipleChoice: {
+          scenarioPt: mcScenario,
+          promptPt: `Qual resposta soa mais profissional no escritório com "${word}"?`,
+          expectedAnswer: mcExpected,
+          options: mcOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: mcPt,
+          hintPt: `Dica: Escolha a comunicação mais clara para o trabalho com "${word}".`,
+          explanationPt: `Comunicação corporativa moderna em inglês é direta, colaborativa e clara.`,
         },
-        listenType: {
-          sentence: lt.eng,
-          ptTranslation: lt.pt,
-          hintPt: `Dica: Ouça com atenção o pronome possessivo antes de "${word}".`,
+        matchPairs: {
+          pairs,
+          hintPt: `Dica: Conecte os termos profissionais com suas traduções.`,
         },
-        grammarFix: {
-          wrong: `We must organize us ${word} before starting the project.`,
-          correct: `We must organize our ${word} before starting the project.`,
-          promptPt: `Corrija o pronome possessivo ("our" vs "us") na frase:`,
-          ptTranslation: `Precisamos organizar nosso(a) ${nat} antes de começar o projeto.`,
-          hintPt: `Dica: Use "our" para indicar posse ("nosso/nossa") e não "us".`,
+        fillBlank: {
+          sentenceWithBlank: fbBlank,
+          expectedAnswer: fbAnswer,
+          options: fbOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: fbPt,
+          hintPt: `Dica: Preencha com "${word}" (${nat}) para manter o fluxo profissional.`,
+          explanationPt: `Encaixe perfeito na rotina de reuniões e entregas corporativas.`,
         },
         speakVerify: {
-          sentence: sv.eng,
-          ptTranslation: sv.pt,
-          hintPt: `Dica: Pronuncie "${word}" com clareza.`,
+          sentence: svSentence,
+          ptTranslation: svPt,
+          hintPt: `Dica: Fale firme e com clareza no microfone.`,
+          explanationPt: `Perfeito! "Schedule a quick call" é a frase número um do ambiente de trabalho global.`,
         },
         roleplayPrompt: {
-          leoPrompt: `How do you organize your priorities when unexpected tasks arise?`,
-          promptPt: `Leo pergunta: "Como você organiza suas prioridades?" Responda usando "${word}":`,
-          expectedAnswer: `I adapt my ${word} as soon as new priorities come in.`,
-          ptTranslation: `Eu adapto meu(minha) ${nat} assim que surgem novas prioridades.`,
-          hintPt: `Dica: Uma frase curta contendo "${word}" é ideal.`,
+          leoPrompt: rpLeo,
+          promptPt: rpLeoPt,
+          expectedAnswer: rpAnswer,
+          ptTranslation: rpPt,
+          hintPt: `Dica: Responda ao colega Leo mencionando "${word}".`,
+        },
+        sentenceBuild: {
+          english: mcExpected,
+          ptTranslation: mcPt,
+          promptPt: `Monte: "${mcPt}"`,
+          hintPt: `Dica: Monte a frase com foco nos prazos e prioridades.`,
+          distractors: ['deadline', 'meeting', 'report'],
+        },
+        listenType: {
+          sentence: `We need to align our deliverables before the end of the week.`,
+          ptTranslation: `Precisamos alinhar nossas entregas antes do fim da semana.`,
+          hintPt: `Dica: Ouça a pronúncia de "deliverables" e "align".`,
+        },
+        grammarFix: {
+          wrong: `I will send you the report when I will finish it.`,
+          correct: `I will send you the report when I finish it.`,
+          promptPt: `Ajuste a oração temporal com "when" (elimine o "will" duplo):`,
+          ptTranslation: `Vou te enviar o relatório quando eu terminar.`,
+          hintPt: `Dica: Em orações que começam com "when/after/before" usamos o presente simples (finish), não "will finish".`,
+          explanationPt: `Após conjunções temporais (when, as soon as), o inglês exige o presente simples para indicar futuro.`,
         },
       };
     }
 
-    case 'adjective': {
-      // Adjectives / States (e.g. "overwhelmed", "afraid", "busy", "ready")
+    case 'travel': {
+      // Day 4: Viagens, Aeroporto & Férias
+      let mcScenario = `Em viagem: No aeroporto ou hotel organizando sua jornada usando "${word}".`;
+      let mcExpected = `Please confirm the departure ${word} on our flight tickets.`;
+      let mcOptions = [mcExpected, 'I need to vacuum the rug.', 'My math homework is tough.'];
+      let mcPt = `Por favor confirme o(a) ${nat} de partida em nossas passagens de voo.`;
+
+      let fbBlank = `Keep your passport and travel ______ in your carry-on bag.`;
+      let fbAnswer = word;
+      let fbOptions = [word, 'refrigerator', 'pajamas'];
+      let fbPt = `Mantenha seu passaporte e seu(sua) ${nat} de viagem na bagagem de mão.`;
+
+      let svSentence = `Our flight departed on time.`;
+      let svPt = `Nosso voo partiu no horário.`;
+
+      let rpLeo = `Where are you planning to travel next, and what do you pack first?`;
+      let rpLeoPt = `Leo é seu guia de viagem e pergunta: "Para onde você planeja viajar e o que arruma primeiro?" Responda usando "${word}":`;
+      let rpAnswer = `I always double-check my ${word} before heading to the airport.`;
+      let rpPt = `Eu sempre confiro duas vezes meu(minha) ${nat} antes de ir para o aeroporto.`;
+
+      if (category === 'clause_i') {
+        mcExpected = `Whenever I travel ${word} arriving at the airport well in advance.`;
+        mcOptions = [mcExpected, 'The microwave is beeping.', 'I am watering the plants.'];
+        mcPt = `Sempre que viajo ${nat} chegar ao aeroporto com bastante antecedência.`;
+        fbBlank = `When arriving in a new city, ______ exploring local markets on foot.`;
+        fbPt = `Ao chegar a uma nova cidade, ${nat} explorar os mercados a pé.`;
+        rpAnswer = `When traveling ${word} discovering new cultures and authentic foods.`;
+        rpPt = `Ao viajar ${nat} descobrir novas culturas e comidas autênticas.`;
+      } else if (category === 'adjective') {
+        mcExpected = `The flight was remarkably ${word} despite the bad weather.`;
+        mcOptions = [mcExpected, 'I left my keys at the office.', 'The dog is barking.'];
+        mcPt = `O voo foi incrivelmente ${nat} apesar do mau tempo.`;
+        fbBlank = `Our hotel room was very clean and ______ after a long flight.`;
+        fbPt = `Nosso quarto de hotel era muito limpo e ${nat} após um voo longo.`;
+      }
+
       return {
-        sentenceBuild: {
-          english: `Take a short pause whenever you feel ${word} with too many emails.`,
-          ptTranslation: `Faça uma pausa curta sempre que se sentir ${nat} com muitos e-mails.`,
-          promptPt: `Monte a frase: "Faça uma pausa curta sempre que se sentir ${nat} com muitos e-mails."`,
-          hintPt: `Dica: O adjetivo "${word}" descreve como o sujeito se sente.`,
+        multipleChoice: {
+          scenarioPt: mcScenario,
+          promptPt: `Qual frase expressa melhor sua situação de viagem com "${word}"?`,
+          expectedAnswer: mcExpected,
+          options: mcOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: mcPt,
+          hintPt: `Dica: Pense no ambiente de aeroporto ou turismo com "${word}".`,
+          explanationPt: `Vocabulário prático e útil para circular pelo mundo sem aperto.`,
         },
-        listenType: {
-          sentence: `She felt completely ${word} after receiving the new urgent project.`,
-          ptTranslation: `Ela se sentiu completamente ${nat} após receber o novo projeto urgente.`,
-          hintPt: `Dica: Ouça a palavra descritiva "${word}".`,
+        matchPairs: {
+          pairs,
+          hintPt: `Dica: Ligue os pares de palavras de viagem em inglês e português.`,
         },
-        grammarFix: {
-          wrong: `I feel ${word} for all this unexpected information.`,
-          correct: `I feel ${word} by all this unexpected information.`,
-          promptPt: `Ajuste a preposição correta que combina com o adjetivo:`,
-          ptTranslation: `Eu me sinto ${nat} por toda essa informação inesperada.`,
-          hintPt: `Dica: Em inglês costumamos usar "by" ou "with" após "${word}".`,
+        fillBlank: {
+          sentenceWithBlank: fbBlank,
+          expectedAnswer: fbAnswer,
+          options: fbOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: fbPt,
+          hintPt: `Dica: Complete com "${word}" (${nat}) para a sua mala de viagem.`,
+          explanationPt: `Estrutura perfeita para usar em aeroportos e hotéis no exterior.`,
         },
         speakVerify: {
-          sentence: `I try to stay calm and take deep breaths whenever I feel ${word}.`,
-          ptTranslation: `Eu tento manter a calma e respirar fundo sempre que me sinto ${nat}.`,
-          hintPt: `Dica: Pronuncie "${word}" no seu ritmo habitual.`,
+          sentence: svSentence,
+          ptTranslation: svPt,
+          hintPt: `Dica: Fale no microfone com pronúncia clara de "departed".`,
+          explanationPt: `Excelente! "On time" significa pontual, no horário previsto.`,
         },
         roleplayPrompt: {
-          leoPrompt: `What is your favorite way to unwind when you feel ${word}?`,
-          promptPt: `Leo pergunta: "Como você relaxa quando se sente ${nat}?" Responda usando "${word}":`,
-          expectedAnswer: `Whenever I feel ${word} I go for a walk outside.`,
-          ptTranslation: `Sempre que me sinto ${nat} eu dou uma caminhada ao ar livre.`,
-          hintPt: `Dica: Responda de forma simples usando "${word}".`,
+          leoPrompt: rpLeo,
+          promptPt: rpLeoPt,
+          expectedAnswer: rpAnswer,
+          ptTranslation: rpPt,
+          hintPt: `Dica: Conte seus planos de viagem para o Leo usando "${word}".`,
+        },
+        sentenceBuild: {
+          english: mcExpected,
+          ptTranslation: mcPt,
+          promptPt: `Monte: "${mcPt}"`,
+          hintPt: `Dica: Monte a frase com os detalhes do voo.`,
+          distractors: ['passport', 'luggage', 'flight'],
+        },
+        listenType: {
+          sentence: `Please have your boarding pass ready for the gate agent.`,
+          ptTranslation: `Por favor tenha seu cartão de embarque pronto para o atendente do portão.`,
+          hintPt: `Dica: Ouça as palavras "boarding pass" e "gate agent".`,
+        },
+        grammarFix: {
+          wrong: `I arrived to the airport two hours before departure.`,
+          correct: `I arrived at the airport two hours before departure.`,
+          promptPt: `Corrija a preposição com o verbo "arrive":`,
+          ptTranslation: `Cheguei ao aeroporto duas horas antes do embarque.`,
+          hintPt: `Dica: Em inglês dizemos "arrive at" para locais específicos como aeroporto, hotel ou estação.`,
+          explanationPt: `Usamos "arrive at" para prédios e locais fechados, e "arrive in" para cidades ou países. Nunca "arrive to".`,
         },
       };
     }
 
-    case 'adverb': {
-      // Adverbs (e.g. "actually", "usually", "recently")
+    case 'friends': {
+      // Day 5: Rolê com Amigos & Lazer
+      let mcScenario = `Com amigos: Combinando o que fazer no fim de semana usando "${word}".`;
+      let mcExpected = `Let's sync our weekend ${word} so we can hang out downtown.`;
+      let mcOptions = [mcExpected, 'The printer has no ink.', 'The quarterly taxes are due.'];
+      let mcPt = `Vamos sincronizar nosso(a) ${nat} de fim de semana para sair no centro.`;
+
+      let fbBlank = `We should definitely ______ and catch up this Saturday.`;
+      let fbAnswer = word;
+      let fbOptions = [word, 'stapler', 'calculator'];
+      let fbPt = `Nós com certeza deveríamos colocar o papo em dia neste sábado.`;
+
+      let svSentence = `We had so much fun.`;
+      let svPt = `Nós nos divertimos tanto.`;
+
+      let rpLeo = `What do you and your friends usually do to unwind on weekends?`;
+      let rpLeoPt = `Leo pergunta sobre seus rolês: "O que você e seus amigos costumam fazer para relaxar no fim de semana?" Responda usando "${word}":`;
+      let rpAnswer = `We like to hang out and enjoy our ${word} together.`;
+      let rpPt = `Nós gostamos de sair e aproveitar nosso(a) ${nat} juntos.`;
+
+      if (category === 'clause_i') {
+        mcExpected = `Whenever we meet ${word} laughing about our funniest stories.`;
+        mcOptions = [mcExpected, 'The spreadsheet has errors.', 'I need to pay the electric bill.'];
+        mcPt = `Sempre que nos encontramos ${nat} rir das nossas histórias mais engraçadas.`;
+        fbBlank = `Whenever we get together, ______ sharing great music and laughs.`;
+        fbPt = `Sempre que nos reunimos, ${nat} compartilhar boas músicas e risadas.`;
+        rpAnswer = `On Friday nights ${word} going out for burgers and chilling.`;
+        rpPt = `Nas noites de sexta ${nat} sair para comer hambúrguer e relaxar.`;
+      } else if (category === 'adjective') {
+        mcExpected = `The concert atmosphere was completely ${word} last night!`;
+        mcOptions = [mcExpected, 'I forgot my password.', 'The dentist appointment is late.'];
+        mcPt = `O clima do show estava completamente ${nat} ontem à noite!`;
+        fbBlank = `Our weekend hangout was so ______ and full of laughs.`;
+        fbPt = `Nosso rolê de fim de semana foi tão ${nat} e cheio de risadas.`;
+      }
+
       return {
-        sentenceBuild: {
-          english: `${word} practicing a little bit every day makes a huge difference.`,
-          ptTranslation: `${nat}, praticar um pouco todos os dias faz uma enorme diferença.`,
-          promptPt: `Monte a frase: "${nat}, praticar um pouco todos os dias faz uma enorme diferença."`,
-          hintPt: `Dica: Comece a frase com o advérbio "${word}".`,
+        multipleChoice: {
+          scenarioPt: mcScenario,
+          promptPt: `Qual frase soa mais espontânea e amigável com "${word}"?`,
+          expectedAnswer: mcExpected,
+          options: mcOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: mcPt,
+          hintPt: `Dica: Pense em um rolê descontraído com amigos usando "${word}".`,
+          explanationPt: `Inglês informal entre amigos usa expressões leves, descontraídas e acolhedoras.`,
         },
-        listenType: {
-          sentence: `He mentioned that ${word} the meeting was postponed until tomorrow.`,
-          ptTranslation: `Ele mencionou que ${nat} a reunião foi adiada para amanhã.`,
-          hintPt: `Dica: Preste atenção no advérbio "${word}".`,
+        matchPairs: {
+          pairs,
+          hintPt: `Dica: Conecte as expressões de amizade e lazer.`,
         },
-        grammarFix: {
-          wrong: `I have been practicing my English, ${word}, in the morning.`,
-          correct: `${word}, I have been practicing my English in the morning.`,
-          promptPt: `Ajuste a ordem natural do advérbio na oração:`,
-          ptTranslation: `${nat}, eu tenho praticado meu inglês pela manhã.`,
-          hintPt: `Dica: Posicione "${word}" no início da oração para dar ênfase natural.`,
+        fillBlank: {
+          sentenceWithBlank: fbBlank,
+          expectedAnswer: fbAnswer,
+          options: fbOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: fbPt,
+          hintPt: `Dica: Encaixe "${word}" (${nat}) no plano do fim de semana.`,
+          explanationPt: `Perfeito para convidar amigos e marcar encontros descontraídos.`,
         },
         speakVerify: {
-          sentence: `${word}, I feel much more confident speaking English this week.`,
-          ptTranslation: `${nat}, eu me sinto muito mais confiante falando inglês esta semana.`,
-          hintPt: `Dica: Fale "${word}" com entonação natural de início de frase.`,
+          sentence: svSentence,
+          ptTranslation: svPt,
+          hintPt: `Dica: Fale no microfone com entusiasmo natural.`,
+          explanationPt: `"So much fun" é a forma mais natural em inglês para dizer que algo foi divertidíssimo.`,
         },
         roleplayPrompt: {
-          leoPrompt: `Do you prefer studying in the morning or at night?`,
-          promptPt: `Leo pergunta: "Você prefere estudar de manhã ou à noite?" Responda usando "${word}":`,
-          expectedAnswer: `${word}, I find it much easier to focus in the morning.`,
-          ptTranslation: `${nat}, eu acho bem mais fácil focar de manhã.`,
-          hintPt: `Dica: Comece sua resposta com "${word}".`,
+          leoPrompt: rpLeo,
+          promptPt: rpLeoPt,
+          expectedAnswer: rpAnswer,
+          ptTranslation: rpPt,
+          hintPt: `Dica: Responda ao Leo sobre seu fim de semana usando "${word}".`,
+        },
+        sentenceBuild: {
+          english: mcExpected,
+          ptTranslation: mcPt,
+          promptPt: `Monte: "${mcPt}"`,
+          hintPt: `Dica: Monte a frase com os amigos.`,
+          distractors: ['party', 'weekend', 'friends'],
+        },
+        listenType: {
+          sentence: `We should definitely hang out more often this summer.`,
+          ptTranslation: `Nós com certeza deveríamos sair juntos com mais frequência neste verão.`,
+          hintPt: `Dica: Ouça o phrasal verb "hang out".`,
+        },
+        grammarFix: {
+          wrong: `I like very much to hang out with my close friends.`,
+          correct: `I really like hanging out with my close friends.`,
+          promptPt: `Ajuste a posição natural de "really like" na frase:`,
+          ptTranslation: `Eu realmente gosto de sair com meus amigos próximos.`,
+          hintPt: `Dica: Em inglês colocamos "really like" antes do verbo, evitando o "like very much" no início.`,
+          explanationPt: `Falantes nativos dizem "I really like doing something" ao invés de "I like very much".`,
+        },
+      };
+    }
+
+    case 'dating': {
+      // Day 6: Encontros, Emoções & Relacionamentos
+      let mcScenario = `Em um encontro: Conversando abertamente sobre sentimentos e vida a dois com "${word}".`;
+      let mcExpected = `Honest communication prevents any sudden ${word} between couples.`;
+      let mcOptions = [mcExpected, 'The engine needs motor oil.', 'The train runs every hour.'];
+      let mcPt = `Comunicação sincera evita qualquer ${nat} repentino(a) entre casais.`;
+
+      let fbBlank = `Trust and genuine kindness are key in any healthy ______.`;
+      let fbAnswer = word;
+      let fbOptions = [word, 'laptop', 'escalator'];
+      let fbPt = `Confiança e gentileza genuína são fundamentais em qualquer relação saudável.`;
+
+      let svSentence = `We had a wonderful conversation.`;
+      let svPt = `Tivemos uma conversa maravilhosa.`;
+
+      let rpLeo = `In your opinion, what makes a first date truly memorable and enjoyable?`;
+      let rpLeoPt = `Leo pergunta sobre conexões e relacionamentos: "Na sua opinião, o que torna um primeiro encontro marcante?" Responda usando "${word}":`;
+      let rpAnswer = `Being authentic and showing true ${word} makes all the difference.`;
+      let rpPt = `Ser autêntico e demonstrar verdadeiro(a) ${nat} faz toda a diferença.`;
+
+      if (category === 'clause_i') {
+        mcExpected = `To be completely honest, ${word} valuing genuine and deep connections.`;
+        mcOptions = [mcExpected, 'The meeting starts at two.', 'I need to clean the garage.'];
+        mcPt = `Para ser totalmente sincero(a), ${nat} valorizar conexões profundas e verdadeiras.`;
+        fbBlank = `In romantic relationships, ______ learning to communicate with patience.`;
+        fbPt = `Em relacionamentos, ${nat} aprender a se comunicar com paciência.`;
+        rpAnswer = `When dating someone new, ${word} being myself without pretending.`;
+        rpPt = `Ao sair com alguém novo, ${nat} ser eu mesmo(a) sem fingir.`;
+      } else if (category === 'adjective') {
+        mcExpected = `They had an emotionally ${word} conversation about their past.`;
+        mcOptions = [mcExpected, 'The wifi signal is weak.', 'I washed my tennis shoes.'];
+        mcPt = `Eles tiveram uma conversa emocionalmente ${nat} sobre o passado.`;
+        fbBlank = `Meeting someone who makes you feel safe and ______ is priceless.`;
+        fbPt = `Conhecer alguém que te faz se sentir seguro e ${nat} não tem preço.`;
+      }
+
+      return {
+        multipleChoice: {
+          scenarioPt: mcScenario,
+          promptPt: `Qual frase expressa melhor sentimentos sinceros com "${word}"?`,
+          expectedAnswer: mcExpected,
+          options: mcOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: mcPt,
+          hintPt: `Dica: Pense em conversas maduras e sinceras com "${word}".`,
+          explanationPt: `Tratar de sentimentos com vocabulário refinado é essencial para conversas adultas.`,
+        },
+        matchPairs: {
+          pairs,
+          hintPt: `Dica: Ligue os termos de sentimentos e relacionamentos.`,
+        },
+        fillBlank: {
+          sentenceWithBlank: fbBlank,
+          expectedAnswer: fbAnswer,
+          options: fbOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: fbPt,
+          hintPt: `Dica: Complete com "${word}" (${nat}) para falar de relações reais.`,
+          explanationPt: `Encaixe natural e profundo sobre a vida afetiva.`,
+        },
+        speakVerify: {
+          sentence: svSentence,
+          ptTranslation: svPt,
+          hintPt: `Dica: Pronuncie com entonação calorosa e tranquila.`,
+          explanationPt: `Muito bem! Essa frase transmite apreço sincero pelo momento compartilhado.`,
+        },
+        roleplayPrompt: {
+          leoPrompt: rpLeo,
+          promptPt: rpLeoPt,
+          expectedAnswer: rpAnswer,
+          ptTranslation: rpPt,
+          hintPt: `Dica: Responda ao Leo sobre encontros reais usando "${word}".`,
+        },
+        sentenceBuild: {
+          english: mcExpected,
+          ptTranslation: mcPt,
+          promptPt: `Monte: "${mcPt}"`,
+          hintPt: `Dica: Organize as palavras sobre honestidade e sentimentos.`,
+          distractors: ['heart', 'feelings', 'together'],
+        },
+        listenType: {
+          sentence: `They really connected on their very first dinner together.`,
+          ptTranslation: `Eles realmente se conectaram logo no primeiro jantar juntos.`,
+          hintPt: `Dica: Ouça a ligação sonora de "connected on".`,
+        },
+        grammarFix: {
+          wrong: `She is married with a Brazilian engineer.`,
+          correct: `She is married to a Brazilian engineer.`,
+          promptPt: `Ajuste a preposição correta com "married":`,
+          ptTranslation: `Ela é casada com um engenheiro brasileiro.`,
+          hintPt: `Dica: Em inglês dizemos "married to", e não "married with".`,
+          explanationPt: `Pegadinha clássica para brasileiros: em inglês a estrutura correta é "married TO someone".`,
         },
       };
     }
 
     default: {
-      // General verbs or terms with 3 varied templates preventing repetition
-      const sbList = [
-        {
-          eng: `I want to practice using ${word} during our next conversation.`,
-          pt: `Eu quero praticar o uso de "${word}" (${nat}) durante nossa próxima conversa.`,
-        },
-        {
-          eng: `Applying ${word} in daily situations helps you build real confidence.`,
-          pt: `Aplicar "${word}" (${nat}) em situações do dia a dia ajuda a construir confiança real.`,
-        },
-        {
-          eng: `We always try to remember ${word} when speaking with native speakers.`,
-          pt: `Sempre tentamos lembrar de "${word}" (${nat}) ao falar com falantes nativos.`,
-        },
-      ];
-      const ltList = [
-        {
-          eng: `She emphasized that using ${word} correctly makes your English sound natural.`,
-          pt: `Ela enfatizou que usar "${word}" (${nat}) corretamente faz seu inglês soarem natural.`,
-        },
-        {
-          eng: `You will easily recognize ${word} once you listen to it in real dialogues.`,
-          pt: `Você vai reconhecer "${word}" (${nat}) facilmente assim que ouvi-lo em diálogos reais.`,
-        },
-        {
-          eng: `Listen to how the speaker naturally connects ${word} with the next phrase.`,
-          pt: `Ouça como o falante conecta naturalmente "${word}" (${nat}) com a próxima frase.`,
-        },
-      ];
-      const svList = [
-        {
-          eng: `I practice using ${word} in everyday conversation to gain fluency.`,
-          pt: `Eu pratico o uso de "${word}" (${nat}) em conversas do dia a dia para ganhar fluência.`,
-        },
-        {
-          eng: `Speaking ${word} with clarity is a big step towards natural communication.`,
-          pt: `Falar "${word}" (${nat}) com clareza é um grande passo rumo à comunicação natural.`,
-        },
-        {
-          eng: `I feel much more comfortable using ${word} in my routine today.`,
-          pt: `Eu me sinto bem mais confortável usando "${word}" (${nat}) na minha rotina hoje.`,
-        },
-      ];
+      // Day 7: Vida Real, Cidade, Compras & Desafios
+      let mcScenario = `Na cidade: Fazendo compras e resolvendo pendências do dia a dia com "${word}".`;
+      let mcExpected = `Could you inform me of your store ${word} for customer pickup?`;
+      let mcOptions = [mcExpected, 'The beach water is cold.', 'I love watching space documentaries.'];
+      let mcPt = `Você poderia me informar o(a) ${nat} da loja para retirada do cliente?`;
 
-      const sb = sbList[rot];
-      const lt = ltList[rot];
-      const sv = svList[rot];
+      let fbBlank = `There is a very convenient ______ located right around the corner.`;
+      let fbAnswer = word;
+      let fbOptions = [word, 'cloud', 'submarine'];
+      let fbPt = `Há um(a) ${nat} muito prático(a) localizado logo ali na esquina.`;
+
+      let svSentence = `Everything was quick and convenient.`;
+      let svPt = `Tudo foi rápido e prático.`;
+
+      let rpLeo = `What everyday errands do you need to take care of around town today?`;
+      let rpLeoPt = `Leo pergunta sobre seu dia a dia na cidade: "Quais tarefas você precisa resolver na rua hoje?" Responda usando "${word}":`;
+      let rpAnswer = `I have to handle my ${word} before the stores close.`;
+      let rpPt = `Tenho que resolver meu(minha) ${nat} antes de as lojas fecharem.`;
+
+      if (category === 'clause_i') {
+        mcExpected = `Today ${word} stopping by the supermarket to pick up fresh bread.`;
+        mcOptions = [mcExpected, 'The moon is full tonight.', 'I am building a sandcastle.'];
+        mcPt = `Hoje ${nat} passar no supermercado para pegar pão fresco.`;
+        fbBlank = `When running daily errands, ______ walking instead of driving.`;
+        fbPt = `Ao resolver tarefas do dia a dia, ${nat} caminhar em vez de dirigir.`;
+        rpAnswer = `Today ${word} taking care of all my weekly errands in town.`;
+        rpPt = `Hoje ${nat} cuidar de todas as minhas tarefas da semana na cidade.`;
+      } else if (category === 'adjective') {
+        mcExpected = `The shopping center was surprisingly ${word} on Monday morning.`;
+        mcOptions = [mcExpected, 'I forgot my skateboard.', 'The river flows south.'];
+        mcPt = `O shopping estava surpreendentemente ${nat} na manhã de segunda.`;
+        fbBlank = `Finding parking downtown was surprisingly ______ today.`;
+        fbPt = `Achar vaga no centro foi surpreendentemente ${nat} hoje.`;
+      }
 
       return {
-        sentenceBuild: {
-          english: sb.eng,
-          ptTranslation: sb.pt,
-          promptPt: `Monte a frase: "${sb.pt}"`,
-          hintPt: `Dica: Encaixe "${word}" no objetivo da oração.`,
+        multipleChoice: {
+          scenarioPt: mcScenario,
+          promptPt: `Qual frase resolve melhor a situação do dia a dia com "${word}"?`,
+          expectedAnswer: mcExpected,
+          options: mcOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: mcPt,
+          hintPt: `Dica: Pense na praticidade de resolver coisas na cidade com "${word}".`,
+          explanationPt: `Linguagem prática e resolutiva para se virar no cotidiano de qualquer cidade.`,
         },
-        listenType: {
-          sentence: lt.eng,
-          ptTranslation: lt.pt,
-          hintPt: `Dica: Ouça com atenção a pronúncia de "${word}".`,
+        matchPairs: {
+          pairs,
+          hintPt: `Dica: Ligue os termos da rotina urbana e compras.`,
         },
-        grammarFix: {
-          wrong: `We must always to remember ${word} in our sentences.`,
-          correct: `We must always remember to use ${word} in our sentences.`,
-          promptPt: `Corrija a estrutura com verbo auxiliar (elimine o "to" desnecessário):`,
-          ptTranslation: `Devemos sempre nos lembrar de usar "${word}" (${nat}) em nossas frases.`,
-          hintPt: `Dica: Após "must" usamos o verbo na forma base sem "to".`,
+        fillBlank: {
+          sentenceWithBlank: fbBlank,
+          expectedAnswer: fbAnswer,
+          options: fbOptions.sort(() => 0.5 - Math.random()),
+          ptTranslation: fbPt,
+          hintPt: `Dica: Complete com "${word}" (${nat}) para a rotina da cidade.`,
+          explanationPt: `Vocabulário funcional para o comércio, mercados e serviços.`,
         },
         speakVerify: {
-          sentence: sv.eng,
-          ptTranslation: sv.pt,
-          hintPt: `Dica: Fale no seu ritmo normal a frase com "${word}".`,
+          sentence: svSentence,
+          ptTranslation: svPt,
+          hintPt: `Dica: Leia a frase curta no microfone com firmeza.`,
+          explanationPt: `"Quick and convenient" é a dupla perfeita para descrever serviços eficientes em inglês.`,
         },
         roleplayPrompt: {
-          leoPrompt: `How do you plan to apply "${word}" in your daily routine?`,
-          promptPt: `Leo pergunta: "Como você planeja aplicar novo vocabulário?" Responda usando "${word}":`,
-          expectedAnswer: `I will use ${word} whenever I write or speak with others.`,
-          ptTranslation: `Eu vou usar "${word}" (${nat}) sempre que escrever ou falar com outras pessoas.`,
-          hintPt: `Dica: Formule uma resposta simples incluindo "${word}".`,
+          leoPrompt: rpLeo,
+          promptPt: rpLeoPt,
+          expectedAnswer: rpAnswer,
+          ptTranslation: rpPt,
+          hintPt: `Dica: Responda ao Leo sobre suas tarefas na rua usando "${word}".`,
+        },
+        sentenceBuild: {
+          english: mcExpected,
+          ptTranslation: mcPt,
+          promptPt: `Monte: "${mcPt}"`,
+          hintPt: `Dica: Organize as palavras para a tarefa do dia.`,
+          distractors: ['market', 'city', 'shopping'],
+        },
+        listenType: {
+          sentence: `The local store offers convenient delivery within the neighborhood.`,
+          ptTranslation: `A loja local oferece entrega conveniente dentro do bairro.`,
+          hintPt: `Dica: Ouça as palavras "convenient delivery".`,
+        },
+        grammarFix: {
+          wrong: `How much does this apples cost?`,
+          correct: `How much do these apples cost?`,
+          promptPt: `Ajuste a concordância de plural ("this" vs "these", "does" vs "do"):`,
+          ptTranslation: `Quanto custam estas maçãs?`,
+          hintPt: `Dica: Para substantivos no plural (apples), usamos "these" e o auxiliar "do".`,
+          explanationPt: `Plural em inglês: "these apples" combina com "do cost" (nunca "does" ou "this").`,
         },
       };
     }
@@ -534,14 +1030,21 @@ function createRichSentences(
 }
 
 /**
- * Builds a complete standalone LessonPayload from vocabulary items
+ * Builds a complete standalone LessonPayload from vocabulary items.
+ * Organizes exercises in dynamic progression:
+ * 1. multiple_choice (fast context recognition)
+ * 2. match_pairs (high-dopamine Duolingo matching game)
+ * 3. fill_blank (tactile 1-tap cloze)
+ * 4. speak_verify (short 4-6 word oral production)
+ * 5. roleplay_prompt (conversational roleplay with Leo)
  */
 export function buildCustomLesson(
   topic: string,
   level: CEFRLevel,
   items: ParsedVocabularyItem[],
   notes?: string,
-  geminiMatrix?: Record<string, any>
+  geminiMatrix?: Record<string, any>,
+  scenarioKey: DayScenarioKey = 'restaurant'
 ): LessonPayload {
   const wordsCovered = items.map((i) => i.english);
   const primaryItem = items[0] || { id: '1', english: 'practice' };
@@ -552,8 +1055,6 @@ export function buildCustomLesson(
   for (let index = 0; index < exerciseCount; index++) {
     const item = items[index % items.length] || primaryItem;
     const word = item.english;
-    const meaning = item.portuguese || '';
-    const pron = item.pronunciation ? `[som aproximado: "${item.pronunciation}"]` : '';
     const typeMod = index % 5;
 
     // Check if Gemini generated bespoke content for this target word
@@ -566,192 +1067,145 @@ export function buildCustomLesson(
         })
       : undefined;
 
-    // Generate tailored, varied sentence bundle for this word (or use Gemini matrix)
-    const richBundle = geminiWordData
-      ? {
-          sentenceBuild: {
-            english: geminiWordData.sentenceBuild.sentence,
-            ptTranslation: geminiWordData.sentenceBuild.pt,
-            promptPt: `Monte: "${geminiWordData.sentenceBuild.pt}"`,
-            hintPt: `Dica: Monte a frase com "${word}".`,
-            distractors: geminiWordData.sentenceBuild.distractors,
-          },
-          listenType: {
-            sentence: geminiWordData.listenType.sentence,
-            ptTranslation: geminiWordData.listenType.pt,
-            hintPt: `Dica: Ouça atentamente a expressão "${word}".`,
-          },
-          grammarFix: {
-            wrong: geminiWordData.grammarFix.wrong,
-            correct: geminiWordData.grammarFix.correct,
-            promptPt: geminiWordData.grammarFix.promptPt || 'Corrija o erro comum nesta frase:',
-            ptTranslation: `Tradução correta: "${geminiWordData.grammarFix.correct}"`,
-            hintPt: geminiWordData.grammarFix.explanationPt,
-            explanationPt: geminiWordData.grammarFix.explanationPt,
-          },
-          speakVerify: {
-            sentence: geminiWordData.speakVerify.sentence,
-            ptTranslation: geminiWordData.speakVerify.pt,
-            hintPt: `Dica: Fale em voz alta: "${word}".`,
-          },
-          roleplayPrompt: {
-            leoPrompt: geminiWordData.roleplayPrompt.leoQuestion,
-            promptPt: geminiWordData.roleplayPrompt.pt || `Leo pergunta em inglês. Responda usando "${word}":`,
-            expectedAnswer: geminiWordData.roleplayPrompt.studentAnswer,
-            ptTranslation: `Sugestão de resposta: "${geminiWordData.roleplayPrompt.studentAnswer}"`,
-            hintPt: `Dica: Responda usando "${word}".`,
-          },
-        }
-      : createRichSentences(item, index);
+    // Generate tailored, scenario-based sentence bundle for this word
+    const richBundle = createRichSentences(item, index, scenarioKey, items);
 
     if (typeMod === 0) {
-      // Exercise 1: sentence_build
-      const targetSentence = richBundle.sentenceBuild.english;
-      const wordsInSentence = targetSentence.replace(/[.,!?]/g, '').split(' ');
-      const distractors = (geminiWordData?.sentenceBuild?.distractors && geminiWordData.sentenceBuild.distractors.length > 0)
-        ? geminiWordData.sentenceBuild.distractors
-        : getPlausibleDistractors(wordsInSentence, 3);
-      const shuffledBank = [...wordsInSentence, ...distractors].sort(() => Math.random() - 0.5);
-
+      // Exercise 1: multiple_choice (Quiz de Contexto Real - 1 tap)
       exercises.push({
-        id: `sb_${index}_${Date.now()}_${index}`,
-        type: 'sentence_build',
+        id: `mc_${index}_${Date.now()}_${index}`,
+        type: 'multiple_choice',
         targetWord: word,
-        instruction: 'Assemble the sentence in English:',
-        instructionPt: 'Monte a frase em inglês:',
-        promptText: `Monte: "${richBundle.sentenceBuild.ptTranslation}"`,
-        promptTextPt: richBundle.sentenceBuild.ptTranslation,
-        audioSentence: targetSentence,
-        expectedAnswer: targetSentence,
-        expectedAnswerPt: richBundle.sentenceBuild.ptTranslation,
-        acceptableVariations: [targetSentence],
-        wordBank: shuffledBank,
+        instruction: 'Choose the best response for this real-world scenario:',
+        instructionPt: 'Qual é a resposta correta para esta situação?',
+        promptText: richBundle.multipleChoice.promptPt,
+        promptTextPt: richBundle.multipleChoice.scenarioPt,
+        audioSentence: richBundle.multipleChoice.expectedAnswer,
+        expectedAnswer: richBundle.multipleChoice.expectedAnswer,
+        expectedAnswerPt: richBundle.multipleChoice.ptTranslation,
+        acceptableVariations: [richBundle.multipleChoice.expectedAnswer],
+        wordBank: richBundle.multipleChoice.options,
         requiredWords: [word],
-        hint: `Start by identifying the subject or first word tile.`,
-        hintPt: richBundle.sentenceBuild.hintPt,
-        explanation: `Great job! "${word}" is used naturally in full context.`,
-        explanationPt: `Excelente! Você fixou "${word}" (${getNaturalMeaning(word, meaning)}) com sucesso na frase.`,
+        options: richBundle.multipleChoice.options,
+        hint: 'Think about what sounds polite and natural in this context.',
+        hintPt: richBundle.multipleChoice.hintPt,
+        explanation: 'Great choice! This is the most natural way to respond in real life.',
+        explanationPt: richBundle.multipleChoice.explanationPt,
         audioSpeedDefault: 1.0,
-        slowSpeedAvailable: true,
       });
     } else if (typeMod === 1) {
-      // Exercise 2: listen_type
-      const audioSentence = richBundle.listenType.sentence;
-      const wordsInSentence = audioSentence.replace(/[.,!?]/g, '').split(' ');
-      const distractors = getPlausibleDistractors(wordsInSentence, 3);
-      const shuffledBank = [...wordsInSentence, ...distractors].sort(() => Math.random() - 0.5);
-
+      // Exercise 2: match_pairs (Duolingo tactile matching mini-game)
       exercises.push({
-        id: `lt_${index}_${Date.now()}_${index}`,
-        type: 'listen_type',
+        id: `mp_${index}_${Date.now()}_${index}`,
+        type: 'match_pairs',
         targetWord: word,
-        instruction: 'Listen carefully and assemble or type what you hear:',
-        instructionPt: 'Ouça o áudio com atenção e monte ou digite a frase exata:',
-        promptText: 'Click the speaker to listen at normal or slow speed.',
-        promptTextPt: 'Toque no alto-falante para ouvir (velocidade normal ou devagar).',
-        audioSentence: audioSentence,
-        expectedAnswer: audioSentence,
-        expectedAnswerPt: richBundle.listenType.ptTranslation,
-        acceptableVariations: [
-          audioSentence,
-          audioSentence.toLowerCase(),
-          audioSentence.replace('.', ''),
-        ],
-        wordBank: shuffledBank,
+        instruction: 'Match the English and Portuguese pairs:',
+        instructionPt: 'Toque nos pares correspondentes em inglês e português:',
+        promptText: 'Match each English word with its Portuguese meaning.',
+        promptTextPt: 'Ligue cada palavra ao seu significado correspondente:',
+        audioSentence: word,
+        expectedAnswer: 'completed',
+        expectedAnswerPt: 'Pares conectados com sucesso',
+        acceptableVariations: ['completed'],
+        wordBank: [],
         requiredWords: [word],
-        hint: `Listen closely for the target expression "${word}".`,
-        hintPt: richBundle.listenType.hintPt,
-        explanation: `Well done! Recognizing connected speech is key to fluency.`,
-        explanationPt: `Muito bem! Você reconheceu "${word}" no ritmo natural do inglês falado.`,
+        pairs: richBundle.matchPairs.pairs,
+        hint: 'Take your time and match the vocabulary items.',
+        hintPt: richBundle.matchPairs.hintPt,
+        explanation: 'Awesome! Quick matching builds instinctive vocabulary recall.',
+        explanationPt: 'Excelente! Conectar pares rapidamente desenvolve reflexo e memória de longo prazo.',
         audioSpeedDefault: 1.0,
-        slowSpeedAvailable: true,
       });
     } else if (typeMod === 2) {
-      // Exercise 3: grammar_fix
+      // Exercise 3: fill_blank (Complete a lacuna no cenário)
       exercises.push({
-        id: `gf_${index}_${Date.now()}_${index}`,
-        type: 'grammar_fix',
+        id: `fb_${index}_${Date.now()}_${index}`,
+        type: 'fill_blank',
         targetWord: word,
-        instruction: 'Correct the sentence to fix the grammar or preposition issue:',
-        instructionPt: 'Ajuste e corrija o erro comum observado na aula:',
-        promptText: richBundle.grammarFix.wrong,
-        promptTextPt: richBundle.grammarFix.promptPt,
-        audioSentence: richBundle.grammarFix.correct,
-        expectedAnswer: richBundle.grammarFix.correct,
-        expectedAnswerPt: richBundle.grammarFix.ptTranslation,
+        instruction: 'Tap the correct word to complete the sentence:',
+        instructionPt: 'Toque na palavra correta para preencher a lacuna:',
+        promptText: richBundle.fillBlank.sentenceWithBlank,
+        promptTextPt: richBundle.fillBlank.ptTranslation,
+        sentenceWithBlank: richBundle.fillBlank.sentenceWithBlank,
+        audioSentence: richBundle.fillBlank.sentenceWithBlank.replace('______', richBundle.fillBlank.expectedAnswer),
+        expectedAnswer: richBundle.fillBlank.expectedAnswer,
+        expectedAnswerPt: richBundle.fillBlank.ptTranslation,
         acceptableVariations: [
-          richBundle.grammarFix.correct,
-          richBundle.grammarFix.correct.toLowerCase(),
-          richBundle.grammarFix.correct.replace('.', ''),
+          richBundle.fillBlank.expectedAnswer,
+          richBundle.fillBlank.expectedAnswer.toLowerCase(),
         ],
-        wordBank: richBundle.grammarFix.correct.split(' '),
+        wordBank: richBundle.fillBlank.options,
         requiredWords: [word],
-        hint: `Look at the preposition or word choice with "${word}".`,
-        hintPt: richBundle.grammarFix.hintPt,
-        explanation: `Exactly! Correct collocations make your English sound natural.`,
-        explanationPt: `Exato! Fixar a combinação correta de "${word}" evita os erros mais frequentes de quem fala português.`,
+        options: richBundle.fillBlank.options,
+        hint: 'Look closely at the context clues before and after the blank.',
+        hintPt: richBundle.fillBlank.hintPt,
+        explanation: 'Spot on! Choosing words in context is how native speakers think.',
+        explanationPt: richBundle.fillBlank.explanationPt,
         audioSpeedDefault: 1.0,
       });
     } else if (typeMod === 3) {
-      // Exercise 4: speak_verify
-      const spokenSentence = richBundle.speakVerify.sentence;
+      // Exercise 4: speak_verify (Fala Ativa Curta - 4-6 words)
+      const spokenSentence = geminiWordData?.speakVerify?.sentence || richBundle.speakVerify.sentence;
+      const spokenPt = geminiWordData?.speakVerify?.pt || richBundle.speakVerify.ptTranslation;
 
       exercises.push({
         id: `sv_${index}_${Date.now()}_${index}`,
         type: 'speak_verify',
         targetWord: word,
-        instruction: 'Read the phrase aloud using your microphone:',
-        instructionPt: 'Leia a frase completa em voz alta no microfone:',
-        promptText: `Leia a frase em voz alta: "${spokenSentence}"`,
-        promptTextPt: richBundle.speakVerify.ptTranslation,
+        instruction: 'Read the short phrase aloud using your microphone:',
+        instructionPt: 'Leia a frase curta em voz alta no microfone:',
+        promptText: `Leia em voz alta: "${spokenSentence}"`,
+        promptTextPt: spokenPt,
         audioSentence: spokenSentence,
         expectedAnswer: spokenSentence,
-        expectedAnswerPt: richBundle.speakVerify.ptTranslation,
+        expectedAnswerPt: spokenPt,
         acceptableVariations: [
           spokenSentence,
           spokenSentence.toLowerCase(),
-          spokenSentence.replace('.', ''),
+          spokenSentence.replace(/[.,!?]/g, ''),
         ],
         wordBank: spokenSentence.split(' '),
         requiredWords: [word],
-        hint: `Speak clearly into your microphone at normal pace.`,
+        hint: 'Speak clearly into your microphone at your normal pace.',
         hintPt: richBundle.speakVerify.hintPt,
-        explanation: `Pronunciation detected clearly! Great oral practice.`,
-        explanationPt: `Pronúncia detectada com clareza! Falar em voz alta fixa o vocabulário na memória de longo prazo.`,
+        explanation: 'Pronunciation verified! Short spoken phrases build genuine speaking stamina.',
+        explanationPt: richBundle.speakVerify.explanationPt,
         audioSpeedDefault: 1.0,
       });
     } else {
       // Exercise 5: roleplay_prompt with Mascot Leo
+      const leoQuestion = geminiWordData?.roleplayPrompt?.leoQuestion || richBundle.roleplayPrompt.leoPrompt;
+      const studentAns = geminiWordData?.roleplayPrompt?.studentAnswer || richBundle.roleplayPrompt.expectedAnswer;
+      const promptPt = geminiWordData?.roleplayPrompt?.pt || richBundle.roleplayPrompt.promptPt;
+
       exercises.push({
         id: `rp_${index}_${Date.now()}_${index}`,
         type: 'roleplay_prompt',
         targetWord: word,
         instruction: 'Answer Leo in English using the target vocabulary:',
         instructionPt: 'Responda ao Leo em inglês usando a palavra obrigatória:',
-        promptText: richBundle.roleplayPrompt.leoPrompt,
-        promptTextPt: richBundle.roleplayPrompt.promptPt,
-        audioSentence: richBundle.roleplayPrompt.leoPrompt,
-        expectedAnswer: richBundle.roleplayPrompt.expectedAnswer,
+        promptText: leoQuestion,
+        promptTextPt: promptPt,
+        audioSentence: leoQuestion,
+        expectedAnswer: studentAns,
         expectedAnswerPt: richBundle.roleplayPrompt.ptTranslation,
         acceptableVariations: [
-          richBundle.roleplayPrompt.expectedAnswer,
-          richBundle.roleplayPrompt.expectedAnswer.toLowerCase(),
-          `I always use ${word} in my routine.`,
-          `I practice ${word} regularly.`,
+          studentAns,
+          studentAns.toLowerCase(),
+          `I always use ${word} in this situation.`,
+          `I prefer to use ${word}.`,
         ],
-        wordBank: ['I', 'use', word, 'every', 'day', 'at', 'work', 'with', 'people'],
+        wordBank: ['I', 'use', word, 'always', 'at', 'home', 'with', 'people', 'when', 'we'],
         requiredWords: [word],
-        hint: `Form a simple sentence containing "${word}".`,
+        hint: `Form a natural sentence containing "${word}".`,
         hintPt: richBundle.roleplayPrompt.hintPt,
-        explanation: `Terrific response! Conversational application complete.`,
-        explanationPt: `Excelente resposta conversacional! Você colocou "${word}" em prática ativa.`,
+        explanation: 'Terrific answer! Applying vocabulary in conversational dialogue is the peak of fluency.',
+        explanationPt: `Excelente resposta conversacional! Você colocou "${word}" em prática ativa no diálogo com o Leo.`,
         audioSpeedDefault: 1.0,
       });
     }
   }
 
-  // Generate crisp, clean pedagogical summary (never dumps rawNotes!)
-  const firstWord = wordsCovered[0] || 'expressões da aula';
   const cleanPitfallsPt = [
     `Cuidado com preposições ao usar ${wordsCovered.slice(0, 3).map((w) => `"${w}"`).join(', ')}.`,
     `Evite traduzir palavra por palavra do português; foque nas estruturas naturais em inglês.`,
@@ -767,17 +1221,17 @@ export function buildCustomLesson(
     },
     mascotWelcome: {
       greeting: `Pronto para fixar sua aula de ${topic}?`,
-      topicIntro: `Pegamos suas anotações da aula particular para criar um treino prático e sem estresse. Vamos começar aquecendo com o banco de palavras!`,
+      topicIntro: `Pegamos suas anotações da aula particular para criar um treino dinâmico, rápido e sem cansaço. Vamos começar!`,
     },
     exercises,
     reviewSummary: {
       keyTakeaways: [
         `Mastered key terms: ${wordsCovered.join(', ')}`,
-        `Reinforced natural speech cadence and collocations`,
+        `Reinforced natural speech cadence and collocations in real-life scenarios`,
       ],
       keyTakeawaysPt: [
         `Vocabulário fixado: ${wordsCovered.join(', ')}`,
-        `Treino com blocos táteis estilo Duolingo e escuta ativa`,
+        `Treino dinâmico com minigames, lacunas rápidas e fala ativa`,
       ],
       commonPitfallsToAvoid: [
         `Confusing prepositions or false friends noted during class`,
@@ -789,10 +1243,14 @@ export function buildCustomLesson(
 
 /**
  * Builds a 7-day WeeklyPlan with 4 micro-blocks of 5 minutes each per day (20 min/day).
- * Adheres strictly to the user's requirements:
- * - 20 minutes per day divided into 4 blocks of 5 minutes
- * - Day 1 starts on class day (e.g. Wednesday)
- * - Distributed vocabulary, spaced repetition, games, translations, mic speaking
+ * Each of the 7 days is set in a vibrant, distinct real-life scenario:
+ * Day 1: Restaurante & Café
+ * Day 2: Família & Casa
+ * Day 3: Trabalho & Reuniões
+ * Day 4: Viagens & Aeroporto
+ * Day 5: Rolê com Amigos & Lazer
+ * Day 6: Encontros & Relacionamentos
+ * Day 7: Vida Real, Cidade & Compras
  */
 export function buildWeeklyPlan(
   topic: string,
@@ -801,7 +1259,8 @@ export function buildWeeklyPlan(
   classDay: string = 'Quarta-feira',
   dailyMinutes: number = 20,
   rawNotes: string = '',
-  geminiMatrix?: Record<string, any>
+  geminiMatrix?: Record<string, any>,
+  clientDateIso?: string
 ): WeeklyPlan {
   // Ensure we have at least some items
   const safeItems =
@@ -814,7 +1273,6 @@ export function buildWeeklyPlan(
           { id: '4', english: 'actually', portuguese: 'na verdade' },
         ];
 
-  // Generate 7 consecutive days starting from today
   const PT_DAYS = [
     'Domingo',
     'Segunda-feira',
@@ -829,41 +1287,16 @@ export function buildWeeklyPlan(
     'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
   ];
 
-  const baseDate = new Date();
-  baseDate.setHours(0, 0, 0, 0);
+  // Robust local calendar base date (prevents UTC timezone day-boundary bugs)
+  let baseDate = new Date();
+  if (clientDateIso && /^\d{4}-\d{2}-\d{2}$/.test(clientDateIso)) {
+    const [y, m, d] = clientDateIso.split('-').map(Number);
+    baseDate = new Date(y, m - 1, d, 12, 0, 0);
+  } else {
+    baseDate.setHours(12, 0, 0, 0);
+  }
 
   const cleanClassDay = (classDay || '').toLowerCase().replace('-feira', '').trim();
-
-  const DAY_THEMES = [
-    {
-      label: 'Dia 1 · Pós-Aula (Aquecimento & Descoberta)',
-      theme: 'Fixação imediata dos termos mais difíceis da aula de hoje.',
-    },
-    {
-      label: 'Dia 2 · Montagem & Vocabulário em Contexto',
-      theme: 'Encaixar as expressões em frases reais do dia a dia.',
-    },
-    {
-      label: 'Dia 3 · Treino de Ouvido & Ditado Rápido',
-      theme: 'Destravar a compreensão auditiva das palavras anotadas.',
-    },
-    {
-      label: 'Dia 4 · Pegadinhas & Correção de Preposições',
-      theme: 'Ajustar os pontos onde você mais se confundiu na aula.',
-    },
-    {
-      label: 'Dia 5 · Fala Ativa & Microfone',
-      theme: 'Soltar a voz pronunciando as expressões com segurança.',
-    },
-    {
-      label: 'Dia 6 · Mini-Games & Joguinho de Tradução',
-      theme: 'Velocidade, agilidade e associação rápida.',
-    },
-    {
-      label: 'Dia 7 · Revisão Semanal & Consolidação',
-      theme: 'Consolidação total para chegar afiado(a) na próxima aula!',
-    },
-  ];
 
   const BLOCK_THEMES: Array<{
     titleName: string;
@@ -871,34 +1304,29 @@ export function buildWeeklyPlan(
     type: ExerciseType;
   }> = [
     {
-      titleName: 'Banco de Palavras (Aquecimento)',
-      subtitle: 'Toque nos blocos táteis para montar frases sem estresse.',
-      type: 'sentence_build',
+      titleName: 'Quiz de Situação Real',
+      subtitle: 'Toque para escolher a resposta autêntica no cenário do dia.',
+      type: 'multiple_choice',
     },
     {
-      titleName: 'Treino de Ouvido & Ditado',
-      subtitle: 'Ouça o áudio nativo e identifique a expressão.',
-      type: 'listen_type',
+      titleName: 'Minigame de Ligar os Pares',
+      subtitle: 'Associação rápida e divertida de vocabulário da aula.',
+      type: 'match_pairs',
     },
     {
-      titleName: 'Correção de Pegadinhas',
-      subtitle: 'Ajuste preposições e erros comuns da sua aula.',
-      type: 'grammar_fix',
+      titleName: 'Complete a Frase no Cenário',
+      subtitle: 'Encaixe a expressão perfeita no diálogo.',
+      type: 'fill_blank',
     },
     {
       titleName: 'Pronúncia & Fala Ativa',
-      subtitle: 'Fale no microfone e receba validação instantânea.',
+      subtitle: 'Fale no microfone com frases curtas e autênticas.',
       type: 'speak_verify',
     },
     {
-      titleName: 'Mini-Cenário & Prática Real',
-      subtitle: 'Responda no cenário e troque ideias com o Leo.',
+      titleName: 'Bate-papo com o Leo',
+      subtitle: 'Responda no cenário e troque ideias com o mascote.',
       type: 'roleplay_prompt',
-    },
-    {
-      titleName: 'Fixação Rápida & Velocidade',
-      subtitle: 'Associação rápida e consolidação do vocabulário do dia.',
-      type: 'sentence_build',
     },
   ];
 
@@ -923,14 +1351,12 @@ export function buildWeeklyPlan(
       (dayName.toLowerCase().replace('-feira', '').includes(cleanClassDay) ||
         cleanClassDay.includes(dayName.toLowerCase().replace('-feira', '')));
 
-    const themeInfo = DAY_THEMES[d];
+    const scenario = DAY_SCENARIOS[d % DAY_SCENARIOS.length];
     const dayLabel = isClassDay
       ? `Dia ${d + 1} · Dia da Aula`
-      : `Dia ${d + 1} · ${themeInfo.label.split('·')[1]?.trim() || themeInfo.label}`;
+      : scenario.label;
 
-    // Distribute vocabulary items systematically:
-    // Days 1 to 6 (d = 0..5): Every single word in safeItems is guaranteed to be partitioned and covered!
-    // Day 7 (d = 6): Comprehensive Weekly Consolidation reviewing key vocabulary across the entire week.
+    // Distribute vocabulary items systematically across days
     const totalItemsCount = safeItems.length;
     let dayItems: ParsedVocabularyItem[] = [];
 
@@ -949,7 +1375,7 @@ export function buildWeeklyPlan(
         dayItems = slice.length > 0 ? slice : [safeItems[d % totalItemsCount]];
       }
     } else {
-      // Day 7: Comprehensive Weekly Review
+      // Day 7: Comprehensive Weekly Consolidation
       if (totalItemsCount <= 8) {
         dayItems = [...safeItems];
       } else {
@@ -968,7 +1394,6 @@ export function buildWeeklyPlan(
       const theme = BLOCK_THEMES[b % BLOCK_THEMES.length];
       const blockTitle = `Bloco ${b + 1}: ${theme.titleName}`;
 
-      // Distribute the day's vocabulary across this day's blocks
       let blockItems: ParsedVocabularyItem[] = [];
       if (dayItems.length <= blocksCount) {
         const primary = dayItems[b % dayItems.length];
@@ -988,13 +1413,13 @@ export function buildWeeklyPlan(
 
       const blockWords = blockItems.map((i) => i.english);
 
-      // Create a targeted 5-minute micro-lesson for this block containing all assigned words
       const blockLesson = buildCustomLesson(
         `${topic} - ${dayName} (${blockTitle.split(':')[0]})`,
         level,
         blockItems,
         rawNotes,
-        geminiMatrix
+        geminiMatrix,
+        scenario.key
       );
 
       blocks.push({
@@ -1019,7 +1444,8 @@ export function buildWeeklyPlan(
       shortDayName,
       dayName,
       dayLabel,
-      theme: themeInfo.theme,
+      theme: scenario.theme,
+      themeKey: scenario.key,
       isToday: false,
       isClassDay,
       isCompleted: false,

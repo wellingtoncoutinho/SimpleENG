@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { topic, level, rawNotes, parsedItems, classDay, dailyMinutesGoal } = req.body || {};
+    const { topic, level, rawNotes, parsedItems, classDay, dailyMinutesGoal, clientDateIso } = req.body || {};
     if (!topic) {
       return res.status(400).json({ error: 'Missing topic' });
     }
@@ -18,6 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       parsedItems: parsedItems || [],
       classDay: classDay || 'Quarta-feira',
       dailyMinutesGoal: dailyMinutesGoal || 20,
+      clientDateIso,
     });
     return res.status(200).json(plan);
   } catch (err: any) {
