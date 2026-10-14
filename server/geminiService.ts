@@ -350,53 +350,106 @@ Return strictly a valid JSON array matching this format (one object per target w
   );
 }
 
-function convertPcmToWav(pcmBase64: string, sampleRate: number = 24000): string {
-  const binaryString = typeof window !== 'undefined'
-    ? window.atob(pcmBase64)
-    : Buffer.from(pcmBase64, 'base64').toString('binary');
-  const dataSize = binaryString.length;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-  const bytes = new Uint8Array(buffer);
+export function cleanAudioWav(base64Data: string, defaultSampleRate: number = 24000): string {
+  if (!base64Data) return '';
 
-  const writeString = (offset: number, str: string) => {
+  const binaryString = typeof window !== 'undefined'
+    ? window.atob(base64Data)
+    : Buffer.from(base64Data, 'base64').toString('binary');
+
+  const inLen = binaryString.length;
+  const inBytes = new Uint8Array(inLen);
+  for (let i = 0; i < inLen; i++) {
+    inBytes[i] = binaryString.charCodeAt(i);
+  }
+
+  // Recursive extractor: unwrap any RIFF container down to pure PCM samples,
+  // discarding outer/inner headers and non-audio chunks (like C2PA watermark metadata).
+  function extractPcm(bytes: Uint8Array): { pcm: Uint8Array; sampleRate: number; channels: number } {
+    let sRate = defaultSampleRate;
+    let ch = 1;
+    if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      let offset = 12;
+      while (offset + 8 <= bytes.length) {
+        const chunkId = String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+        const chunkSize = view.getUint32(offset + 4, true);
+        if (chunkId === 'fmt ' && chunkSize >= 16) {
+          ch = view.getUint16(offset + 10, true);
+          sRate = view.getUint32(offset + 12, true);
+        } else if (chunkId === 'data') {
+          const raw = bytes.subarray(offset + 8, offset + 8 + Math.min(chunkSize, bytes.length - offset - 8));
+          // If the data payload itself was wrapped in another RIFF, unwrap again recursively
+          const nested = extractPcm(raw);
+          return { pcm: nested.pcm, sampleRate: sRate, channels: ch };
+        }
+        offset += 8 + chunkSize;
+        if (chunkSize % 2 !== 0) offset++;
+      }
+    }
+    return { pcm: bytes, sampleRate: sRate, channels: ch };
+  }
+
+  const { pcm, sampleRate, channels } = extractPcm(inBytes);
+
+  // Ensure 16-bit alignment (even number of bytes)
+  const pcmLen = pcm.length - (pcm.length % 2);
+  const cleanPcm = new Uint8Array(pcmLen);
+  cleanPcm.set(pcm.subarray(0, pcmLen));
+  const pcmView = new DataView(cleanPcm.buffer);
+
+  // Apply smooth 15ms fade-out (360 samples at 24kHz) at the end of the audio
+  // to eliminate any DC offset, clicks, pops, or trailing hiss/noise
+  const totalSamples = pcmLen / 2;
+  const fadeSamples = Math.min(360, totalSamples);
+  for (let i = 0; i < fadeSamples; i++) {
+    const sampleIdx = totalSamples - fadeSamples + i;
+    const byteIdx = sampleIdx * 2;
+    const sampleVal = pcmView.getInt16(byteIdx, true);
+    const factor = (fadeSamples - 1 - i) / fadeSamples;
+    pcmView.setInt16(byteIdx, Math.round(sampleVal * factor), true);
+  }
+
+  // Construct a single, pristine standard 44-byte WAV header containing ONLY fmt and data
+  const outBuf = new ArrayBuffer(44 + pcmLen);
+  const outView = new DataView(outBuf);
+  const outBytes = new Uint8Array(outBuf);
+
+  const writeAscii = (offset: number, str: string) => {
     for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
+      outView.setUint8(offset + i, str.charCodeAt(i));
     }
   };
 
-  const numChannels = 1;
   const bitsPerSample = 16;
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
-  const blockAlign = numChannels * (bitsPerSample / 8);
+  const byteRate = sampleRate * channels * (bitsPerSample / 8);
+  const blockAlign = channels * (bitsPerSample / 8);
 
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + dataSize, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM format
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, byteRate, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitsPerSample, true);
-  writeString(36, 'data');
-  view.setUint32(40, dataSize, true);
+  writeAscii(0, 'RIFF');
+  outView.setUint32(4, 36 + pcmLen, true);
+  writeAscii(8, 'WAVE');
+  writeAscii(12, 'fmt ');
+  outView.setUint32(16, 16, true);
+  outView.setUint16(20, 1, true); // PCM format
+  outView.setUint16(22, channels, true);
+  outView.setUint32(24, sampleRate, true);
+  outView.setUint32(28, byteRate, true);
+  outView.setUint16(32, blockAlign, true);
+  outView.setUint16(34, bitsPerSample, true);
+  writeAscii(36, 'data');
+  outView.setUint32(40, pcmLen, true);
 
-  for (let i = 0; i < dataSize; i++) {
-    bytes[44 + i] = binaryString.charCodeAt(i);
-  }
+  outBytes.set(cleanPcm, 44);
 
   if (typeof window !== 'undefined') {
     let binary = '';
-    const len = bytes.byteLength;
+    const len = outBytes.byteLength;
     for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
+      binary += String.fromCharCode(outBytes[i]);
     }
     return window.btoa(binary);
   } else {
-    return Buffer.from(buffer).toString('base64');
+    return Buffer.from(outBuf).toString('base64');
   }
 }
 
@@ -435,7 +488,7 @@ export async function synthesizeSpeechWithGemini(
 
       const pcmBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       if (pcmBase64) {
-        return convertPcmToWav(pcmBase64, 24000);
+        return cleanAudioWav(pcmBase64, 24000);
       }
     } catch (err: any) {
       console.warn(`Gemini TTS model ${model} failed, trying next:`, err?.message || err);

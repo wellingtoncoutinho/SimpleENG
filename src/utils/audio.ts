@@ -1,5 +1,5 @@
 // Audio engine for SimpleENG: Web Audio API synthesized sound effects + Mobile-compatible TTS
-import { synthesizeSpeechWithGemini } from '../../server/geminiService';
+import { synthesizeSpeechWithGemini, cleanAudioWav } from '../../server/geminiService.ts';
 
 let audioCtx: AudioContext | null = null;
 
@@ -301,7 +301,8 @@ async function playWavViaWebAudio(
     if (ctx.state === 'suspended') {
       await ctx.resume();
     }
-    const arrayBuffer = base64ToArrayBuffer(base64Audio);
+    const cleanAudio = cleanAudioWav(base64Audio);
+    const arrayBuffer = base64ToArrayBuffer(cleanAudio);
     const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
 
     if (currentWebAudioSource) {
@@ -375,15 +376,17 @@ async function fetchAudioBase64(text: string): Promise<string | null> {
       if (res.ok) {
         const data = await res.json();
         if (data.audio) {
-          neuralAudioCache.set(cleaned, data.audio);
-          return data.audio as string;
+          const clean = cleanAudioWav(data.audio);
+          neuralAudioCache.set(cleaned, clean);
+          return clean;
         }
       } else {
         // Fallback to direct client Gemini TTS if API route returned error
         const directAudio = await synthesizeSpeechWithGemini(cleaned, 'Aoede');
         if (directAudio) {
-          neuralAudioCache.set(cleaned, directAudio);
-          return directAudio;
+          const clean = cleanAudioWav(directAudio);
+          neuralAudioCache.set(cleaned, clean);
+          return clean;
         }
       }
     } catch (err) {
@@ -391,8 +394,9 @@ async function fetchAudioBase64(text: string): Promise<string | null> {
       try {
         const directAudio = await synthesizeSpeechWithGemini(cleaned, 'Aoede');
         if (directAudio) {
-          neuralAudioCache.set(cleaned, directAudio);
-          return directAudio;
+          const clean = cleanAudioWav(directAudio);
+          neuralAudioCache.set(cleaned, clean);
+          return clean;
         }
       } catch {}
     } finally {
@@ -541,12 +545,13 @@ export async function playTextToSpeech(
 
   const playWav = async (base64Audio: string) => {
     try {
-      const audio = new Audio(`data:audio/wav;base64,${base64Audio}`);
+      const cleanAudio = cleanAudioWav(base64Audio);
+      const audio = new Audio(`data:audio/wav;base64,${cleanAudio}`);
       audio.playbackRate = speed < 0.85 ? 0.60 : 1.0;
       currentAudioElement = audio;
       audio.onended = handleFinish;
       audio.onerror = async () => {
-        const webAudioSuccess = await playWavViaWebAudio(base64Audio, speed, handleFinish);
+        const webAudioSuccess = await playWavViaWebAudio(cleanAudio, speed, handleFinish);
         if (!webAudioSuccess) {
           fallbackToBrowserSpeech(cleaned, speed, handleFinish);
         }
