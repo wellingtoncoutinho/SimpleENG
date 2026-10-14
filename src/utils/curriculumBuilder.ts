@@ -540,7 +540,8 @@ export function buildCustomLesson(
   topic: string,
   level: CEFRLevel,
   items: ParsedVocabularyItem[],
-  notes?: string
+  notes?: string,
+  geminiMatrix?: Record<string, any>
 ): LessonPayload {
   const wordsCovered = items.map((i) => i.english);
   const primaryItem = items[0] || { id: '1', english: 'practice' };
@@ -555,14 +556,61 @@ export function buildCustomLesson(
     const pron = item.pronunciation ? `[som aproximado: "${item.pronunciation}"]` : '';
     const typeMod = index % 5;
 
-    // Generate tailored, varied sentence bundle for this word
-    const richBundle = createRichSentences(item, index);
+    // Check if Gemini generated bespoke content for this target word
+    const lowerWord = word.toLowerCase().trim();
+    const geminiWordData = geminiMatrix
+      ? geminiMatrix[lowerWord] ||
+        Object.values(geminiMatrix).find((v: any) => {
+          const t = (v.targetWord || '').toLowerCase().trim();
+          return t && (lowerWord.includes(t) || t.includes(lowerWord));
+        })
+      : undefined;
+
+    // Generate tailored, varied sentence bundle for this word (or use Gemini matrix)
+    const richBundle = geminiWordData
+      ? {
+          sentenceBuild: {
+            english: geminiWordData.sentenceBuild.sentence,
+            ptTranslation: geminiWordData.sentenceBuild.pt,
+            promptPt: `Monte: "${geminiWordData.sentenceBuild.pt}"`,
+            hintPt: `Dica: Monte a frase com "${word}".`,
+            distractors: geminiWordData.sentenceBuild.distractors,
+          },
+          listenType: {
+            sentence: geminiWordData.listenType.sentence,
+            ptTranslation: geminiWordData.listenType.pt,
+            hintPt: `Dica: Ouça atentamente a expressão "${word}".`,
+          },
+          grammarFix: {
+            wrong: geminiWordData.grammarFix.wrong,
+            correct: geminiWordData.grammarFix.correct,
+            promptPt: geminiWordData.grammarFix.promptPt || 'Corrija o erro comum nesta frase:',
+            ptTranslation: `Tradução correta: "${geminiWordData.grammarFix.correct}"`,
+            hintPt: geminiWordData.grammarFix.explanationPt,
+            explanationPt: geminiWordData.grammarFix.explanationPt,
+          },
+          speakVerify: {
+            sentence: geminiWordData.speakVerify.sentence,
+            ptTranslation: geminiWordData.speakVerify.pt,
+            hintPt: `Dica: Fale em voz alta: "${word}".`,
+          },
+          roleplayPrompt: {
+            leoPrompt: geminiWordData.roleplayPrompt.leoQuestion,
+            promptPt: geminiWordData.roleplayPrompt.pt || `Leo pergunta em inglês. Responda usando "${word}":`,
+            expectedAnswer: geminiWordData.roleplayPrompt.studentAnswer,
+            ptTranslation: `Sugestão de resposta: "${geminiWordData.roleplayPrompt.studentAnswer}"`,
+            hintPt: `Dica: Responda usando "${word}".`,
+          },
+        }
+      : createRichSentences(item, index);
 
     if (typeMod === 0) {
       // Exercise 1: sentence_build
       const targetSentence = richBundle.sentenceBuild.english;
       const wordsInSentence = targetSentence.replace(/[.,!?]/g, '').split(' ');
-      const distractors = getPlausibleDistractors(wordsInSentence, 3);
+      const distractors = (geminiWordData?.sentenceBuild?.distractors && geminiWordData.sentenceBuild.distractors.length > 0)
+        ? geminiWordData.sentenceBuild.distractors
+        : getPlausibleDistractors(wordsInSentence, 3);
       const shuffledBank = [...wordsInSentence, ...distractors].sort(() => Math.random() - 0.5);
 
       exercises.push({
@@ -752,7 +800,8 @@ export function buildWeeklyPlan(
   items: ParsedVocabularyItem[],
   classDay: string = 'Quarta-feira',
   dailyMinutes: number = 20,
-  rawNotes: string = ''
+  rawNotes: string = '',
+  geminiMatrix?: Record<string, any>
 ): WeeklyPlan {
   // Ensure we have at least some items
   const safeItems =
@@ -944,7 +993,8 @@ export function buildWeeklyPlan(
         `${topic} - ${dayName} (${blockTitle.split(':')[0]})`,
         level,
         blockItems,
-        rawNotes
+        rawNotes,
+        geminiMatrix
       );
 
       blocks.push({

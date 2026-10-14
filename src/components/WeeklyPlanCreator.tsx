@@ -15,6 +15,7 @@ import { UserProfile } from '../types/user';
 import { LearnerMascot } from './LearnerMascot';
 import { parseClassNotes } from '../utils/noteParser';
 import { buildWeeklyPlan } from '../utils/curriculumBuilder';
+import { generateWeeklyPlanWithGemini } from '../../server/geminiService';
 import { soundEffects, speakWord } from '../utils/audio';
 import { Language, translations } from '../utils/i18n';
 
@@ -49,6 +50,13 @@ overwhelmed - sobrecarregado / ouver-uelmd
 put off - adiar / post-pone
 take for granted - dar como certo (cuidado com pronomes no meio)
 commitment - compromisso sério`;
+
+const PLAN_GENERATION_STEPS = [
+  'Lendo suas anotações e contexto pedagógico da aula...',
+  'IA Gemini analisando expressões, gírias e preposições...',
+  'Gerando tarefas conversacionais personalizadas para os 7 dias...',
+  'Distribuindo os 4 blocos diários de 5 minutos com o Leo...',
+];
 
 /**
  * Detects common spelling typos (e.g., accidental double consonants like 'stopp', 'runn', 'swimm')
@@ -86,7 +94,19 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
   const [dailyMinutes, setDailyMinutes] = useState<number>(user.dailyMinutesGoal || 20);
   const [rawNotes, setRawNotes] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generationStep, setGenerationStep] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    let timer: any;
+    if (isGenerating) {
+      setGenerationStep(0);
+      timer = setInterval(() => {
+        setGenerationStep((prev) => (prev + 1) % PLAN_GENERATION_STEPS.length);
+      }, 1800);
+    }
+    return () => clearInterval(timer);
+  }, [isGenerating]);
 
   // Live parsed items as the user types/pastes
   const parsedItems: ParsedVocabularyItem[] = React.useMemo(() => {
@@ -134,9 +154,27 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
         onPlanCreated(plan);
         return;
       }
-      console.warn('API returned non-ok, using fallback curriculum builder');
+      console.warn('API returned non-ok, trying direct Gemini synthesis');
     } catch (err) {
-      console.warn('Weekly plan API failed, using resilient local builder:', err);
+      console.warn('Weekly plan API failed, trying direct Gemini synthesis:', err);
+    }
+
+    // Direct Gemini synthesis fallback before raw baseline templates!
+    try {
+      const directPlan = await generateWeeklyPlanWithGemini({
+        topic: topic.trim(),
+        level: user.level,
+        rawNotes,
+        parsedItems,
+        classDay,
+        dailyMinutesGoal: dailyMinutes,
+        language: lang,
+      });
+      setIsGenerating(false);
+      onPlanCreated(directPlan);
+      return;
+    } catch (directErr) {
+      console.warn('Direct Gemini plan generation error, using baseline fallback:', directErr);
     }
 
     // High-quality local builder fallback (never fails, instant, 100% reliable)
@@ -332,6 +370,21 @@ export const WeeklyPlanCreator: React.FC<WeeklyPlanCreatorProps> = ({
           <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-2xl text-xs sm:text-sm text-amber-900 dark:text-amber-300 font-medium flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <span>{statusMessage}</span>
+          </div>
+        )}
+
+        {/* AI Thinking / Progress Indicator */}
+        {isGenerating && (
+          <div className="p-4 bg-emerald-50/90 dark:bg-emerald-950/40 border-2 border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-center gap-3 animate-in fade-in">
+            <RefreshCw className="w-5 h-5 text-emerald-600 dark:text-emerald-400 animate-spin shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-emerald-800 dark:text-emerald-300">
+                Criando roteiro inteligente com Gemini...
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 font-medium truncate">
+                {PLAN_GENERATION_STEPS[generationStep]}
+              </p>
+            </div>
           </div>
         )}
 
