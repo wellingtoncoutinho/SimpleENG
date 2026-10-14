@@ -8,7 +8,7 @@ import {
   generateLessonWithGemini,
   generateWeeklyPlanWithGemini,
   synthesizeSpeechWithGemini,
-} from './server/geminiService';
+} from './server/geminiService.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,7 +73,7 @@ function apiMiddlewarePlugin(): Plugin {
         req.on('end', async () => {
           try {
             const { text, voice } = JSON.parse(body);
-            const audio = await synthesizeSpeechWithGemini(text, voice || 'Kore');
+            const audio = await synthesizeSpeechWithGemini(text, voice || 'Aoede');
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ audio }));
           } catch (err: any) {

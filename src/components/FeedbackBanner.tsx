@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check, X, Lightbulb, ArrowRight, Volume2, SkipForward, HelpCircle, RotateCcw } from 'lucide-react';
-import { playTextToSpeech, soundEffects } from '../utils/audio';
+import { playTextToSpeech, soundEffects, prefetchAudio } from '../utils/audio';
 import { Language, translations } from '../utils/i18n';
 
 import { ExerciseType } from '../types/lesson';
@@ -54,6 +54,12 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
   const rawHint = lang === 'pt' ? (hintPt || hint) : hint;
   // Clean up hint if raw notes were passed
   const activeHint = rawHint && rawHint.length > 250 ? rawHint.split('\n')[0].slice(0, 200) + '...' : rawHint;
+
+  useEffect(() => {
+    if (status !== 'idle' && expectedAnswer) {
+      prefetchAudio(expectedAnswer);
+    }
+  }, [status, expectedAnswer]);
 
   const handlePlaySolutionAudio = () => {
     if (isPlayingAudio) return;

@@ -9,7 +9,7 @@ import { RoleplayPromptExercise } from './exercises/RoleplayPromptExercise';
 import { GrammarFixExercise } from './exercises/GrammarFixExercise';
 import { LessonComplete } from './LessonComplete';
 import { LearnerMascot, MascotMood } from './LearnerMascot';
-import { soundEffects } from '../utils/audio';
+import { soundEffects, prefetchAudio } from '../utils/audio';
 import { containsRequiredWords, verifyAnswer } from '../utils/speechRecognition';
 import { evaluateRoleplayAnswer, RoleplayEvaluation } from '../utils/roleplayEvaluator';
 import { Language, translations } from '../utils/i18n';
@@ -44,6 +44,15 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       return weightA - weightB;
     });
   }, [lesson.exercises]);
+
+  // Pre-load neural studio audio for all exercises in the lesson in background
+  React.useEffect(() => {
+    sortedExercises.forEach((ex) => {
+      if (ex.audioSentence) prefetchAudio(ex.audioSentence);
+      if (ex.expectedAnswer) prefetchAudio(ex.expectedAnswer);
+      if (ex.promptText) prefetchAudio(ex.promptText);
+    });
+  }, [sortedExercises]);
 
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userAnswer, setUserAnswer] = useState<string>('');

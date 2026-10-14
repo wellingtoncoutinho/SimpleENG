@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, Mic, MicOff, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react';
 import { Exercise } from '../../types/lesson';
-import { playTextToSpeech, soundEffects } from '../../utils/audio';
+import { playTextToSpeech, soundEffects, prefetchAudio } from '../../utils/audio';
 import { containsRequiredWords, createSpeechRecognizer, isSpeechRecognitionSupported } from '../../utils/speechRecognition';
 import { LearnerMascot } from '../LearnerMascot';
 import { Language, translations } from '../../utils/i18n';
@@ -48,11 +48,12 @@ export const RoleplayPromptExercise: React.FC<RoleplayPromptExerciseProps> = ({
   };
 
   useEffect(() => {
+    prefetchAudio(dialogueSentence);
     const timer = setTimeout(() => {
       handlePlayEngyVoice();
     }, 450);
     return () => clearTimeout(timer);
-  }, [exercise.id]);
+  }, [exercise.id, dialogueSentence]);
 
   const toggleMic = () => {
     if (disabled) return;

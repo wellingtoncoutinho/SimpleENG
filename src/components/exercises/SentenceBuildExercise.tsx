@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RotateCcw, Volume2, Snail } from 'lucide-react';
 import { Exercise } from '../../types/lesson';
-import { playTextToSpeech, speakWord, soundEffects } from '../../utils/audio';
+import { playTextToSpeech, speakWord, soundEffects, prefetchAudio } from '../../utils/audio';
 import { Language, translations } from '../../utils/i18n';
 
 interface SentenceBuildExerciseProps {
@@ -131,11 +131,12 @@ export const SentenceBuildExercise: React.FC<SentenceBuildExerciseProps> = ({
 
   // Auto-play audio on exercise mount
   useEffect(() => {
+    prefetchAudio(audioText);
     const timer = setTimeout(() => {
       handlePlaySentence(1.0);
     }, 350);
     return () => clearTimeout(timer);
-  }, [exercise.id]);
+  }, [exercise.id, audioText]);
 
   const handleReset = () => {
     if (disabled) return;

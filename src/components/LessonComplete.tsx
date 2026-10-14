@@ -3,7 +3,7 @@ import confetti from 'canvas-confetti';
 import { Trophy, Sparkles, CheckCircle2, AlertTriangle, RotateCcw, PlusCircle, Volume2, Copy, Check } from 'lucide-react';
 import { LessonPayload } from '../types/lesson';
 import { LearnerMascot } from './LearnerMascot';
-import { playTextToSpeech, soundEffects } from '../utils/audio';
+import { playTextToSpeech, soundEffects, prefetchAudio } from '../utils/audio';
 import { Language, translations } from '../utils/i18n';
 
 interface LessonCompleteProps {
@@ -53,6 +53,10 @@ export const LessonComplete: React.FC<LessonCompleteProps> = ({
     fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
     fire(0.1, { spread: 120, startVelocity: 45 });
   }, []);
+
+  useEffect(() => {
+    lesson.moduleMeta.wordsCovered?.forEach(w => prefetchAudio(w));
+  }, [lesson.moduleMeta.wordsCovered]);
 
   const accuracy = Math.round(
     (stats.correctCount / Math.max(1, stats.totalExercises)) * 100

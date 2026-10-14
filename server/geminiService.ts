@@ -214,38 +214,70 @@ export async function generateWeeklyPlanWithGemini(
   );
 }
 
-export async function synthesizeSpeechWithGemini(text: string, voiceName: string = 'Kore'): Promise<string | null> {
+function convertPcmToWav(pcmBase64: string, sampleRate: number = 24000): string {
+  const pcmBuffer = Buffer.from(pcmBase64, 'base64');
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcmBuffer.length;
+  const header = Buffer.alloc(44);
+
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataSize, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM format
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+
+  const wavBuffer = Buffer.concat([header, pcmBuffer]);
+  return wavBuffer.toString('base64');
+}
+
+export async function synthesizeSpeechWithGemini(
+  text: string,
+  voiceName: string = 'Aoede'
+): Promise<string | null> {
   const ai = getAiClient();
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash-lite-tts',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text,
-              speechMetadata: {
-                style: 'Clear, warm English language teacher, friendly and encouraging',
+  const models = ['gemini-2.5-flash-preview-tts', 'gemini-3.1-flash-tts-preview'];
+
+  for (const model of models) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text }],
+          },
+        ],
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: (voiceName || 'Aoede') as any,
               },
             },
-          ],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voiceName as 'Kore' | 'Puck' | 'Zephyr' | 'Charon' | 'Fenrir' },
           },
         },
-      },
-    });
+      });
 
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    return base64Audio || null;
-  } catch (err) {
-    console.error('Gemini TTS synthesis failed, fallback to browser speech synthesis:', err);
-    return null;
+      const pcmBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (pcmBase64) {
+        return convertPcmToWav(pcmBase64, 24000);
+      }
+    } catch (err: any) {
+      console.warn(`Gemini TTS model ${model} failed, trying next:`, err?.message || err);
+    }
   }
+
+  return null;
 }

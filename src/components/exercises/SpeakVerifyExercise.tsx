@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Volume2, Sparkles, Keyboard, Check, StopCircle } from 'lucide-react';
 import { Exercise } from '../../types/lesson';
-import { playTextToSpeech, soundEffects } from '../../utils/audio';
+import { playTextToSpeech, soundEffects, prefetchAudio } from '../../utils/audio';
 import { Language, translations } from '../../utils/i18n';
 import {
   createSpeechRecognizer,
@@ -39,6 +39,10 @@ export const SpeakVerifyExercise: React.FC<SpeakVerifyExerciseProps> = ({
   const sentenceTranslation = exercise.expectedAnswerPt || exercise.promptTextPt;
 
   const supported = isSpeechRecognitionSupported();
+
+  useEffect(() => {
+    prefetchAudio(targetSentence);
+  }, [targetSentence]);
 
   const handleListenModel = () => {
     if (isPlayingModel) return;

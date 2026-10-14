@@ -233,6 +233,18 @@ export function speakWord(word: string, onEnd?: () => void) {
     return;
   }
 
+  // If already in neural cache, play high fidelity audio
+  if (neuralAudioCache.has(cleaned)) {
+    try {
+      const audio = new Audio(`data:audio/wav;base64,${neuralAudioCache.get(cleaned)}`);
+      audio.playbackRate = 1.0;
+      audio.onended = () => { if (onEnd) onEnd(); };
+      audio.onerror = () => { if (onEnd) onEnd(); };
+      audio.play().catch(() => { if (onEnd) onEnd(); });
+      return;
+    } catch {}
+  }
+
   if ('speechSynthesis' in window) {
     try {
       if (window.speechSynthesis.paused) {
@@ -266,9 +278,177 @@ export function speakWord(word: string, onEnd?: () => void) {
   if (onEnd) onEnd();
 }
 
+let currentWebAudioSource: AudioBufferSourceNode | null = null;
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = typeof window !== 'undefined' ? window.atob(base64) : '';
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+async function playWavViaWebAudio(
+  base64Audio: string,
+  speed: number,
+  onComplete: () => void
+): Promise<boolean> {
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+    const arrayBuffer = base64ToArrayBuffer(base64Audio);
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+
+    if (currentWebAudioSource) {
+      try {
+        currentWebAudioSource.stop();
+      } catch {}
+      currentWebAudioSource = null;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.playbackRate.value = speed < 0.85 ? 0.60 : 1.0;
+    source.connect(ctx.destination);
+    source.onended = () => {
+      currentWebAudioSource = null;
+      onComplete();
+    };
+    currentWebAudioSource = source;
+    source.start(0);
+    return true;
+  } catch (err) {
+    console.warn('Web Audio playback fallback failed:', err);
+    return false;
+  }
+}
+
+// User-gesture unlocker for iOS Safari and Android Chrome
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    try {
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+    } catch {}
+    window.removeEventListener('touchstart', unlockAudio);
+    window.removeEventListener('touchend', unlockAudio);
+    window.removeEventListener('click', unlockAudio);
+  };
+  window.addEventListener('touchstart', unlockAudio, { passive: true, once: true });
+  window.addEventListener('touchend', unlockAudio, { passive: true, once: true });
+  window.addEventListener('click', unlockAudio, { passive: true, once: true });
+}
+
+const neuralAudioCache = new Map<string, string>();
+const pendingAudioPromises = new Map<string, Promise<string | null>>();
+
+async function fetchAudioBase64(text: string): Promise<string | null> {
+  const cleaned = text.trim();
+  if (!cleaned) return null;
+  if (neuralAudioCache.has(cleaned)) {
+    return neuralAudioCache.get(cleaned)!;
+  }
+  if (pendingAudioPromises.has(cleaned)) {
+    return pendingAudioPromises.get(cleaned)!;
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: cleaned, voice: 'Aoede' }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audio) {
+          neuralAudioCache.set(cleaned, data.audio);
+          return data.audio as string;
+        }
+      }
+    } catch (err) {
+      console.debug('Neural TTS fetch error:', err);
+    } finally {
+      pendingAudioPromises.delete(cleaned);
+    }
+    return null;
+  })();
+
+  pendingAudioPromises.set(cleaned, fetchPromise);
+  return fetchPromise;
+}
+
 /**
- * Plays main exercise sentence audio (normal speed or slow snail).
- * Optimized for mobile touch events and Safari/Chrome compatibility.
+ * Preload high-quality neural voice in background when an exercise mounts.
+ * This guarantees 0ms latency when the user taps play!
+ */
+export async function prefetchAudio(text: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const cleaned = text.trim();
+  if (!cleaned || neuralAudioCache.has(cleaned)) return;
+  await fetchAudioBase64(cleaned);
+}
+
+function fallbackToBrowserSpeech(
+  cleaned: string,
+  speed: number,
+  onComplete: () => void
+): () => void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    onComplete();
+    return () => {};
+  }
+
+  try {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(cleaned);
+    utterance.rate = getCalibratedSpeechRate(speed);
+    utterance.pitch = 1.0;
+    utterance.lang = 'en-US';
+
+    const voice = cachedBestVoice || loadBestEnglishVoice();
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    utterance.onend = () => onComplete();
+    utterance.onerror = () => onComplete();
+
+    window.speechSynthesis.speak(utterance);
+    return () => {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+      onComplete();
+    };
+  } catch {
+    onComplete();
+    return () => {};
+  }
+}
+
+/**
+ * Plays exercise sentence audio using Studio Neural Gemini TTS (voice: Aoede).
+ * If neural audio is cached, plays instantly (0ms) at requested playbackRate.
+ * Snail mode (speed < 0.85) plays at 0.60x rate with pitch preservation.
+ * If browser blocks <audio>.play(), immediately plays through unlocked Web Audio API.
+ * If server is unreachable or offline, falls back seamlessly to calibrated browser TTS.
  */
 export async function playTextToSpeech(
   text: string, 
@@ -283,8 +463,16 @@ export async function playTextToSpeech(
 
   // Clear previous audio and timeouts
   if (currentAudioElement) {
-    currentAudioElement.pause();
+    try {
+      currentAudioElement.pause();
+    } catch {}
     currentAudioElement = null;
+  }
+  if (currentWebAudioSource) {
+    try {
+      currentWebAudioSource.stop();
+    } catch {}
+    currentWebAudioSource = null;
   }
   if (currentSafetyTimeout) {
     clearTimeout(currentSafetyTimeout);
@@ -298,6 +486,9 @@ export async function playTextToSpeech(
     if (currentAudioElement) {
       currentAudioElement = null;
     }
+    if (currentWebAudioSource) {
+      currentWebAudioSource = null;
+    }
     if (currentSafetyTimeout) {
       clearTimeout(currentSafetyTimeout);
       currentSafetyTimeout = null;
@@ -305,8 +496,7 @@ export async function playTextToSpeech(
     if (onEnd) onEnd();
   };
 
-  // Safety fallback: reset speaking flag after estimated duration (prevents getting stuck)
-  const estimatedSeconds = Math.max(3, (cleaned.split(/\s+/).length * 1.5) / speed);
+  const estimatedSeconds = Math.max(3, (cleaned.split(/\s+/).length * 1.5) / (speed < 0.85 ? 0.60 : speed));
   currentSafetyTimeout = setTimeout(() => {
     if (isMainSentenceSpeaking) {
       handleFinish();
@@ -315,81 +505,63 @@ export async function playTextToSpeech(
 
   const cancel = () => {
     if (currentAudioElement) {
-      currentAudioElement.pause();
+      try {
+        currentAudioElement.pause();
+      } catch {}
       currentAudioElement = null;
     }
-    if ('speechSynthesis' in window) {
+    if (currentWebAudioSource) {
+      try {
+        currentWebAudioSource.stop();
+      } catch {}
+      currentWebAudioSource = null;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
     handleFinish();
   };
 
-  // Priority 1: Native Web Speech API (Works on Mobile iOS/Android synchronously without async fetch blocking)
-  if ('speechSynthesis' in window) {
+  const playWav = async (base64Audio: string) => {
     try {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(cleaned);
-      utterance.rate = getCalibratedSpeechRate(speed);
-      utterance.pitch = 1.0;
-      utterance.lang = 'en-US';
-
-      const voice = cachedBestVoice || loadBestEnglishVoice();
-      if (voice) {
-        utterance.voice = voice;
-      }
-
-      utterance.onend = () => {
-        handleFinish();
+      const audio = new Audio(`data:audio/wav;base64,${base64Audio}`);
+      audio.playbackRate = speed < 0.85 ? 0.60 : 1.0;
+      currentAudioElement = audio;
+      audio.onended = handleFinish;
+      audio.onerror = async () => {
+        const webAudioSuccess = await playWavViaWebAudio(base64Audio, speed, handleFinish);
+        if (!webAudioSuccess) {
+          fallbackToBrowserSpeech(cleaned, speed, handleFinish);
+        }
       };
-
-      utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error, falling back:', e);
-        tryServerTTS(cleaned, speed, handleFinish);
-      };
-
-      window.speechSynthesis.speak(utterance);
-      return cancel;
-    } catch (err) {
-      console.warn('SpeechSynthesis exception:', err);
+      await audio.play();
+    } catch {
+      // Mobile Safari / Chrome policy blocked <audio>.play(): fall back to unlocked Web Audio context!
+      const webAudioSuccess = await playWavViaWebAudio(base64Audio, speed, handleFinish);
+      if (!webAudioSuccess) {
+        fallbackToBrowserSpeech(cleaned, speed, handleFinish);
+      }
     }
+  };
+
+  // 1. If audio is already in neural cache, play immediately! (0ms lag, no robotic TTS)
+  if (neuralAudioCache.has(cleaned)) {
+    playWav(neuralAudioCache.get(cleaned)!);
+    return cancel;
   }
 
-  // Priority 2: Server-side Gemini TTS fallback
-  tryServerTTS(cleaned, speed, handleFinish);
+  // 2. Otherwise, fetch studio neural TTS with deduplicated request
+  const base64 = await fetchAudioBase64(cleaned);
+  if (base64 && isMainSentenceSpeaking) {
+    playWav(base64);
+    return cancel;
+  }
+
+  // 3. Fallback: Browser speech with calibrated rate and best English voice
+  if (isMainSentenceSpeaking) {
+    fallbackToBrowserSpeech(cleaned, speed, handleFinish);
+  }
   return cancel;
-}
-
-async function tryServerTTS(text: string, speed: number, onComplete: () => void) {
-  try {
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice: 'Kore' }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data.audio) {
-        const audio = new Audio(`data:audio/wav;base64,${data.audio}`);
-        audio.playbackRate = speed;
-        currentAudioElement = audio;
-        audio.onended = () => onComplete();
-        audio.onerror = () => onComplete();
-        await audio.play();
-        return;
-      }
-    }
-  } catch (err) {
-    console.debug('Server TTS failed:', err);
-  }
-  onComplete();
 }

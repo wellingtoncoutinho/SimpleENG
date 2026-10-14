@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, Snail, RotateCcw, Keyboard, Grid, Sparkles } from 'lucide-react';
 import { Exercise } from '../../types/lesson';
-import { playTextToSpeech, speakWord, soundEffects } from '../../utils/audio';
+import { playTextToSpeech, speakWord, soundEffects, prefetchAudio } from '../../utils/audio';
 import { Language, translations } from '../../utils/i18n';
 
 interface ListenTypeExerciseProps {
@@ -135,11 +135,12 @@ export const ListenTypeExercise: React.FC<ListenTypeExerciseProps> = ({
   };
 
   useEffect(() => {
+    prefetchAudio(audioText);
     const timer = setTimeout(() => {
       handlePlay(1.0);
     }, 400);
     return () => clearTimeout(timer);
-  }, [exercise.id]);
+  }, [exercise.id, audioText]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && userAnswer.trim() && !disabled) {

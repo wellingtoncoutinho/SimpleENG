@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!text) {
       return res.status(400).json({ error: 'Missing text parameter' });
     }
-    const audio = await synthesizeSpeechWithGemini(text, voice || 'Kore');
+    const audio = await synthesizeSpeechWithGemini(text, voice || 'Aoede');
     return res.status(200).json({ audio });
   } catch (err: any) {
     console.error('Error in /api/tts:', err);
