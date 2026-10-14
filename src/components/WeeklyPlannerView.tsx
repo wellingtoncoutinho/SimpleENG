@@ -43,6 +43,42 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
 }) => {
   const t = translations[lang];
 
+  // Local real calendar date calculation (prevents timezone/UTC drift)
+  const getLocalDateIso = (d: Date = new Date()): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayIso = getLocalDateIso();
+
+  // A day is TODAY strictly if its dateIso matches today's real local date!
+  const isDayToday = (d: DayPlan) => Boolean(d.dateIso && d.dateIso === todayIso);
+
+  const hasValidPlan = Boolean(plan && plan.days && plan.days.length > 0);
+  const todayIndex = hasValidPlan && plan ? plan.days.findIndex(isDayToday) : -1;
+
+  // If today is within the 7-day plan, ALWAYS open TODAY by default!
+  const initialDayIndex =
+    todayIndex !== -1
+      ? todayIndex
+      : hasValidPlan && plan
+      ? Math.max(0, plan.days.findIndex((d) => !d.isCompleted))
+      : 0;
+
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(
+    initialDayIndex !== -1 ? initialDayIndex : 0
+  );
+  const [showVocabModal, setShowVocabModal] = useState<boolean>(false);
+
+  // Auto-sync selection when plan changes or on date rollover
+  React.useEffect(() => {
+    if (todayIndex !== -1) {
+      setSelectedDayIndex(todayIndex);
+    }
+  }, [plan?.id, todayIso]);
+
   // If no plan is active, display an inviting Empty State
   if (!plan || !plan.days || plan.days.length === 0) {
     return (
@@ -142,41 +178,6 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
       </div>
     );
   }
-
-  // Local real calendar date calculation (prevents timezone/UTC drift)
-  const getLocalDateIso = (d: Date = new Date()): string => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const todayIso = getLocalDateIso();
-
-  // A day is TODAY strictly if its dateIso matches today's real local date!
-  const isDayToday = (d: DayPlan) => Boolean(d.dateIso && d.dateIso === todayIso);
-
-  // Find today's index in the 7-day plan
-  const todayIndex = plan.days.findIndex(isDayToday);
-
-  // If today is within the 7-day plan, ALWAYS open TODAY by default!
-  const initialDayIndex =
-    todayIndex !== -1
-      ? todayIndex
-      : Math.max(0, plan.days.findIndex((d) => !d.isCompleted));
-
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(
-    initialDayIndex !== -1 ? initialDayIndex : 0
-  );
-
-  // Auto-sync selection when plan changes or on date rollover
-  React.useEffect(() => {
-    if (todayIndex !== -1) {
-      setSelectedDayIndex(todayIndex);
-    }
-  }, [plan.id, todayIso]);
-
-  const [showVocabModal, setShowVocabModal] = useState<boolean>(false);
 
   const selectedDay: DayPlan = plan.days[selectedDayIndex] || plan.days[0];
 
