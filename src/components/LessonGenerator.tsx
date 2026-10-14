@@ -7,6 +7,7 @@ import { LearnerMascot } from './LearnerMascot';
 import { soundEffects } from '../utils/audio';
 import { parseClassNotes } from '../utils/noteParser';
 import { buildCustomLesson } from '../utils/curriculumBuilder';
+import { generateLessonWithGemini } from '../../server/geminiService';
 import { Language, translations } from '../utils/i18n';
 
 interface LessonGeneratorProps {
@@ -30,9 +31,21 @@ export const LessonGenerator: React.FC<LessonGeneratorProps> = ({
   const [newWordInput, setNewWordInput] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generationStep, setGenerationStep] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPasteModal, setShowPasteModal] = useState<boolean>(false);
   const [pasteAreaText, setPasteAreaText] = useState<string>('');
+
+  React.useEffect(() => {
+    if (!isGenerating) {
+      setGenerationStep(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setGenerationStep((prev) => (prev + 1) % 4);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [isGenerating]);
 
   const handleUseExample = () => {
     soundEffects.playTap();
@@ -142,7 +155,19 @@ export const LessonGenerator: React.FC<LessonGeneratorProps> = ({
         return;
       }
     } catch (err: any) {
-      console.warn('API call encountered issue, switching to robust local generator:', err);
+      console.warn('API call encountered issue, trying direct client Gemini:', err);
+    }
+
+    // Call direct Gemini pedagogical AI before any hardcoded templates
+    try {
+      const directLesson = await generateLessonWithGemini(payloadInput);
+      if (directLesson && directLesson.exercises && directLesson.exercises.length > 0) {
+        setIsGenerating(false);
+        onStartLesson(directLesson);
+        return;
+      }
+    } catch (geminiErr: any) {
+      console.warn('Direct Gemini generation error, using fallback:', geminiErr);
     }
 
     // High-quality local builder fallback (Guarantees zero downtime, never shows 500 error!)
@@ -323,6 +348,23 @@ export const LessonGenerator: React.FC<LessonGeneratorProps> = ({
         {errorMsg && (
           <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-2xl text-xs text-amber-900 dark:text-amber-300 font-medium">
             {errorMsg}
+          </div>
+        )}
+
+        {isGenerating && (
+          <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl animate-in fade-in space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin flex-shrink-0" />
+              <p className="text-xs sm:text-sm font-bold text-emerald-950 dark:text-emerald-200">
+                {generationStep === 0 && '🦁 Leo está lendo suas anotações e analisando os contextos reais...'}
+                {generationStep === 1 && '🧠 Mapeando expressões, gírias e tempos verbais autênticos...'}
+                {generationStep === 2 && '✨ Criando frases exclusivas sem modelos repetitivos...'}
+                {generationStep === 3 && '🎙️ Finalizando pronúncia nativa e dicas em português...'}
+              </p>
+            </div>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 pl-8 leading-tight">
+              A inteligência pedagógica do Gemini está desenhando exercícios sob medida com base nas suas aulas (leva cerca de 15 a 30 segundos).
+            </p>
           </div>
         )}
 

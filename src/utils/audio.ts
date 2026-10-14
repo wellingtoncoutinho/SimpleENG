@@ -1,4 +1,5 @@
 // Audio engine for SimpleENG: Web Audio API synthesized sound effects + Mobile-compatible TTS
+import { synthesizeSpeechWithGemini } from '../../server/geminiService';
 
 let audioCtx: AudioContext | null = null;
 
@@ -377,9 +378,23 @@ async function fetchAudioBase64(text: string): Promise<string | null> {
           neuralAudioCache.set(cleaned, data.audio);
           return data.audio as string;
         }
+      } else {
+        // Fallback to direct client Gemini TTS if API route returned error
+        const directAudio = await synthesizeSpeechWithGemini(cleaned, 'Aoede');
+        if (directAudio) {
+          neuralAudioCache.set(cleaned, directAudio);
+          return directAudio;
+        }
       }
     } catch (err) {
-      console.debug('Neural TTS fetch error:', err);
+      console.debug('Neural TTS fetch error, trying client Gemini:', err);
+      try {
+        const directAudio = await synthesizeSpeechWithGemini(cleaned, 'Aoede');
+        if (directAudio) {
+          neuralAudioCache.set(cleaned, directAudio);
+          return directAudio;
+        }
+      } catch {}
     } finally {
       pendingAudioPromises.delete(cleaned);
     }
