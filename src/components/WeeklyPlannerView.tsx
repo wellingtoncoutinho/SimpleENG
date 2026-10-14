@@ -143,12 +143,23 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
     );
   }
 
-  // Match today or default to first incomplete day
-  const todayIso = new Date().toISOString().split('T')[0];
-  const todayIndex = plan.days.findIndex(
-    (d) => d.isToday || (d.dateIso && d.dateIso === todayIso)
-  );
+  // Local real calendar date calculation (prevents timezone/UTC drift)
+  const getLocalDateIso = (d: Date = new Date()): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
+  const todayIso = getLocalDateIso();
+
+  // A day is TODAY strictly if its dateIso matches today's real local date!
+  const isDayToday = (d: DayPlan) => Boolean(d.dateIso && d.dateIso === todayIso);
+
+  // Find today's index in the 7-day plan
+  const todayIndex = plan.days.findIndex(isDayToday);
+
+  // If today is within the 7-day plan, ALWAYS open TODAY by default!
   const initialDayIndex =
     todayIndex !== -1
       ? todayIndex
@@ -157,6 +168,14 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(
     initialDayIndex !== -1 ? initialDayIndex : 0
   );
+
+  // Auto-sync selection when plan changes or on date rollover
+  React.useEffect(() => {
+    if (todayIndex !== -1) {
+      setSelectedDayIndex(todayIndex);
+    }
+  }, [plan.id, todayIso]);
+
   const [showVocabModal, setShowVocabModal] = useState<boolean>(false);
 
   const selectedDay: DayPlan = plan.days[selectedDayIndex] || plan.days[0];
@@ -314,7 +333,7 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
             const isSelected = selectedDayIndex === idx;
             const completedCount = day.blocks.filter((b) => b.isCompleted).length;
             const isAllCompleted = completedCount === day.blocks.length && day.blocks.length > 0;
-            const isToday = day.isToday || (day.dateIso && day.dateIso === todayIso);
+            const isToday = isDayToday(day);
             const isClassDay = day.isClassDay;
 
             const shortLabel =
@@ -426,7 +445,9 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                {selectedDay.dayLabel}
+                {isDayToday(selectedDay)
+                  ? `Hoje · ${selectedDay.dayLabel.replace(/^Dia \d+\s*·\s*/, '').replace(/^Hoje\s*·\s*/, '')}`
+                  : selectedDay.dayLabel.replace(/^Hoje\s*·\s*/, `Dia ${selectedDayIndex + 1} · `)}
               </span>
               {selectedDay.dateFormatted && (
                 <span className="text-xs text-slate-400 font-semibold">

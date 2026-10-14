@@ -857,30 +857,27 @@ export function buildWeeklyPlan(
   const days: DayPlan[] = [];
 
   for (let d = 0; d < 7; d++) {
-    const targetDate = new Date(baseDate.getTime() + d * 24 * 60 * 60 * 1000);
+    const targetDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + d, 12, 0, 0);
     const dayOfWeek = targetDate.getDay();
     const dayName = PT_DAYS[dayOfWeek];
     const shortDayName = PT_SHORT_DAYS[dayOfWeek];
     const dayNumber = targetDate.getDate();
     const monthName = PT_MONTHS[targetDate.getMonth()];
     const dateFormatted = `${dayNumber} ${monthName}`;
-    const dateIso = targetDate.toISOString().split('T')[0];
+    const yearStr = targetDate.getFullYear();
+    const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(dayNumber).padStart(2, '0');
+    const dateIso = `${yearStr}-${monthStr}-${dayStr}`;
 
     const isClassDay =
       cleanClassDay.length > 0 &&
       (dayName.toLowerCase().replace('-feira', '').includes(cleanClassDay) ||
         cleanClassDay.includes(dayName.toLowerCase().replace('-feira', '')));
-    const isToday = d === 0;
 
     const themeInfo = DAY_THEMES[d];
-    let dayLabel = `Dia ${d + 1} · ${themeInfo.label.split('·')[1]?.trim() || themeInfo.label}`;
-    if (isToday && isClassDay) {
-      dayLabel = 'Hoje · Dia da Aula & Início';
-    } else if (isToday) {
-      dayLabel = 'Hoje · Início do Ciclo';
-    } else if (isClassDay) {
-      dayLabel = `Dia ${d + 1} · Dia da Aula`;
-    }
+    const dayLabel = isClassDay
+      ? `Dia ${d + 1} · Dia da Aula`
+      : `Dia ${d + 1} · ${themeInfo.label.split('·')[1]?.trim() || themeInfo.label}`;
 
     // Distribute vocabulary items systematically:
     // Days 1 to 6 (d = 0..5): Every single word in safeItems is guaranteed to be partitioned and covered!
@@ -973,7 +970,7 @@ export function buildWeeklyPlan(
       dayName,
       dayLabel,
       theme: themeInfo.theme,
-      isToday,
+      isToday: false,
       isClassDay,
       isCompleted: false,
       totalMinutes: dailyMinutes,
