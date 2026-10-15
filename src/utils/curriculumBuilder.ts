@@ -1,5 +1,6 @@
 import { CEFRLevel, Exercise, ExerciseType, LessonPayload, MatchPair } from '../types/lesson.ts';
 import { DayPlan, LessonBlock, ParsedVocabularyItem, WeeklyPlan } from '../types/weeklyPlan.ts';
+import { WORD_TRANSLATIONS } from './wordTranslations.ts';
 
 /**
  * Intelligent Pedagogical Generator for SimpleENG.
@@ -74,80 +75,127 @@ export const DAY_SCENARIOS: DayScenario[] = [
   },
 ];
 
-// Contextual pool of distractors by category for word banks
-const COMMON_DISTRACTOR_POOLS: string[][] = [
-  ['to', 'for', 'with', 'about'],
-  ['our', 'their', 'my', 'your'],
-  ['always', 'usually', 'often', 'never'],
-  ['have', 'make', 'take', 'feel'],
-  ['at', 'in', 'on', 'from'],
-  ['because', 'although', 'before', 'after'],
-  ['we', 'they', 'she', 'he'],
-  ['very', 'really', 'already', 'still'],
-];
+// Thematic distractor pools for Multiple Choice (full natural sentences per scenario)
+const SCENARIO_MC_DISTRACTORS: Record<DayScenarioKey, string[]> = {
+  restaurant: [
+    'Could we please see the dessert menu when you have a moment?',
+    'We are still deciding between the soup and the salad.',
+    'Is service charge included in the final bill?',
+    'Excuse me, could you bring some extra napkins to our table?',
+    'What do you recommend as the house special tonight?',
+  ],
+  family: [
+    'Everyone is helping clean up after our Sunday family lunch.',
+    'We should organize our weekend plans with the family.',
+    'Let\'s call our grandparents later this evening to check in.',
+    'We usually sit down together to talk about how our week went.',
+    'We love having a quiet dinner at home on Friday nights.',
+  ],
+  work: [
+    'Let\'s schedule a quick sync before the deadline tomorrow.',
+    'I will share the updated project summary with the team.',
+    'We need to align our priorities for the upcoming quarter.',
+    'Could you review the draft presentation before the client call?',
+    'Please send the meeting notes once the discussion concludes.',
+  ],
+  travel: [
+    'Could you tell me which gate our flight departs from?',
+    'I need to pick up my luggage at the baggage claim carousel.',
+    'Is there a shuttle service available directly to the city center?',
+    'Please have your boarding pass and identification ready at the gate.',
+    'Our flight was delayed by thirty minutes due to weather.',
+  ],
+  friends: [
+    'We should definitely hang out more often this summer.',
+    'Let\'s grab a coffee downtown and catch up on everything.',
+    'The live music concert downtown starts at eight tonight.',
+    'Do you want to grab burgers and chill by the park this afternoon?',
+    'We had such a great time laughing about our old stories.',
+  ],
+  dating: [
+    'I really value honest and open communication between couples.',
+    'It is wonderful to spend quality time together talking.',
+    'Being authentic and true to yourself makes all the difference.',
+    'We really connected from our very first conversation over dinner.',
+    'Sharing your genuine thoughts helps build lasting trust.',
+  ],
+  city: [
+    'Excuse me, where can I find the nearest grocery store around here?',
+    'I have a few urgent errands to run before the shops close.',
+    'Could you tell me how much this item costs at the counter?',
+    'There is a very convenient pharmacy located right around the corner.',
+    'Is the subway station within walking distance from here?',
+  ],
+};
 
-function getPlausibleDistractors(sentenceWords: string[], count: number = 3): string[] {
-  const normWords = sentenceWords.map((w) => w.toLowerCase());
-  const selected: string[] = [];
+function getScenarioMCDistractors(scenarioKey: DayScenarioKey, expectedAnswer: string, count: number = 2): string[] {
+  const pool = SCENARIO_MC_DISTRACTORS[scenarioKey] || SCENARIO_MC_DISTRACTORS.restaurant;
+  const filtered = pool.filter((s) => s.toLowerCase() !== expectedAnswer.toLowerCase());
+  return filtered.slice(0, count);
+}
 
-  for (const pool of COMMON_DISTRACTOR_POOLS) {
-    if (selected.length >= count) break;
-    for (const candidate of pool) {
-      if (!normWords.includes(candidate.toLowerCase()) && !selected.includes(candidate)) {
-        selected.push(candidate);
-        break;
-      }
-    }
-  }
+// Plausible category-specific distractors for fill_blank
+const CATEGORY_FB_DISTRACTORS: Record<WordCategory, string[]> = {
+  clause_i: ['I want', 'I need', 'I plan', 'I hope'],
+  phrasal_verb: ['look forward to', 'hang out', 'catch up', 'give up'],
+  noun: ['schedule', 'routine', 'meeting', 'priority', 'feedback', 'counter'],
+  adjective: ['overwhelmed', 'confident', 'exhausted', 'comfortable', 'patient'],
+  adverb: ['actually', 'usually', 'suddenly', 'meanwhile', 'already'],
+  general: ['time', 'plan', 'idea', 'choice'],
+};
 
-  return selected.slice(0, count);
+function getCategoryFBDistractors(category: WordCategory, targetWord: string, count: number = 2): string[] {
+  const pool = CATEGORY_FB_DISTRACTORS[category] || CATEGORY_FB_DISTRACTORS.noun;
+  const normTarget = targetWord.toLowerCase().trim();
+  const filtered = pool.filter((w) => w.toLowerCase() !== normTarget);
+  return filtered.slice(0, count);
 }
 
 // Categorizes vocabulary items for natural grammatical integration
 type WordCategory = 'clause_i' | 'phrasal_verb' | 'noun' | 'adjective' | 'adverb' | 'general';
 
 function categorizeWord(word: string): WordCategory {
-  const lower = word.toLowerCase().trim();
+  const clean = word.replace(/^[-–—:;,\s]+|[-–—:;,\s]+$/g, '').toLowerCase().trim();
 
-  if (lower.startsWith('i ') || lower === 'i' || lower.startsWith('i\'')) {
+  if (clean.startsWith('i ') || clean === 'i' || clean.startsWith('i\'')) {
     return 'clause_i';
   }
   if (
-    lower.includes(' ') &&
-    (lower.endsWith(' to') ||
-      lower.endsWith(' with') ||
-      lower.endsWith(' of') ||
-      lower.endsWith(' for') ||
-      lower.endsWith(' up') ||
-      lower.endsWith(' on') ||
-      lower.endsWith(' out') ||
-      lower.includes('look forward') ||
-      lower.includes('struggle') ||
-      lower.includes('afraid of') ||
-      lower.includes('ghost') ||
-      lower.includes('take for granted'))
+    clean.includes(' ') &&
+    (clean.endsWith(' to') ||
+      clean.endsWith(' with') ||
+      clean.endsWith(' of') ||
+      clean.endsWith(' for') ||
+      clean.endsWith(' up') ||
+      clean.endsWith(' on') ||
+      clean.endsWith(' out') ||
+      clean.includes('look forward') ||
+      clean.includes('struggle') ||
+      clean.includes('afraid of') ||
+      clean.includes('ghost') ||
+      clean.includes('take for granted'))
   ) {
     return 'phrasal_verb';
   }
   if (
-    lower.endsWith('ly') ||
-    ['actually', 'usually', 'already', 'meanwhile', 'suddenly', 'instead', 'almost'].includes(lower)
+    clean.endsWith('ly') ||
+    ['actually', 'usually', 'already', 'meanwhile', 'suddenly', 'instead', 'almost'].includes(clean)
   ) {
     return 'adverb';
   }
   if (
-    ['overwhelmed', 'afraid', 'busy', 'ready', 'confident', 'polite', 'rude', 'patient', 'calm', 'delicious'].includes(lower) ||
-    lower.endsWith('ed') ||
-    lower.endsWith('able') ||
-    lower.endsWith('ful')
+    ['overwhelmed', 'afraid', 'busy', 'ready', 'confident', 'polite', 'rude', 'patient', 'calm', 'delicious'].includes(clean) ||
+    clean.endsWith('ed') ||
+    clean.endsWith('able') ||
+    clean.endsWith('ful')
   ) {
     return 'adjective';
   }
   if (
-    ['schedule', 'fear', 'routine', 'commitment', 'crush', 'feedback', 'deadline', 'budget', 'meeting', 'mistake', 'bill', 'dinner'].includes(lower) ||
-    lower.endsWith('tion') ||
-    lower.endsWith('ment') ||
-    lower.endsWith('ance')
+    ['schedule', 'fear', 'routine', 'commitment', 'crush', 'feedback', 'deadline', 'budget', 'meeting', 'mistake', 'bill', 'dinner', 'aisle', 'aisles'].includes(clean) ||
+    clean.endsWith('tion') ||
+    clean.endsWith('ment') ||
+    clean.endsWith('ance')
   ) {
     return 'noun';
   }
@@ -156,10 +204,10 @@ function categorizeWord(word: string): WordCategory {
 }
 
 function getNaturalMeaning(word: string, rawMeaning?: string): string {
-  const clean = rawMeaning?.trim();
+  const clean = rawMeaning?.replace(/^[-–—:;,\s]+|[-–—:;,\s]+$/g, '').trim();
   if (
     clean &&
-    clean.length <= 40 &&
+    clean.length <= 60 &&
     !clean.toLowerCase().startsWith('ao inves') &&
     !clean.toLowerCase().startsWith('ao invés') &&
     !clean.toLowerCase().startsWith('em vez') &&
@@ -171,22 +219,31 @@ function getNaturalMeaning(word: string, rawMeaning?: string): string {
     return clean;
   }
 
-  const lower = word.toLowerCase().trim();
-  if (lower.includes('like')) return 'gosto muito de';
-  if (lower.includes('went')) return 'fui';
-  if (lower.includes('used to')) return 'costumava';
-  if (lower.includes('want')) return 'quero';
-  if (lower.includes('need')) return 'preciso de';
-  if (lower.includes('schedule')) return 'cronograma / agenda';
-  if (lower.includes('fear')) return 'medo';
-  if (lower.includes('struggle')) return 'tenho dificuldade com';
-  if (lower.includes('forward')) return 'aguardo com expectativa';
-  if (lower.includes('overwhelmed')) return 'sobrecarregado(a)';
-  if (lower.includes('actually')) return 'na verdade';
-  if (lower.includes('ghost')) return 'dar um sumiço';
-  if (lower.includes('granted')) return 'tomar como garantido';
+  const cleanW = word.replace(/^[-–—:;,\s]+|[-–—:;,\s]+$/g, '').toLowerCase().trim();
+  if (WORD_TRANSLATIONS[cleanW]) {
+    return WORD_TRANSLATIONS[cleanW];
+  }
+  const stripped = cleanW.replace(/[^a-z0-9\s]/g, '').trim();
+  if (WORD_TRANSLATIONS[stripped]) {
+    return WORD_TRANSLATIONS[stripped];
+  }
 
-  return word;
+  if (cleanW.includes('like')) return 'gostar de';
+  if (cleanW.includes('went')) return 'fui';
+  if (cleanW.includes('used to')) return 'costumava';
+  if (cleanW.includes('want')) return 'querer';
+  if (cleanW.includes('need')) return 'precisar de';
+  if (cleanW.includes('schedule')) return 'cronograma / agenda';
+  if (cleanW.includes('fear')) return 'medo';
+  if (cleanW.includes('struggle')) return 'ter dificuldade';
+  if (cleanW.includes('forward')) return 'aguardar com expectativa';
+  if (cleanW.includes('overwhelmed')) return 'sobrecarregado(a)';
+  if (cleanW.includes('actually')) return 'na verdade';
+  if (cleanW.includes('ghost')) return 'dar um sumiço';
+  if (cleanW.includes('granted')) return 'tomar como garantido';
+  if (cleanW.includes('aisle')) return 'corredor (mercado / avião)';
+
+  return cleanW;
 }
 
 export interface RichSentenceBundle {
@@ -353,66 +410,71 @@ function createRichSentences(
   scenarioKey: DayScenarioKey = 'restaurant',
   allItems: ParsedVocabularyItem[] = []
 ): RichSentenceBundle {
-  const word = item.english.trim();
+  const rawWord = item.english || '';
+  const word = rawWord.replace(/^[-–—:;,\s]+|[-–—:;,\s]+$/g, '').trim();
   const rawMeaning = item.portuguese?.trim() || '';
   const nat = getNaturalMeaning(word, rawMeaning);
   const category = categorizeWord(word);
-  const pairs = createMatchPairs(item, allItems, scenarioKey);
+  const pairs = createMatchPairs({ ...item, english: word }, allItems, scenarioKey);
 
   // Scenario-specific generator
   switch (scenarioKey) {
     case 'restaurant': {
       // Day 1: Restaurante & Café
-      let mcScenario = `No restaurante: Você está à mesa e precisa se comunicar com o garçom usando "${word}".`;
-      let mcExpected = `Could you please bring us the ${word}?`;
-      let mcOptions = [mcExpected, 'I need to check my computer now.', 'Tomorrow I drive to the office.'];
-      let mcPt = `Você poderia nos trazer ${nat.startsWith('o') || nat.startsWith('a') ? nat : `o(a) ${nat}`}, por favor?`;
+      let mcScenario = `No restaurante ou cafeteria: Você precisa se comunicar com o atendente sobre "${nat}".`;
+      let mcPrompt = `Qual frase expressa essa intenção da forma mais educada e natural em inglês?`;
+      let mcExpected = `Excuse me, could you please point me toward the ${word}?`;
+      let mcPt = `Com licença, você poderia me indicar onde fica o(a) ${nat}?`;
 
-      let fbBlank = `Excuse me, could you please bring our ______?`;
+      let fbBlank = `Excuse me, could you please point us toward the ______?`;
       let fbAnswer = word;
-      let fbOptions = [word, 'traffic', 'battery'];
-      let fbPt = `Com licença, você poderia trazer nosso(a) ${nat}?`;
+      let fbPt = `Com licença, você poderia nos indicar onde fica o(a) ${nat}?`;
 
       let svSentence = `Everything was absolutely delicious tonight.`;
       let svPt = `Tudo estava absolutamente delicioso hoje à noite.`;
 
       let rpLeo = `Welcome to our bistro! Are you ready to order, or do you need a minute?`;
       let rpLeoPt = `Leo é o garçom do bistrô e pergunta: "Você está pronto para pedir ou precisa de um minuto?" Responda usando "${word}":`;
-      let rpAnswer = `Yes, we are ready to order with ${word}.`;
-      let rpPt = `Sim, estamos prontos para pedir com "${word}".`;
+      let rpAnswer = `Yes, we are ready to order, and I'd like to check about the ${word}.`;
+      let rpPt = `Sim, estamos prontos para pedir, e eu gostaria de saber sobre o(a) ${nat}.`;
 
       if (category === 'clause_i') {
-        mcExpected = `Yes, ${word} to try the house special tonight.`;
-        mcOptions = [mcExpected, 'The weather is very sunny outside.', 'I am reading a book at home.'];
-        mcPt = `Sim, ${nat} experimentar o prato especial da casa hoje.`;
+        mcExpected = `When looking at the menu, ${word} to try the chef's special tonight.`;
+        mcPt = `Olhando o cardápio, ${nat} experimentar o especial do chef hoje à noite.`;
         fbBlank = `When looking at the menu, ______ to try the chef's special.`;
         fbPt = `Olhando o cardápio, ${nat} experimentar o especial do chef.`;
         rpAnswer = `I am ready, ${word} to order the grilled salmon.`;
         rpPt = `Estou pronto, ${nat} pedir o salmão grelhado.`;
       } else if (category === 'adjective') {
-        mcExpected = `The food here is wonderfully ${word} and fresh.`;
-        mcOptions = [mcExpected, 'I forgot my car keys.', 'The flight arrives at midnight.'];
-        mcPt = `A comida aqui é incrivelmente ${nat} e fresca.`;
+        mcExpected = `The food here is wonderfully ${word} and fresh tonight.`;
+        mcPt = `A comida aqui é incrivelmente ${nat} e fresca hoje à noite.`;
         fbBlank = `The dessert here is so ______ that we ordered another one.`;
         fbPt = `A sobremesa aqui é tão ${nat} que pedimos outra.`;
         rpAnswer = `Everything smells so ${word} in this restaurant.`;
         rpPt = `Tudo cheira tão ${nat} neste restaurante.`;
       } else if (category === 'phrasal_verb') {
-        mcExpected = `We always ${word} having lunch at this cozy place.`;
-        mcOptions = [mcExpected, 'The train leaves in ten minutes.', 'I need to wash my jacket.'];
-        mcPt = `Nós sempre ${nat} almoçar neste lugar aconchegante.`;
+        mcExpected = `We always ${word} having lunch at this cozy bistro.`;
+        mcPt = `Nós sempre ${nat} almoçar neste bistrô aconchegante.`;
         fbBlank = `We always ______ visiting this cafe on weekends.`;
         fbPt = `Nós sempre ${nat} visitar este café aos fins de semana.`;
+      } else if (category === 'adverb') {
+        mcExpected = `We are ${word} ready to order our main courses now.`;
+        mcPt = `Nós estamos ${nat} prontos para pedir nossos pratos principais agora.`;
+        fbBlank = `We are ______ ready to order our dinner now.`;
+        fbPt = `Nós estamos ${nat} prontos para pedir nosso jantar agora.`;
       }
+
+      const mcOptions = [mcExpected, ...getScenarioMCDistractors('restaurant', mcExpected, 2)].sort(() => 0.5 - Math.random());
+      const fbOptions = [fbAnswer, ...getCategoryFBDistractors(category, fbAnswer, 2)].sort(() => 0.5 - Math.random());
 
       return {
         multipleChoice: {
           scenarioPt: mcScenario,
-          promptPt: `Qual frase expressa melhor o momento com "${word}"?`,
+          promptPt: mcPrompt,
           expectedAnswer: mcExpected,
-          options: mcOptions.sort(() => 0.5 - Math.random()),
+          options: mcOptions,
           ptTranslation: mcPt,
-          hintPt: `Dica: Escolha a frase mais educada e natural no restaurante com "${word}".`,
+          hintPt: `Dica: Escolha a frase mais educada e natural no restaurante relacionada a "${nat}".`,
           explanationPt: `No contexto de restaurante, essa estrutura soa polida, natural e autêntica.`,
         },
         matchPairs: {
@@ -422,7 +484,7 @@ function createRichSentences(
         fillBlank: {
           sentenceWithBlank: fbBlank,
           expectedAnswer: fbAnswer,
-          options: fbOptions.sort(() => 0.5 - Math.random()),
+          options: fbOptions,
           ptTranslation: fbPt,
           hintPt: `Dica: Encaixe "${word}" (${nat}) para completar a ideia.`,
           explanationPt: `A palavra "${word}" completa perfeitamente o diálogo no restaurante.`,
@@ -465,48 +527,58 @@ function createRichSentences(
 
     case 'family': {
       // Day 2: Família, Casa & Convivência
-      let mcScenario = `Em família: Conversando com parentes sobre a rotina de casa usando "${word}".`;
-      let mcExpected = `Our family values our weekend ${word} together.`;
-      let mcOptions = [mcExpected, 'I have to reboot the router.', 'The subway is crowded.'];
-      let mcPt = `Nossa família valoriza nosso(a) ${nat} juntos no fim de semana.`;
+      let mcScenario = `Em família: Conversando com parentes sobre a rotina da casa e tarefas.`;
+      let mcPrompt = `Como expressar a ideia de "${nat}" de forma natural em família?`;
+      let mcExpected = `Can you please help me check the ${word} before the family arrives?`;
+      let mcPt = `Você pode por favor me ajudar a conferir o(a) ${nat} antes de a família chegar?`;
 
-      let fbBlank = `Our family always enjoys spending time ______ at home.`;
+      let fbBlank = `Can you please help me organize the ______ before everyone arrives?`;
       let fbAnswer = word;
-      let fbOptions = [word, 'subway', 'printer'];
-      let fbPt = `Nossa família sempre gosta de passar tempo em casa.`;
+      let fbPt = `Você pode por favor me ajudar a organizar o(a) ${nat} antes que todos cheguem?`;
 
       let svSentence = `We always support each other.`;
       let svPt = `Nós sempre apoiamos uns aos outros.`;
 
       let rpLeo = `What is your favorite family tradition or Sunday routine?`;
       let rpLeoPt = `Leo pergunta sobre a sua família: "Qual é a sua tradição de família ou rotina de domingo favorita?" Responda usando "${word}":`;
-      let rpAnswer = `On Sundays we share our ${word} with everyone.`;
-      let rpPt = `Aos domingos nós compartilhamos nosso(a) ${nat} com todos.`;
+      let rpAnswer = `On Sundays we make sure our ${word} is taken care of together.`;
+      let rpPt = `Aos domingos nós garantimos que nosso(a) ${nat} seja cuidado(a) juntos.`;
 
       if (category === 'clause_i') {
         mcExpected = `Every Sunday ${word} cooking lunch for the whole family.`;
-        mcOptions = [mcExpected, 'The office opens at eight.', 'I need new tires.'];
         mcPt = `Todo domingo ${nat} cozinhar o almoço para a família inteira.`;
-        fbBlank = `On peaceful weekends, ______ relaxing with my loved ones.`;
-        fbPt = `Em fins de semana tranquilos, ${nat} relaxar com quem eu amo.`;
+        fbBlank = `On peaceful weekends, ______ relaxing at home with my loved ones.`;
+        fbPt = `Em fins de semana tranquilos, ${nat} relaxar em casa com quem eu amo.`;
         rpAnswer = `On weekends ${word} spending quiet moments at home.`;
         rpPt = `Nos fins de semana ${nat} passar momentos tranquilos em casa.`;
       } else if (category === 'adjective') {
-        mcExpected = `Our home feels wonderfully ${word} during the holidays.`;
-        mcOptions = [mcExpected, 'I missed the train.', 'The battery is low.'];
-        mcPt = `Nossa casa fica incrivelmente ${nat} durante os feriados.`;
+        mcExpected = `Our home feels wonderfully ${word} during the holiday season.`;
+        mcPt = `Nossa casa fica incrivelmente ${nat} durante a época de festas.`;
         fbBlank = `Our home always feels so ______ when everyone visits.`;
         fbPt = `Nossa casa sempre parece tão ${nat} quando todos visitam.`;
+      } else if (category === 'phrasal_verb') {
+        mcExpected = `Our family always ${word} having Sunday dinner together.`;
+        mcPt = `Nossa família sempre ${nat} jantar junta aos domingos.`;
+        fbBlank = `We always ______ spending time together as a family.`;
+        fbPt = `Nós sempre ${nat} passar tempo juntos em família.`;
+      } else if (category === 'adverb') {
+        mcExpected = `Our family is ${word} preparing dinner together tonight.`;
+        mcPt = `Nossa família está ${nat} preparando o jantar junta hoje à noite.`;
+        fbBlank = `Our family is ______ preparing dinner together tonight.`;
+        fbPt = `Nossa família está ${nat} preparando o jantar junta hoje.`;
       }
+
+      const mcOptions = [mcExpected, ...getScenarioMCDistractors('family', mcExpected, 2)].sort(() => 0.5 - Math.random());
+      const fbOptions = [fbAnswer, ...getCategoryFBDistractors(category, fbAnswer, 2)].sort(() => 0.5 - Math.random());
 
       return {
         multipleChoice: {
           scenarioPt: mcScenario,
-          promptPt: `Qual frase expressa melhor a convivência familiar com "${word}"?`,
+          promptPt: mcPrompt,
           expectedAnswer: mcExpected,
-          options: mcOptions.sort(() => 0.5 - Math.random()),
+          options: mcOptions,
           ptTranslation: mcPt,
-          hintPt: `Dica: Pense no ambiente acolhedor da casa com "${word}".`,
+          hintPt: `Dica: Pense em qual resposta expressa "${nat}" no ambiente familiar.`,
           explanationPt: `Expressa intimidade e afeto natural no diálogo familiar em inglês.`,
         },
         matchPairs: {
@@ -516,7 +588,7 @@ function createRichSentences(
         fillBlank: {
           sentenceWithBlank: fbBlank,
           expectedAnswer: fbAnswer,
-          options: fbOptions.sort(() => 0.5 - Math.random()),
+          options: fbOptions,
           ptTranslation: fbPt,
           hintPt: `Dica: Escolha "${word}" (${nat}) para completar a frase da casa.`,
           explanationPt: `A palavra "${word}" se encaixa perfeitamente no diálogo familiar.`,
@@ -559,14 +631,13 @@ function createRichSentences(
 
     case 'work': {
       // Day 3: Trabalho, Reuniões & Carreira
-      let mcScenario = `No trabalho: Alinhando entregas e tarefas com sua equipe usando "${word}".`;
+      let mcScenario = `No trabalho: Alinhando entregas e tarefas com sua equipe no escritório.`;
+      let mcPrompt = `Qual frase expressa a ideia de "${nat}" com tom profissional e claro?`;
       let mcExpected = `We need to adjust our ${word} before the client meeting.`;
-      let mcOptions = [mcExpected, 'The soup is very hot.', 'I enjoy painting walls.'];
       let mcPt = `Precisamos ajustar nosso(a) ${nat} antes da reunião com o cliente.`;
 
       let fbBlank = `Please send me the updated ______ before the team meeting.`;
       let fbAnswer = word;
-      let fbOptions = [word, 'sandwich', 'blanket'];
       let fbPt = `Por favor, me envie o(a) ${nat} atualizado(a) antes da reunião.`;
 
       let svSentence = `Let's schedule a quick call.`;
@@ -578,29 +649,40 @@ function createRichSentences(
       let rpPt = `Minha maior prioridade é gerenciar nosso(a) ${nat} com eficiência.`;
 
       if (category === 'clause_i') {
-        mcExpected = `So far ${word} organizing my priorities for the sprint.`;
-        mcOptions = [mcExpected, 'The pizza arrived cold.', 'I love watching cartoons.'];
-        mcPt = `Até agora ${nat} organizar minhas prioridades para o projeto.`;
+        mcExpected = `So far ${word} organizing my priorities for the current sprint.`;
+        mcPt = `Até agora ${nat} organizar minhas prioridades para o projeto atual.`;
         fbBlank = `During every project meeting, ______ sharing clear status updates.`;
         fbPt = `Em toda reunião de projeto, ${nat} compartilhar atualizações claras.`;
         rpAnswer = `Today ${word} focusing on key deliverables for the team.`;
         rpPt = `Hoje ${nat} focar nas entregas principais para a equipe.`;
       } else if (category === 'adjective') {
         mcExpected = `The entire project team felt ${word} before the product launch.`;
-        mcOptions = [mcExpected, 'The ice cream melted.', 'The cinema was closed.'];
-        mcPt = `A equipe inteira do projeto se sentiu ${nat} antes do lançamento.`;
+        mcPt = `A equipe inteira do projeto se sentiu ${nat} antes do lançamento do produto.`;
         fbBlank = `The workload was challenging, but the team remained ______.`;
         fbPt = `O volume de trabalho foi desafiador, mas a equipe permaneceu ${nat}.`;
+      } else if (category === 'phrasal_verb') {
+        mcExpected = `We need to ${word} our deliverables before the client call.`;
+        mcPt = `Precisamos ${nat} nossas entregas antes da ligação com o cliente.`;
+        fbBlank = `We always ______ collaborating closely with our colleagues.`;
+        fbPt = `Nós sempre ${nat} colaborar de perto com nossos colegas.`;
+      } else if (category === 'adverb') {
+        mcExpected = `The team is ${word} finalizing the sprint deliverables today.`;
+        mcPt = `A equipe está ${nat} finalizando as entregas do projeto hoje.`;
+        fbBlank = `The team is ______ finalizing the sprint deliverables today.`;
+        fbPt = `A equipe está ${nat} finalizando as entregas do projeto hoje.`;
       }
+
+      const mcOptions = [mcExpected, ...getScenarioMCDistractors('work', mcExpected, 2)].sort(() => 0.5 - Math.random());
+      const fbOptions = [fbAnswer, ...getCategoryFBDistractors(category, fbAnswer, 2)].sort(() => 0.5 - Math.random());
 
       return {
         multipleChoice: {
           scenarioPt: mcScenario,
-          promptPt: `Qual resposta soa mais profissional no escritório com "${word}"?`,
+          promptPt: mcPrompt,
           expectedAnswer: mcExpected,
-          options: mcOptions.sort(() => 0.5 - Math.random()),
+          options: mcOptions,
           ptTranslation: mcPt,
-          hintPt: `Dica: Escolha a comunicação mais clara para o trabalho com "${word}".`,
+          hintPt: `Dica: Escolha a comunicação corporativa que melhor expressa "${nat}".`,
           explanationPt: `Comunicação corporativa moderna em inglês é direta, colaborativa e clara.`,
         },
         matchPairs: {
@@ -610,7 +692,7 @@ function createRichSentences(
         fillBlank: {
           sentenceWithBlank: fbBlank,
           expectedAnswer: fbAnswer,
-          options: fbOptions.sort(() => 0.5 - Math.random()),
+          options: fbOptions,
           ptTranslation: fbPt,
           hintPt: `Dica: Preencha com "${word}" (${nat}) para manter o fluxo profissional.`,
           explanationPt: `Encaixe perfeito na rotina de reuniões e entregas corporativas.`,
@@ -653,14 +735,13 @@ function createRichSentences(
 
     case 'travel': {
       // Day 4: Viagens, Aeroporto & Férias
-      let mcScenario = `Em viagem: No aeroporto ou hotel organizando sua jornada usando "${word}".`;
-      let mcExpected = `Please confirm the departure ${word} on our flight tickets.`;
-      let mcOptions = [mcExpected, 'I need to vacuum the rug.', 'My math homework is tough.'];
-      let mcPt = `Por favor confirme o(a) ${nat} de partida em nossas passagens de voo.`;
+      let mcScenario = `Em viagem: No aeroporto, hotel ou estação organizando sua jornada.`;
+      let mcPrompt = `Qual frase em inglês expressa a ideia de "${nat}" com máxima clareza?`;
+      let mcExpected = `Could you please confirm the ${word} on our flight tickets?`;
+      let mcPt = `Você poderia por favor confirmar o(a) ${nat} em nossas passagens de voo?`;
 
       let fbBlank = `Keep your passport and travel ______ in your carry-on bag.`;
       let fbAnswer = word;
-      let fbOptions = [word, 'refrigerator', 'pajamas'];
       let fbPt = `Mantenha seu passaporte e seu(sua) ${nat} de viagem na bagagem de mão.`;
 
       let svSentence = `Our flight departed on time.`;
@@ -673,7 +754,6 @@ function createRichSentences(
 
       if (category === 'clause_i') {
         mcExpected = `Whenever I travel ${word} arriving at the airport well in advance.`;
-        mcOptions = [mcExpected, 'The microwave is beeping.', 'I am watering the plants.'];
         mcPt = `Sempre que viajo ${nat} chegar ao aeroporto com bastante antecedência.`;
         fbBlank = `When arriving in a new city, ______ exploring local markets on foot.`;
         fbPt = `Ao chegar a uma nova cidade, ${nat} explorar os mercados a pé.`;
@@ -681,20 +761,32 @@ function createRichSentences(
         rpPt = `Ao viajar ${nat} descobrir novas culturas e comidas autênticas.`;
       } else if (category === 'adjective') {
         mcExpected = `The flight was remarkably ${word} despite the bad weather.`;
-        mcOptions = [mcExpected, 'I left my keys at the office.', 'The dog is barking.'];
         mcPt = `O voo foi incrivelmente ${nat} apesar do mau tempo.`;
         fbBlank = `Our hotel room was very clean and ______ after a long flight.`;
         fbPt = `Nosso quarto de hotel era muito limpo e ${nat} após um voo longo.`;
+      } else if (category === 'phrasal_verb') {
+        mcExpected = `I always ${word} discovering new cultures when traveling abroad.`;
+        mcPt = `Eu sempre ${nat} descobrir novas culturas ao viajar para o exterior.`;
+        fbBlank = `Travelers always ______ exploring new destinations around the world.`;
+        fbPt = `Viajantes sempre ${nat} explorar novos destinos pelo mundo.`;
+      } else if (category === 'adverb') {
+        mcExpected = `The airport shuttle is ${word} arriving at terminal two.`;
+        mcPt = `O transporte do aeroporto está ${nat} chegando ao terminal dois.`;
+        fbBlank = `The airport shuttle is ______ arriving at terminal two.`;
+        fbPt = `O transporte do aeroporto está ${nat} chegando ao terminal dois.`;
       }
+
+      const mcOptions = [mcExpected, ...getScenarioMCDistractors('travel', mcExpected, 2)].sort(() => 0.5 - Math.random());
+      const fbOptions = [fbAnswer, ...getCategoryFBDistractors(category, fbAnswer, 2)].sort(() => 0.5 - Math.random());
 
       return {
         multipleChoice: {
           scenarioPt: mcScenario,
-          promptPt: `Qual frase expressa melhor sua situação de viagem com "${word}"?`,
+          promptPt: mcPrompt,
           expectedAnswer: mcExpected,
-          options: mcOptions.sort(() => 0.5 - Math.random()),
+          options: mcOptions,
           ptTranslation: mcPt,
-          hintPt: `Dica: Pense no ambiente de aeroporto ou turismo com "${word}".`,
+          hintPt: `Dica: Pense na situação de viagem para expressar "${nat}".`,
           explanationPt: `Vocabulário prático e útil para circular pelo mundo sem aperto.`,
         },
         matchPairs: {
@@ -704,7 +796,7 @@ function createRichSentences(
         fillBlank: {
           sentenceWithBlank: fbBlank,
           expectedAnswer: fbAnswer,
-          options: fbOptions.sort(() => 0.5 - Math.random()),
+          options: fbOptions,
           ptTranslation: fbPt,
           hintPt: `Dica: Complete com "${word}" (${nat}) para a sua mala de viagem.`,
           explanationPt: `Estrutura perfeita para usar em aeroportos e hotéis no exterior.`,
@@ -747,14 +839,13 @@ function createRichSentences(
 
     case 'friends': {
       // Day 5: Rolê com Amigos & Lazer
-      let mcScenario = `Com amigos: Combinando o que fazer no fim de semana usando "${word}".`;
+      let mcScenario = `Com amigos: Combinando saídas ou conversando no fim de semana.`;
+      let mcPrompt = `Qual frase expressa a ideia de "${nat}" com tom descontraído e amigável?`;
       let mcExpected = `Let's sync our weekend ${word} so we can hang out downtown.`;
-      let mcOptions = [mcExpected, 'The printer has no ink.', 'The quarterly taxes are due.'];
       let mcPt = `Vamos sincronizar nosso(a) ${nat} de fim de semana para sair no centro.`;
 
       let fbBlank = `We should definitely ______ and catch up this Saturday.`;
       let fbAnswer = word;
-      let fbOptions = [word, 'stapler', 'calculator'];
       let fbPt = `Nós com certeza deveríamos colocar o papo em dia neste sábado.`;
 
       let svSentence = `We had so much fun.`;
@@ -767,7 +858,6 @@ function createRichSentences(
 
       if (category === 'clause_i') {
         mcExpected = `Whenever we meet ${word} laughing about our funniest stories.`;
-        mcOptions = [mcExpected, 'The spreadsheet has errors.', 'I need to pay the electric bill.'];
         mcPt = `Sempre que nos encontramos ${nat} rir das nossas histórias mais engraçadas.`;
         fbBlank = `Whenever we get together, ______ sharing great music and laughs.`;
         fbPt = `Sempre que nos reunimos, ${nat} compartilhar boas músicas e risadas.`;
@@ -775,20 +865,32 @@ function createRichSentences(
         rpPt = `Nas noites de sexta ${nat} sair para comer hambúrguer e relaxar.`;
       } else if (category === 'adjective') {
         mcExpected = `The concert atmosphere was completely ${word} last night!`;
-        mcOptions = [mcExpected, 'I forgot my password.', 'The dentist appointment is late.'];
         mcPt = `O clima do show estava completamente ${nat} ontem à noite!`;
         fbBlank = `Our weekend hangout was so ______ and full of laughs.`;
         fbPt = `Nosso rolê de fim de semana foi tão ${nat} e cheio de risadas.`;
+      } else if (category === 'phrasal_verb') {
+        mcExpected = `We always ${word} meeting downtown on Friday evenings.`;
+        mcPt = `Nós sempre ${nat} nos encontrar no centro nas noites de sexta.`;
+        fbBlank = `We should definitely ______ and catch up this Saturday afternoon.`;
+        fbPt = `Nós com certeza deveríamos ${nat} neste sábado à tarde.`;
+      } else if (category === 'adverb') {
+        mcExpected = `We are ${word} planning a road trip together this summer.`;
+        mcPt = `Nós estamos ${nat} planejando uma viagem de carro juntos neste verão.`;
+        fbBlank = `We are ______ planning a fun weekend getaway together.`;
+        fbPt = `Nós estamos ${nat} planejando um passeio divertido de fim de semana juntos.`;
       }
+
+      const mcOptions = [mcExpected, ...getScenarioMCDistractors('friends', mcExpected, 2)].sort(() => 0.5 - Math.random());
+      const fbOptions = [fbAnswer, ...getCategoryFBDistractors(category, fbAnswer, 2)].sort(() => 0.5 - Math.random());
 
       return {
         multipleChoice: {
           scenarioPt: mcScenario,
-          promptPt: `Qual frase soa mais espontânea e amigável com "${word}"?`,
+          promptPt: mcPrompt,
           expectedAnswer: mcExpected,
-          options: mcOptions.sort(() => 0.5 - Math.random()),
+          options: mcOptions,
           ptTranslation: mcPt,
-          hintPt: `Dica: Pense em um rolê descontraído com amigos usando "${word}".`,
+          hintPt: `Dica: Pense em um rolê descontraído com amigos expressando "${nat}".`,
           explanationPt: `Inglês informal entre amigos usa expressões leves, descontraídas e acolhedoras.`,
         },
         matchPairs: {
@@ -798,7 +900,7 @@ function createRichSentences(
         fillBlank: {
           sentenceWithBlank: fbBlank,
           expectedAnswer: fbAnswer,
-          options: fbOptions.sort(() => 0.5 - Math.random()),
+          options: fbOptions,
           ptTranslation: fbPt,
           hintPt: `Dica: Encaixe "${word}" (${nat}) no plano do fim de semana.`,
           explanationPt: `Perfeito para convidar amigos e marcar encontros descontraídos.`,
@@ -841,14 +943,13 @@ function createRichSentences(
 
     case 'dating': {
       // Day 6: Encontros, Emoções & Relacionamentos
-      let mcScenario = `Em um encontro: Conversando abertamente sobre sentimentos e vida a dois com "${word}".`;
-      let mcExpected = `Honest communication prevents any sudden ${word} between couples.`;
-      let mcOptions = [mcExpected, 'The engine needs motor oil.', 'The train runs every hour.'];
-      let mcPt = `Comunicação sincera evita qualquer ${nat} repentino(a) entre casais.`;
+      let mcScenario = `Em um encontro ou conversa sincera sobre sentimentos e vida a dois.`;
+      let mcPrompt = `Qual frase expressa a ideia de "${nat}" de forma madura e sincera?`;
+      let mcExpected = `Honest communication builds genuine ${word} between two people.`;
+      let mcPt = `Comunicação sincera constrói verdadeiro(a) ${nat} entre duas pessoas.`;
 
       let fbBlank = `Trust and genuine kindness are key in any healthy ______.`;
       let fbAnswer = word;
-      let fbOptions = [word, 'laptop', 'escalator'];
       let fbPt = `Confiança e gentileza genuína são fundamentais em qualquer relação saudável.`;
 
       let svSentence = `We had a wonderful conversation.`;
@@ -861,7 +962,6 @@ function createRichSentences(
 
       if (category === 'clause_i') {
         mcExpected = `To be completely honest, ${word} valuing genuine and deep connections.`;
-        mcOptions = [mcExpected, 'The meeting starts at two.', 'I need to clean the garage.'];
         mcPt = `Para ser totalmente sincero(a), ${nat} valorizar conexões profundas e verdadeiras.`;
         fbBlank = `In romantic relationships, ______ learning to communicate with patience.`;
         fbPt = `Em relacionamentos, ${nat} aprender a se comunicar com paciência.`;
@@ -869,20 +969,32 @@ function createRichSentences(
         rpPt = `Ao sair com alguém novo, ${nat} ser eu mesmo(a) sem fingir.`;
       } else if (category === 'adjective') {
         mcExpected = `They had an emotionally ${word} conversation about their past.`;
-        mcOptions = [mcExpected, 'The wifi signal is weak.', 'I washed my tennis shoes.'];
         mcPt = `Eles tiveram uma conversa emocionalmente ${nat} sobre o passado.`;
         fbBlank = `Meeting someone who makes you feel safe and ______ is priceless.`;
         fbPt = `Conhecer alguém que te faz se sentir seguro e ${nat} não tem preço.`;
+      } else if (category === 'phrasal_verb') {
+        mcExpected = `Healthy partners never ${word} each other when things get tough.`;
+        mcPt = `Parceiros saudáveis nunca ${nat} um ao outro quando as coisas ficam difíceis.`;
+        fbBlank = `Honest partners never ______ each other when facing difficult talks.`;
+        fbPt = `Parceiros sinceros nunca ${nat} um ao outro diante de conversas difíceis.`;
+      } else if (category === 'adverb') {
+        mcExpected = `They are ${word} learning how to communicate with more patience.`;
+        mcPt = `Eles estão ${nat} aprendendo a se comunicar com mais paciência.`;
+        fbBlank = `They are ______ learning how to communicate with deep patience.`;
+        fbPt = `Eles estão ${nat} aprendendo a se comunicar com paciência profunda.`;
       }
+
+      const mcOptions = [mcExpected, ...getScenarioMCDistractors('dating', mcExpected, 2)].sort(() => 0.5 - Math.random());
+      const fbOptions = [fbAnswer, ...getCategoryFBDistractors(category, fbAnswer, 2)].sort(() => 0.5 - Math.random());
 
       return {
         multipleChoice: {
           scenarioPt: mcScenario,
-          promptPt: `Qual frase expressa melhor sentimentos sinceros com "${word}"?`,
+          promptPt: mcPrompt,
           expectedAnswer: mcExpected,
-          options: mcOptions.sort(() => 0.5 - Math.random()),
+          options: mcOptions,
           ptTranslation: mcPt,
-          hintPt: `Dica: Pense em conversas maduras e sinceras com "${word}".`,
+          hintPt: `Dica: Pense em conversas maduras e sinceras expressando "${nat}".`,
           explanationPt: `Tratar de sentimentos com vocabulário refinado é essencial para conversas adultas.`,
         },
         matchPairs: {
@@ -892,7 +1004,7 @@ function createRichSentences(
         fillBlank: {
           sentenceWithBlank: fbBlank,
           expectedAnswer: fbAnswer,
-          options: fbOptions.sort(() => 0.5 - Math.random()),
+          options: fbOptions,
           ptTranslation: fbPt,
           hintPt: `Dica: Complete com "${word}" (${nat}) para falar de relações reais.`,
           explanationPt: `Encaixe natural e profundo sobre a vida afetiva.`,
@@ -935,14 +1047,13 @@ function createRichSentences(
 
     default: {
       // Day 7: Vida Real, Cidade, Compras & Desafios
-      let mcScenario = `Na cidade: Fazendo compras e resolvendo pendências do dia a dia com "${word}".`;
-      let mcExpected = `Could you inform me of your store ${word} for customer pickup?`;
-      let mcOptions = [mcExpected, 'The beach water is cold.', 'I love watching space documentaries.'];
-      let mcPt = `Você poderia me informar o(a) ${nat} da loja para retirada do cliente?`;
+      let mcScenario = `Na cidade: Fazendo compras e resolvendo tarefas do dia a dia.`;
+      let mcPrompt = `Qual frase resolve melhor a situação sobre "${nat}" com praticidade?`;
+      let mcExpected = `Excuse me, could you point me toward the nearest ${word}?`;
+      let mcPt = `Com licença, você poderia me indicar onde fica o(a) ${nat} mais próximo(a)?`;
 
       let fbBlank = `There is a very convenient ______ located right around the corner.`;
       let fbAnswer = word;
-      let fbOptions = [word, 'cloud', 'submarine'];
       let fbPt = `Há um(a) ${nat} muito prático(a) localizado logo ali na esquina.`;
 
       let svSentence = `Everything was quick and convenient.`;
@@ -954,29 +1065,40 @@ function createRichSentences(
       let rpPt = `Tenho que resolver meu(minha) ${nat} antes de as lojas fecharem.`;
 
       if (category === 'clause_i') {
-        mcExpected = `Today ${word} stopping by the supermarket to pick up fresh bread.`;
-        mcOptions = [mcExpected, 'The moon is full tonight.', 'I am building a sandcastle.'];
-        mcPt = `Hoje ${nat} passar no supermercado para pegar pão fresco.`;
+        mcExpected = `Today ${word} stopping by the store to pick up fresh bread.`;
+        mcPt = `Hoje ${nat} passar na loja para pegar pão fresco.`;
         fbBlank = `When running daily errands, ______ walking instead of driving.`;
         fbPt = `Ao resolver tarefas do dia a dia, ${nat} caminhar em vez de dirigir.`;
         rpAnswer = `Today ${word} taking care of all my weekly errands in town.`;
         rpPt = `Hoje ${nat} cuidar de todas as minhas tarefas da semana na cidade.`;
       } else if (category === 'adjective') {
         mcExpected = `The shopping center was surprisingly ${word} on Monday morning.`;
-        mcOptions = [mcExpected, 'I forgot my skateboard.', 'The river flows south.'];
         mcPt = `O shopping estava surpreendentemente ${nat} na manhã de segunda.`;
         fbBlank = `Finding parking downtown was surprisingly ______ today.`;
         fbPt = `Achar vaga no centro foi surpreendentemente ${nat} hoje.`;
+      } else if (category === 'phrasal_verb') {
+        mcExpected = `I have to ${word} a few urgent errands before the stores close.`;
+        mcPt = `Tenho que ${nat} algumas tarefas urgentes antes que as lojas fechem.`;
+        fbBlank = `I need to ______ a few errands around town this afternoon.`;
+        fbPt = `Preciso ${nat} algumas tarefas pela cidade esta tarde.`;
+      } else if (category === 'adverb') {
+        mcExpected = `The local store is ${word} open twenty-four hours a day.`;
+        mcPt = `A loja local está ${nat} aberta vinte e quatro horas por dia.`;
+        fbBlank = `The local store is ______ open twenty-four hours a day.`;
+        fbPt = `A loja local está ${nat} aberta vinte e quatro horas por dia.`;
       }
+
+      const mcOptions = [mcExpected, ...getScenarioMCDistractors('city', mcExpected, 2)].sort(() => 0.5 - Math.random());
+      const fbOptions = [fbAnswer, ...getCategoryFBDistractors(category, fbAnswer, 2)].sort(() => 0.5 - Math.random());
 
       return {
         multipleChoice: {
           scenarioPt: mcScenario,
-          promptPt: `Qual frase resolve melhor a situação do dia a dia com "${word}"?`,
+          promptPt: mcPrompt,
           expectedAnswer: mcExpected,
-          options: mcOptions.sort(() => 0.5 - Math.random()),
+          options: mcOptions,
           ptTranslation: mcPt,
-          hintPt: `Dica: Pense na praticidade de resolver coisas na cidade com "${word}".`,
+          hintPt: `Dica: Pense na praticidade de resolver coisas na cidade sobre "${nat}".`,
           explanationPt: `Linguagem prática e resolutiva para se virar no cotidiano de qualquer cidade.`,
         },
         matchPairs: {
@@ -986,7 +1108,7 @@ function createRichSentences(
         fillBlank: {
           sentenceWithBlank: fbBlank,
           expectedAnswer: fbAnswer,
-          options: fbOptions.sort(() => 0.5 - Math.random()),
+          options: fbOptions,
           ptTranslation: fbPt,
           hintPt: `Dica: Complete com "${word}" (${nat}) para a rotina da cidade.`,
           explanationPt: `Vocabulário funcional para o comércio, mercados e serviços.`,
@@ -1072,25 +1194,36 @@ export function buildCustomLesson(
 
     if (typeMod === 0) {
       // Exercise 1: multiple_choice (Quiz de Contexto Real - 1 tap)
+      const mcPrompt = geminiWordData?.multipleChoice?.promptPt || richBundle.multipleChoice.promptPt;
+      const mcScenario = geminiWordData?.multipleChoice?.scenarioPt || richBundle.multipleChoice.scenarioPt;
+      const mcExpected = geminiWordData?.multipleChoice?.expectedAnswer || richBundle.multipleChoice.expectedAnswer;
+      const mcExpectedPt = geminiWordData?.multipleChoice?.ptTranslation || richBundle.multipleChoice.ptTranslation;
+      const mcOptions =
+        geminiWordData?.multipleChoice?.options && geminiWordData.multipleChoice.options.length >= 3
+          ? [...geminiWordData.multipleChoice.options].sort(() => 0.5 - Math.random())
+          : richBundle.multipleChoice.options;
+      const mcHint = geminiWordData?.multipleChoice?.hintPt || richBundle.multipleChoice.hintPt;
+      const mcExpl = geminiWordData?.multipleChoice?.explanationPt || richBundle.multipleChoice.explanationPt;
+
       exercises.push({
         id: `mc_${index}_${Date.now()}_${index}`,
         type: 'multiple_choice',
         targetWord: word,
         instruction: 'Choose the best response for this real-world scenario:',
         instructionPt: 'Qual é a resposta correta para esta situação?',
-        promptText: richBundle.multipleChoice.promptPt,
-        promptTextPt: richBundle.multipleChoice.scenarioPt,
-        audioSentence: richBundle.multipleChoice.expectedAnswer,
-        expectedAnswer: richBundle.multipleChoice.expectedAnswer,
-        expectedAnswerPt: richBundle.multipleChoice.ptTranslation,
-        acceptableVariations: [richBundle.multipleChoice.expectedAnswer],
-        wordBank: richBundle.multipleChoice.options,
+        promptText: mcPrompt,
+        promptTextPt: mcScenario,
+        audioSentence: mcExpected,
+        expectedAnswer: mcExpected,
+        expectedAnswerPt: mcExpectedPt,
+        acceptableVariations: [mcExpected],
+        wordBank: mcOptions,
         requiredWords: [word],
-        options: richBundle.multipleChoice.options,
+        options: mcOptions,
         hint: 'Think about what sounds polite and natural in this context.',
-        hintPt: richBundle.multipleChoice.hintPt,
+        hintPt: mcHint,
         explanation: 'Great choice! This is the most natural way to respond in real life.',
-        explanationPt: richBundle.multipleChoice.explanationPt,
+        explanationPt: mcExpl,
         audioSpeedDefault: 1.0,
       });
     } else if (typeMod === 1) {
@@ -1118,29 +1251,39 @@ export function buildCustomLesson(
       });
     } else if (typeMod === 2) {
       // Exercise 3: fill_blank (Complete a lacuna no cenário)
+      const fbBlank = geminiWordData?.fillBlank?.sentenceWithBlank || richBundle.fillBlank.sentenceWithBlank;
+      const fbAnswer = geminiWordData?.fillBlank?.expectedAnswer || richBundle.fillBlank.expectedAnswer;
+      const fbPt = geminiWordData?.fillBlank?.ptTranslation || richBundle.fillBlank.ptTranslation;
+      const fbOptions =
+        geminiWordData?.fillBlank?.options && geminiWordData.fillBlank.options.length >= 3
+          ? [...geminiWordData.fillBlank.options].sort(() => 0.5 - Math.random())
+          : richBundle.fillBlank.options;
+      const fbHint = geminiWordData?.fillBlank?.hintPt || richBundle.fillBlank.hintPt;
+      const fbExpl = geminiWordData?.fillBlank?.explanationPt || richBundle.fillBlank.explanationPt;
+
       exercises.push({
         id: `fb_${index}_${Date.now()}_${index}`,
         type: 'fill_blank',
         targetWord: word,
         instruction: 'Tap the correct word to complete the sentence:',
         instructionPt: 'Toque na palavra correta para preencher a lacuna:',
-        promptText: richBundle.fillBlank.sentenceWithBlank,
-        promptTextPt: richBundle.fillBlank.ptTranslation,
-        sentenceWithBlank: richBundle.fillBlank.sentenceWithBlank,
-        audioSentence: richBundle.fillBlank.sentenceWithBlank.replace('______', richBundle.fillBlank.expectedAnswer),
-        expectedAnswer: richBundle.fillBlank.expectedAnswer,
-        expectedAnswerPt: richBundle.fillBlank.ptTranslation,
+        promptText: fbBlank,
+        promptTextPt: fbPt,
+        sentenceWithBlank: fbBlank,
+        audioSentence: fbBlank.replace('______', fbAnswer),
+        expectedAnswer: fbAnswer,
+        expectedAnswerPt: fbPt,
         acceptableVariations: [
-          richBundle.fillBlank.expectedAnswer,
-          richBundle.fillBlank.expectedAnswer.toLowerCase(),
+          fbAnswer,
+          fbAnswer.toLowerCase(),
         ],
-        wordBank: richBundle.fillBlank.options,
+        wordBank: fbOptions,
         requiredWords: [word],
-        options: richBundle.fillBlank.options,
+        options: fbOptions,
         hint: 'Look closely at the context clues before and after the blank.',
-        hintPt: richBundle.fillBlank.hintPt,
+        hintPt: fbHint,
         explanation: 'Spot on! Choosing words in context is how native speakers think.',
-        explanationPt: richBundle.fillBlank.explanationPt,
+        explanationPt: fbExpl,
         audioSpeedDefault: 1.0,
       });
     } else if (typeMod === 3) {

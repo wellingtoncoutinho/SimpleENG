@@ -85,13 +85,14 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   const t = translations[lang];
   const currentExercise: Exercise | undefined = sortedExercises[currentIndex];
 
-  const handleCheckAnswer = (explicitAnswer?: string) => {
+  const handleCheckAnswer = (explicitAnswer?: unknown) => {
     if (!currentExercise || feedbackStatus !== 'idle') return;
 
-    const answerToVerify = (explicitAnswer !== undefined ? explicitAnswer : userAnswerRef.current).trim();
+    const cleanExplicit = typeof explicitAnswer === 'string' ? explicitAnswer.trim() : undefined;
+    const answerToVerify = cleanExplicit !== undefined ? cleanExplicit : userAnswerRef.current.trim();
 
-    if (explicitAnswer !== undefined && explicitAnswer !== userAnswer) {
-      setUserAnswer(explicitAnswer);
+    if (cleanExplicit !== undefined && cleanExplicit !== userAnswer) {
+      setUserAnswer(cleanExplicit);
     }
 
     let isCorrect = false;

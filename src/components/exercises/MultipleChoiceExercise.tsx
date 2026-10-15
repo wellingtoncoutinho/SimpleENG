@@ -65,23 +65,28 @@ export const MultipleChoiceExercise: React.FC<MultipleChoiceExerciseProps> = ({
 
       {/* Scenario / Prompt Box */}
       <div className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 mb-6 shadow-xs text-center relative">
+        {exercise.promptTextPt && exercise.promptText && exercise.promptTextPt !== exercise.promptText && (
+          <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">
+            {exercise.promptTextPt}
+          </p>
+        )}
         <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-relaxed">
-          {exercise.promptTextPt || exercise.promptText}
+          {exercise.promptText || exercise.promptTextPt}
         </p>
 
-        {exercise.audioSentence && (
+        {disabled && exercise.audioSentence && (
           <div className="mt-4 flex items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => handlePlayAudio(1.0)}
               disabled={isPlayingAudio}
-              className={`p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white transition-all shadow-xs cursor-pointer flex items-center gap-2 ${
+              className={`p-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer flex items-center gap-2 ${
                 isPlayingAudio ? 'opacity-70 animate-pulse' : ''
               }`}
               title="Ouvir a frase em inglês"
             >
-              <Volume2 className="w-5 h-5 stroke-[2.5]" />
-              <span className="text-xs font-black uppercase tracking-wider">Ouvir no contexto</span>
+              <Volume2 className="w-4 h-4 stroke-[2.5]" />
+              <span className="text-xs font-bold">Ouvir pronúncia</span>
             </button>
           </div>
         )}

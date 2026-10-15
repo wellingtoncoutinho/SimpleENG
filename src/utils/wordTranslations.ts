@@ -319,6 +319,8 @@ export const COMMON_WORD_DICTIONARY: Record<string, string> = {
   off: 'de folga / fora / desligado',
 
   // Common Nouns
+  aisle: 'corredor (mercado / avião / teatro)',
+  aisles: 'corredores',
   skills: 'habilidades / competências',
   skill: 'habilidade',
   communication: 'comunicação',
@@ -556,3 +558,5 @@ export function getWordTranslation(
 
   return null;
 }
+
+export const WORD_TRANSLATIONS = COMMON_WORD_DICTIONARY;

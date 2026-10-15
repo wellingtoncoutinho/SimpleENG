@@ -160,7 +160,8 @@ export function parseClassNotes(rawText: string): ParsedVocabularyItem[] {
 function cleanWord(str: string): string {
   return str
     .replace(/^["'`“]+|["'`”]+$/g, '')
-    .replace(/[.,;]+$/, '')
+    .replace(/^[-–—:;,\s]+|[-–—:;,\s]+$/g, '')
+    .replace(/[.,;:]+$/, '')
     .trim();
 }
 

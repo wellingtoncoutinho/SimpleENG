@@ -101,7 +101,7 @@ Target Learner Profile: ${isPortuguese ? 'Native Brazilian Portuguese speaker. P
 
 INSTRUCTIONS FOR THE EXERCISES:
 - Review each target word/expression and understand its natural communicative context (e.g. dating, relationships, past experiences, idioms, emotions).
-- Create 5 to 7 exercises following the pedagogical order: sentence_build, listen_type, grammar_fix, speak_verify, roleplay_prompt.
+- Create 5 to 7 exercises following the pedagogical progression: multiple_choice, match_pairs, fill_blank, speak_verify, roleplay_prompt.
 - Ensure EVERY exercise has a DIFFERENT, vivid, realistic conversational sentence. Never use repetitive templates!
 - In "wordBank", provide the individual words of the answer PLUS 3 to 4 plausible distractors (prepositions like "to", "for", "on", auxiliary verbs, or pronouns).
 - In "hintPt", give a helpful hint in Portuguese without spoiling the answer.
@@ -298,6 +298,27 @@ Return strictly a valid JSON array matching this format (one object per target w
 [
   {
     "targetWord": "word in English",
+    "multipleChoice": {
+      "scenarioPt": "Situação comunicativa real descrita em português (SEM dar a resposta de bandeja nem citar a palavra em aspas!). Ex: Você está no supermercado ou no avião e precisa pedir um lugar no corredor.",
+      "promptPt": "Pergunta instigante em português (Ex: Qual frase expressa essa intenção da forma mais educada e natural?)",
+      "expectedAnswer": "A natural, authentic English sentence resolving the scenario using the target word naturally.",
+      "ptTranslation": "Tradução natural da frase correta em português.",
+      "options": [
+        "The correct English sentence",
+        "A highly plausible distractor sentence in the SAME scenario",
+        "Another plausible distractor sentence in the SAME scenario"
+      ],
+      "hintPt": "Dica pedagógica em português sem entregar a resposta",
+      "explanationPt": "Explicação concisa do porquê desta frase ou estrutura em inglês"
+    },
+    "fillBlank": {
+      "sentenceWithBlank": "A natural conversational sentence with ______ where the target word fits.",
+      "expectedAnswer": "the target word",
+      "options": ["the target word", "plausible distractor 1 of same category", "plausible distractor 2 of same category"],
+      "ptTranslation": "Tradução da frase completa em português.",
+      "hintPt": "Dica em português guiando o sentido da frase.",
+      "explanationPt": "Explicação da estrutura."
+    },
     "sentenceBuild": {
       "sentence": "A natural, authentic sentence in English containing the target word.",
       "pt": "Tradução natural em português brasileiro.",
@@ -314,7 +335,7 @@ Return strictly a valid JSON array matching this format (one object per target w
       "promptPt": "Enunciado em português orientando o ajuste."
     },
     "speakVerify": {
-      "sentence": "A conversational sentence that feels great to pronounce aloud.",
+      "sentence": "A short, punchy 4-6 word conversational phrase that feels great to pronounce aloud.",
       "pt": "Tradução em português brasileiro."
     },
     "roleplayPrompt": {

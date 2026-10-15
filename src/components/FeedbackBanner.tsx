@@ -71,6 +71,32 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
     });
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+
+      if (e.key === 'Enter') {
+        if (showHint) {
+          setShowHint(false);
+          return;
+        }
+        if (status === 'idle') {
+          if (!isInput && canCheck) {
+            e.preventDefault();
+            onCheck();
+          }
+        } else {
+          e.preventDefault();
+          onContinue();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [status, canCheck, showHint, onCheck, onContinue]);
+
   return (
     <>
       {/* Hint Dialog / Drawer */}
@@ -403,7 +429,7 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
             {status === 'idle' ? (
               <button
                 type="button"
-                onClick={onCheck}
+                onClick={() => onCheck()}
                 disabled={!canCheck}
                 className={`w-full sm:w-44 py-3.5 px-6 font-black text-base rounded-2xl tracking-wide uppercase transition-all duration-150 ${
                   canCheck
