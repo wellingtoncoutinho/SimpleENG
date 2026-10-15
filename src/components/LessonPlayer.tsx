@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { LessonPayload, Exercise } from '../types/lesson';
 import { LessonHeader } from './LessonHeader';
 import { FeedbackBanner, FeedbackStatus } from './FeedbackBanner';
@@ -12,7 +12,7 @@ import { FillBlankExercise } from './exercises/FillBlankExercise';
 import { MatchPairsExercise } from './exercises/MatchPairsExercise';
 import { LessonComplete } from './LessonComplete';
 import { LearnerMascot, MascotMood } from './LearnerMascot';
-import { soundEffects, prefetchAudio } from '../utils/audio';
+import { soundEffects, prefetchAudio, stopAllAudio } from '../utils/audio';
 import { containsRequiredWords, verifyAnswer } from '../utils/speechRecognition';
 import { evaluateRoleplayAnswer, RoleplayEvaluation } from '../utils/roleplayEvaluator';
 import { Language, translations } from '../utils/i18n';
@@ -62,6 +62,9 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
 
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userAnswer, setUserAnswer] = useState<string>('');
+  const userAnswerRef = useRef(userAnswer);
+  userAnswerRef.current = userAnswer;
+
   const [feedbackStatus, setFeedbackStatus] = useState<FeedbackStatus>('idle');
   const [roleplayEvaluation, setRoleplayEvaluation] = useState<RoleplayEvaluation | null>(null);
   const [xp, setXp] = useState<number>(0);
@@ -73,11 +76,23 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     Array<{ targetWord: string; mistake?: string; tip?: string }>
   >([]);
 
+  useEffect(() => {
+    return () => {
+      stopAllAudio();
+    };
+  }, []);
+
   const t = translations[lang];
   const currentExercise: Exercise | undefined = sortedExercises[currentIndex];
 
-  const handleCheckAnswer = () => {
+  const handleCheckAnswer = (explicitAnswer?: string) => {
     if (!currentExercise || feedbackStatus !== 'idle') return;
+
+    const answerToVerify = (explicitAnswer !== undefined ? explicitAnswer : userAnswerRef.current).trim();
+
+    if (explicitAnswer !== undefined && explicitAnswer !== userAnswer) {
+      setUserAnswer(explicitAnswer);
+    }
 
     let isCorrect = false;
     let localRoleplayEval: RoleplayEvaluation | null = null;
@@ -85,7 +100,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     switch (currentExercise.type) {
       case 'multiple_choice': {
         const result = verifyAnswer(
-          userAnswer,
+          answerToVerify,
           currentExercise.expectedAnswer,
           currentExercise.acceptableVariations,
           0.95
@@ -94,17 +109,17 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         break;
       }
       case 'match_pairs': {
-        isCorrect = userAnswer === 'completed';
+        isCorrect = answerToVerify === 'completed' || explicitAnswer === 'completed';
         break;
       }
       case 'fill_blank': {
         const target = currentExercise.targetWord?.trim().toLowerCase();
-        const user = userAnswer.trim().toLowerCase();
+        const user = answerToVerify.toLowerCase();
         if (target && user === target) {
           isCorrect = true;
         } else {
           const result = verifyAnswer(
-            userAnswer,
+            answerToVerify,
             currentExercise.expectedAnswer,
             currentExercise.acceptableVariations,
             0.95
@@ -115,7 +130,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       }
       case 'listen_type': {
         const result = verifyAnswer(
-          userAnswer,
+          answerToVerify,
           currentExercise.expectedAnswer,
           currentExercise.acceptableVariations,
           0.85
@@ -125,7 +140,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       }
       case 'speak_verify': {
         const result = verifyAnswer(
-          userAnswer,
+          answerToVerify,
           currentExercise.expectedAnswer,
           currentExercise.acceptableVariations,
           0.78
@@ -135,7 +150,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       }
       case 'sentence_build': {
         const result = verifyAnswer(
-          userAnswer,
+          answerToVerify,
           currentExercise.expectedAnswer,
           currentExercise.acceptableVariations,
           0.95
@@ -145,7 +160,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       }
       case 'roleplay_prompt': {
         const evaluation = evaluateRoleplayAnswer(
-          userAnswer,
+          answerToVerify,
           currentExercise.requiredWords || [currentExercise.targetWord]
         );
         localRoleplayEval = evaluation;
@@ -163,7 +178,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       }
       case 'grammar_fix': {
         const result = verifyAnswer(
-          userAnswer,
+          answerToVerify,
           currentExercise.expectedAnswer,
           currentExercise.acceptableVariations,
           0.9
@@ -173,7 +188,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       }
       default: {
         const result = verifyAnswer(
-          userAnswer,
+          answerToVerify,
           currentExercise.expectedAnswer,
           currentExercise.acceptableVariations,
           0.85
@@ -210,7 +225,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       } else if (currentExercise.type === 'multiple_choice' || currentExercise.type === 'fill_blank') {
         errorTip = `Na atividade com "${currentExercise.targetWord}": a opção correta é "${currentExercise.expectedAnswer}". ${currentExercise.explanationPt || ''}`;
       } else if (currentExercise.type === 'match_pairs') {
-        errorTip = `Nos pares de palavras: revise as traduções de "${currentExercise.targetWord}".`;
+        errorTip = `Nos pares de palavras: conecte todos os termos em inglês com suas respectivas traduções em português.`;
       } else if (currentExercise.type === 'grammar_fix') {
         errorTip = `Cuidado com "${currentExercise.targetWord}": a forma correta é "${currentExercise.expectedAnswer}". ${currentExercise.hintPt || ''}`;
       } else if (currentExercise.type === 'sentence_build' || currentExercise.type === 'listen_type') {
@@ -225,7 +240,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         ...prev,
         {
           targetWord: currentExercise.targetWord,
-          mistake: userAnswer,
+          mistake: answerToVerify,
           tip: errorTip,
         },
       ]);
@@ -242,6 +257,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
 
   const handleSkip = () => {
     if (!currentExercise) return;
+    stopAllAudio();
     soundEffects.playTap();
     setFeedbackStatus('skipped');
     setMascotMood('supportive');
@@ -262,6 +278,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   };
 
   const handleContinue = () => {
+    stopAllAudio();
     soundEffects.playTap();
     setFeedbackStatus('idle');
     setMascotMood('idle');
@@ -277,6 +294,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   };
 
   const handleRestart = () => {
+    stopAllAudio();
     setCurrentIndex(0);
     setUserAnswer('');
     setFeedbackStatus('idle');
@@ -311,7 +329,9 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     return null;
   }
 
-  const canCheck = userAnswer.trim().length > 0;
+  const canCheck = currentExercise.type === 'match_pairs'
+    ? userAnswer === 'completed'
+    : userAnswer.trim().length > 0;
 
   return (
     <div className="min-h-screen flex flex-col justify-between pb-48 sm:pb-36">

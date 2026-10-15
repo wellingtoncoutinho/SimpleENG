@@ -1,4 +1,4 @@
-import { CEFRLevel, Exercise, LessonPayload } from './lesson';
+import { CEFRLevel, Exercise, ExerciseType, LessonPayload } from './lesson';
 
 export interface ParsedVocabularyItem {
   id: string;

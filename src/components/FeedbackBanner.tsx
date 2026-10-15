@@ -49,6 +49,7 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
 
   const isRoleplay = exerciseType === 'roleplay_prompt';
+  const isMatchPairs = exerciseType === 'match_pairs';
   const t = translations[lang];
   const activeExplanation = lang === 'pt' ? (explanationPt || explanation) : explanation;
   const rawHint = lang === 'pt' ? (hintPt || hint) : hint;
@@ -56,10 +57,10 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
   const activeHint = rawHint && rawHint.length > 250 ? rawHint.split('\n')[0].slice(0, 200) + '...' : rawHint;
 
   useEffect(() => {
-    if (status !== 'idle' && expectedAnswer) {
+    if (status !== 'idle' && expectedAnswer && !isMatchPairs) {
       prefetchAudio(expectedAnswer);
     }
-  }, [status, expectedAnswer]);
+  }, [status, expectedAnswer, isMatchPairs]);
 
   const handlePlaySolutionAudio = () => {
     if (isPlayingAudio) return;
@@ -191,6 +192,15 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                     </div>
                   )}
                 </div>
+              ) : isMatchPairs ? (
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-emerald-900 dark:text-emerald-200 font-black text-lg sm:text-xl tracking-tight leading-tight">
+                    {lang === 'pt' ? 'Perfeito! Todos os pares conectados!' : 'Awesome! All pairs connected!'}
+                  </h4>
+                  <p className="text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-semibold mt-1">
+                    {lang === 'pt' ? 'Excelente fixação do vocabulário em contexto.' : 'Great job matching English and Portuguese!'}
+                  </p>
+                </div>
               ) : (
                 <div className="flex-1 min-w-0">
                   <h4 className="text-emerald-900 dark:text-emerald-200 font-black text-lg sm:text-xl tracking-tight leading-tight">
@@ -260,6 +270,15 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                       )}
                     </div>
                   )}
+                </div>
+              ) : isMatchPairs ? (
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-rose-900 dark:text-rose-200 font-black text-base sm:text-lg tracking-tight">
+                    {lang === 'pt' ? 'Conecte todos os pares:' : 'Connect all pairs:'}
+                  </h4>
+                  <p className="text-rose-800 dark:text-rose-300 text-xs sm:text-sm font-semibold mt-1">
+                    {lang === 'pt' ? 'Toque nas palavras em inglês e seus significados em português para ligar todos os pares correspondentes.' : 'Match each English expression with its translation.'}
+                  </p>
                 </div>
               ) : (
                 <div className="flex-1 min-w-0">
@@ -335,6 +354,15 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                   )}
                   <p className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-relaxed mt-2">
                     💡 {lang === 'pt' ? 'Dica do Leo: Em diálogos livres, você pode responder de forma curta e direta usando a palavra obrigatória.' : 'Tip: Keep your answer short and natural including the required word.'}
+                  </p>
+                </div>
+              ) : isMatchPairs ? (
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sky-900 dark:text-sky-200 font-black text-base sm:text-lg tracking-tight">
+                    {lang === 'pt' ? 'Atividade de pares pulada' : 'Matching game skipped'}
+                  </h4>
+                  <p className="text-sky-900 dark:text-sky-300 text-xs mt-1 font-medium">
+                    {lang === 'pt' ? 'Você poderá revisar esses pares novamente na próxima rodada.' : 'You can review these vocabulary pairs in the next session.'}
                   </p>
                 </div>
               ) : (

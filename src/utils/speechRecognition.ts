@@ -25,33 +25,71 @@ export function createSpeechRecognizer(
   const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   const recognizer = new SpeechRecognitionClass();
 
-  recognizer.continuous = true;
+  // Mobile WebKit / Chrome handle single phrase recognition best without long continuous mode hanging
+  const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  recognizer.continuous = !isMobile;
   recognizer.interimResults = true;
   recognizer.lang = 'en-US';
 
   let accumulatedTranscript = '';
+  let latestTranscript = '';
   let silenceTimer: any = null;
+  let sessionMaxTimer: any = null;
+  let isFinished = false;
+
+  const getBestTranscript = () => {
+    return (latestTranscript || accumulatedTranscript).replace(/\s+/g, ' ').trim();
+  };
+
+  const cleanupTimers = () => {
+    if (silenceTimer) {
+      clearTimeout(silenceTimer);
+      silenceTimer = null;
+    }
+    if (sessionMaxTimer) {
+      clearTimeout(sessionMaxTimer);
+      sessionMaxTimer = null;
+    }
+  };
 
   const resetSilenceTimer = () => {
     if (silenceTimer) clearTimeout(silenceTimer);
     silenceTimer = setTimeout(() => {
-      const fullText = accumulatedTranscript.trim();
+      const fullText = getBestTranscript();
       if (fullText) {
         onTranscript(fullText, true);
-        try {
-          recognizer.stop();
-        } catch {
-          // Ignore
-        }
+      }
+      try {
+        recognizer.stop();
+      } catch {
+        // Ignore
       }
     }, silenceTimeoutMs);
   };
+
+  // Hard safety timeout: max 12 seconds per utterance to never leave mic hardware hung on mobile
+  sessionMaxTimer = setTimeout(() => {
+    if (!isFinished) {
+      const fullText = getBestTranscript();
+      if (fullText) {
+        onTranscript(fullText, true);
+      }
+      try {
+        recognizer.stop();
+      } catch {}
+      setTimeout(() => {
+        try {
+          recognizer.abort();
+        } catch {}
+      }, 800);
+    }
+  }, 12000);
 
   recognizer.onresult = (event: any) => {
     let interim = '';
 
     for (let i = event.resultIndex; i < event.results.length; ++i) {
-      const piece = event.results[i][0].transcript;
+      const piece = event.results[i][0]?.transcript || '';
       if (event.results[i].isFinal) {
         accumulatedTranscript += ' ' + piece;
       } else {
@@ -62,6 +100,7 @@ export function createSpeechRecognizer(
     const currentFull = (accumulatedTranscript + ' ' + interim).replace(/\s+/g, ' ').trim();
 
     if (currentFull) {
+      latestTranscript = currentFull;
       onTranscript(currentFull, false);
       resetSilenceTimer();
     }
@@ -69,21 +108,26 @@ export function createSpeechRecognizer(
 
   recognizer.onerror = (event: any) => {
     console.warn('Speech recognition error:', event.error);
-    if (silenceTimer) clearTimeout(silenceTimer);
+    cleanupTimers();
     if (event.error === 'not-allowed') {
       onError('Permissão de microfone negada. Você também pode digitar sua resposta!');
     } else if (event.error === 'no-speech') {
-      if (!accumulatedTranscript) {
+      const fullText = getBestTranscript();
+      if (!fullText) {
         onError('Nenhuma voz detectada. Fale perto do microfone com clareza.');
       }
+    } else if (event.error === 'aborted') {
+      // Aborted intentionally by user or unmount, do not show error banner
     } else {
-      onError(`Erro de áudio: ${event.error}`);
+      onError(`Aviso de áudio: ${event.error}`);
     }
   };
 
   recognizer.onend = () => {
-    if (silenceTimer) clearTimeout(silenceTimer);
-    const fullText = accumulatedTranscript.trim();
+    if (isFinished) return;
+    isFinished = true;
+    cleanupTimers();
+    const fullText = getBestTranscript();
     if (fullText) {
       onTranscript(fullText, true);
     }
@@ -93,8 +137,8 @@ export function createSpeechRecognizer(
   // Wrap stop to ensure final text is emitted
   const originalStop = recognizer.stop.bind(recognizer);
   recognizer.stop = () => {
-    if (silenceTimer) clearTimeout(silenceTimer);
-    const fullText = accumulatedTranscript.trim();
+    cleanupTimers();
+    const fullText = getBestTranscript();
     if (fullText) {
       onTranscript(fullText, true);
     }
@@ -103,6 +147,14 @@ export function createSpeechRecognizer(
     } catch {
       // Ignore
     }
+  };
+
+  recognizer.safeAbort = () => {
+    isFinished = true;
+    cleanupTimers();
+    try {
+      recognizer.abort();
+    } catch {}
   };
 
   return recognizer;

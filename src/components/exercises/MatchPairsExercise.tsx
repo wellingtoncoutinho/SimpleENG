@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Sparkles, Check, Flame } from 'lucide-react';
 import { Exercise, MatchPair } from '../../types/lesson';
 import { Language } from '../../utils/i18n';
@@ -8,7 +8,7 @@ interface MatchPairsExerciseProps {
   exercise: Exercise;
   userAnswer: string;
   onChangeAnswer: (answer: string) => void;
-  onSubmit?: () => void;
+  onSubmit?: (explicitAnswer?: string) => void;
   lang?: Language;
   disabled?: boolean;
 }
@@ -26,6 +26,9 @@ export const MatchPairsExercise: React.FC<MatchPairsExerciseProps> = ({
   lang = 'pt',
   disabled = false,
 }) => {
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
+
   // Pairs from exercise or constructed from targetWords / bank
   const pairs: MatchPair[] = useMemo(() => {
     if (exercise.pairs && exercise.pairs.length > 0) {
@@ -56,13 +59,13 @@ export const MatchPairsExercise: React.FC<MatchPairsExerciseProps> = ({
     const left: TileItem[] = pairs.map((p) => ({
       id: p.id,
       text: p.english,
-      lang: 'en',
+      lang: 'en' as const,
     })).sort(() => 0.5 - Math.random());
 
     const right: TileItem[] = pairs.map((p) => ({
       id: p.id,
       text: p.portuguese,
-      lang: 'pt',
+      lang: 'pt' as const,
     })).sort(() => 0.5 - Math.random());
 
     setLeftTiles(left);
@@ -71,6 +74,19 @@ export const MatchPairsExercise: React.FC<MatchPairsExerciseProps> = ({
     setSelectedLeft(null);
     setSelectedRight(null);
   }, [exercise.id, pairs]);
+
+  // When all pairs are successfully matched, notify parent and auto-advance smoothly
+  useEffect(() => {
+    if (pairs.length > 0 && matchedPairIds.size === pairs.length) {
+      onChangeAnswer('completed');
+      const timer = setTimeout(() => {
+        if (onSubmitRef.current) {
+          onSubmitRef.current('completed');
+        }
+      }, 650);
+      return () => clearTimeout(timer);
+    }
+  }, [matchedPairIds.size, pairs.length, onChangeAnswer]);
 
   // When both sides selected, evaluate match
   useEffect(() => {
@@ -82,12 +98,6 @@ export const MatchPairsExercise: React.FC<MatchPairsExerciseProps> = ({
       setMatchedPairIds((prev) => {
         const next = new Set(prev);
         next.add(selectedLeft);
-        if (next.size === pairs.length && pairs.length > 0) {
-          onChangeAnswer('completed');
-          if (onSubmit) {
-            setTimeout(() => onSubmit(), 350);
-          }
-        }
         return next;
       });
       setSelectedLeft(null);
@@ -103,7 +113,7 @@ export const MatchPairsExercise: React.FC<MatchPairsExerciseProps> = ({
       }, 700);
       return () => clearTimeout(timer);
     }
-  }, [selectedLeft, selectedRight, pairs.length, onChangeAnswer]);
+  }, [selectedLeft, selectedRight]);
 
   const handleTileClick = (tile: TileItem) => {
     if (disabled || matchedPairIds.has(tile.id)) return;

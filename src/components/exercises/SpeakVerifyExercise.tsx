@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Volume2, Sparkles, Keyboard, Check, StopCircle } from 'lucide-react';
 import { Exercise } from '../../types/lesson';
-import { playTextToSpeech, soundEffects, prefetchAudio } from '../../utils/audio';
+import { playTextToSpeech, soundEffects, prefetchAudio, stopAllAudio } from '../../utils/audio';
 import { Language, translations } from '../../utils/i18n';
 import {
   createSpeechRecognizer,
@@ -57,7 +57,10 @@ export const SpeakVerifyExercise: React.FC<SpeakVerifyExerciseProps> = ({
     if (disabled || isListening) return;
     setSttError(null);
     setInterimText('');
-    soundEffects.playTap();
+
+    // Stop all audio output before microphone hardware access to prevent mobile lockup
+    stopAllAudio();
+    setIsPlayingModel(false);
 
     try {
       const recognizer = createSpeechRecognizer(
@@ -92,8 +95,17 @@ export const SpeakVerifyExercise: React.FC<SpeakVerifyExerciseProps> = ({
   };
 
   const stopListening = () => {
+    if (interimText.trim() && !userAnswer) {
+      onChangeAnswer(interimText.trim());
+    }
     if (recognizerRef.current) {
-      recognizerRef.current.stop();
+      try {
+        if (recognizerRef.current.safeAbort) {
+          recognizerRef.current.safeAbort();
+        } else {
+          recognizerRef.current.stop();
+        }
+      } catch {}
       recognizerRef.current = null;
     }
     setIsListening(false);
@@ -102,8 +114,15 @@ export const SpeakVerifyExercise: React.FC<SpeakVerifyExerciseProps> = ({
   useEffect(() => {
     return () => {
       if (recognizerRef.current) {
-        recognizerRef.current.stop();
+        try {
+          if (recognizerRef.current.safeAbort) {
+            recognizerRef.current.safeAbort();
+          } else {
+            recognizerRef.current.stop();
+          }
+        } catch {}
       }
+      stopAllAudio();
     };
   }, []);
 

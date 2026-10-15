@@ -462,6 +462,32 @@ function fallbackToBrowserSpeech(
   }
 }
 
+export function stopAllAudio(): void {
+  isMainSentenceSpeaking = false;
+  if (currentAudioElement) {
+    try {
+      currentAudioElement.pause();
+      currentAudioElement.currentTime = 0;
+    } catch {}
+    currentAudioElement = null;
+  }
+  if (currentWebAudioSource) {
+    try {
+      currentWebAudioSource.stop();
+    } catch {}
+    currentWebAudioSource = null;
+  }
+  if (currentSafetyTimeout) {
+    clearTimeout(currentSafetyTimeout);
+    currentSafetyTimeout = null;
+  }
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
+  }
+}
+
 /**
  * Plays exercise sentence audio using Studio Neural Gemini TTS (voice: Aoede).
  * If neural audio is cached, plays instantly (0ms) at requested playbackRate.
@@ -481,22 +507,7 @@ export async function playTextToSpeech(
   }
 
   // Clear previous audio and timeouts
-  if (currentAudioElement) {
-    try {
-      currentAudioElement.pause();
-    } catch {}
-    currentAudioElement = null;
-  }
-  if (currentWebAudioSource) {
-    try {
-      currentWebAudioSource.stop();
-    } catch {}
-    currentWebAudioSource = null;
-  }
-  if (currentSafetyTimeout) {
-    clearTimeout(currentSafetyTimeout);
-    currentSafetyTimeout = null;
-  }
+  stopAllAudio();
 
   isMainSentenceSpeaking = true;
 

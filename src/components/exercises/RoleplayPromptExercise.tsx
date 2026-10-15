@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, Mic, MicOff, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react';
 import { Exercise } from '../../types/lesson';
-import { playTextToSpeech, soundEffects, prefetchAudio } from '../../utils/audio';
+import { playTextToSpeech, soundEffects, prefetchAudio, stopAllAudio } from '../../utils/audio';
 import { containsRequiredWords, createSpeechRecognizer, isSpeechRecognitionSupported } from '../../utils/speechRecognition';
 import { LearnerMascot } from '../LearnerMascot';
 import { Language, translations } from '../../utils/i18n';
@@ -27,6 +27,7 @@ export const RoleplayPromptExercise: React.FC<RoleplayPromptExerciseProps> = ({
   const [isPlayingPrompt, setIsPlayingPrompt] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
   const [interim, setInterim] = useState<string>('');
+  const [micError, setMicError] = useState<string | null>(null);
   const recognizerRef = useRef<any>(null);
 
   const t = translations[lang];
@@ -57,49 +58,72 @@ export const RoleplayPromptExercise: React.FC<RoleplayPromptExerciseProps> = ({
 
   const toggleMic = () => {
     if (disabled) return;
+    setMicError(null);
+
     if (isListening) {
+      if (interim.trim()) {
+        onChangeAnswer(interim.trim());
+      }
       if (recognizerRef.current) {
-        recognizerRef.current.stop();
+        try {
+          recognizerRef.current.stop();
+        } catch {}
         recognizerRef.current = null;
       }
       setIsListening(false);
       return;
     }
 
-    soundEffects.playTap();
+    // Stop all audio output immediately to avoid mobile audio session conflict/freeze
+    stopAllAudio();
+    setIsPlayingPrompt(false);
     setIsListening(true);
     setInterim('');
 
-    const recognizer = createSpeechRecognizer(
-      (transcript, isFinal) => {
-        if (isFinal) {
-          onChangeAnswer(transcript);
-          setInterim('');
+    try {
+      const recognizer = createSpeechRecognizer(
+        (transcript, isFinal) => {
+          if (isFinal) {
+            onChangeAnswer(transcript);
+            setInterim('');
+            setIsListening(false);
+          } else {
+            setInterim(transcript);
+          }
+        },
+        (error) => {
+          setMicError(error);
           setIsListening(false);
-        } else {
-          setInterim(transcript);
-        }
-      },
-      () => {
-        setIsListening(false);
-      },
-      () => {
-        setIsListening(false);
-      },
-      3200 // 3.2s silence timeout
-    );
+        },
+        () => {
+          setIsListening(false);
+        },
+        3200 // 3.2s silence timeout
+      );
 
-    if (recognizer) {
-      recognizerRef.current = recognizer;
-      recognizer.start();
+      if (recognizer) {
+        recognizerRef.current = recognizer;
+        recognizer.start();
+      }
+    } catch (err) {
+      console.warn('Microphone start error:', err);
+      setMicError('Não foi possível iniciar o microfone no momento. Você pode digitar sua resposta abaixo!');
+      setIsListening(false);
     }
   };
 
   useEffect(() => {
     return () => {
       if (recognizerRef.current) {
-        recognizerRef.current.stop();
+        try {
+          if (recognizerRef.current.safeAbort) {
+            recognizerRef.current.safeAbort();
+          } else {
+            recognizerRef.current.stop();
+          }
+        } catch {}
       }
+      stopAllAudio();
     };
   }, []);
 
@@ -199,6 +223,19 @@ export const RoleplayPromptExercise: React.FC<RoleplayPromptExerciseProps> = ({
           </button>
         )}
       </div>
+
+      {isListening && (
+        <div className="mt-2 text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center justify-center gap-2 animate-pulse">
+          <span className="w-2 h-2 rounded-full bg-rose-600 inline-block" />
+          <span>Ouvindo sua resposta em inglês... Fale naturalmente!</span>
+        </div>
+      )}
+
+      {micError && (
+        <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800 text-center max-w-md animate-in fade-in">
+          {micError}
+        </div>
+      )}
 
       <p className="mt-2 text-xs text-slate-500 text-center">
         {t.roleplayTip}
