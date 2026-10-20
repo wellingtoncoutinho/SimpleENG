@@ -44,6 +44,8 @@ export interface DayPlan {
 export interface WeeklyPlan {
   id: string;
   createdAt: string;
+  updatedAt?: string;
+  version?: number;
   topic: string;
   cefrLevel: CEFRLevel;
   classDay: string; // e.g. "Quarta-feira"

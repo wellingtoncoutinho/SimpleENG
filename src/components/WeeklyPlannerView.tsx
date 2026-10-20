@@ -31,6 +31,7 @@ interface WeeklyPlannerViewProps {
   onStartBlock: (block: LessonBlock, dayIndex: number) => void;
   onOpenNewPlanCreator: () => void;
   onOpenAuth?: (mode: 'login' | 'register') => void;
+  onUpgradePlan?: () => void;
 }
 
 export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
@@ -40,6 +41,7 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
   onStartBlock,
   onOpenNewPlanCreator,
   onOpenAuth,
+  onUpgradePlan,
 }) => {
   const t = translations[lang];
 
@@ -233,6 +235,21 @@ export const WeeklyPlannerView: React.FC<WeeklyPlannerViewProps> = ({
 
           {/* Header Action Buttons */}
           <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap sm:flex-nowrap">
+            {onUpgradePlan && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playTap();
+                  onUpgradePlan();
+                }}
+                title="Regenera os exercícios da semana com frases naturais e cenários atualizados, mantendo seu progresso"
+                className="px-3.5 py-2.5 btn-3d-slate font-bold text-xs rounded-2xl cursor-pointer flex items-center gap-1.5 text-slate-700 dark:text-slate-300"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Atualizar Exercícios</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {

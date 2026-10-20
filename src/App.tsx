@@ -14,7 +14,7 @@ import { LessonPayload } from './types/lesson';
 import { UserProfile, DEFAULT_USER } from './types/user';
 import { WeeklyPlan, LessonBlock } from './types/weeklyPlan';
 import { BENCHMARK_DATING_LESSON } from './data/presetLessons';
-import { buildWeeklyPlan } from './utils/curriculumBuilder';
+import { buildWeeklyPlan, isPlanDeprecated, upgradePlanExercises } from './utils/curriculumBuilder';
 import { WeeklyPlannerView } from './components/WeeklyPlannerView';
 import { WeeklyPlanCreator } from './components/WeeklyPlanCreator';
 import { LessonGenerator } from './components/LessonGenerator';
@@ -121,10 +121,18 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.days && parsed.days.length > 0 && parsed.days[0].shortDayName) {
+          if (isPlanDeprecated(parsed)) {
+            const upgraded = upgradePlanExercises(parsed);
+            try {
+              localStorage.setItem('simpleeng_weekly_plan', JSON.stringify(upgraded));
+              localStorage.setItem('talktune_weekly_plan', JSON.stringify(upgraded));
+            } catch {}
+            return upgraded;
+          }
           return parsed;
         }
         if (parsed && parsed.topic && parsed.parsedItems && parsed.parsedItems.length > 0) {
-          return buildWeeklyPlan(
+          const fresh = buildWeeklyPlan(
             parsed.topic,
             parsed.cefrLevel || 'B2',
             parsed.parsedItems || [],
@@ -132,6 +140,11 @@ export default function App() {
             parsed.dailyMinutesGoal || 20,
             parsed.rawNotes || ''
           );
+          try {
+            localStorage.setItem('simpleeng_weekly_plan', JSON.stringify(fresh));
+            localStorage.setItem('talktune_weekly_plan', JSON.stringify(fresh));
+          } catch {}
+          return fresh;
         }
       }
     } catch {
@@ -153,13 +166,22 @@ export default function App() {
           try {
             const cloudPlan = await loadWeeklyPlanFromCloud(loggedUser.id);
             if (cloudPlan) {
-              setWeeklyPlan(cloudPlan);
+              let activePlan = cloudPlan;
+              if (isPlanDeprecated(cloudPlan)) {
+                activePlan = upgradePlanExercises(cloudPlan);
+                saveWeeklyPlanToCloud(loggedUser.id, activePlan);
+              }
+              setWeeklyPlan(activePlan);
             } else {
               // If cloudPlan is null, check if current state has a valid plan and sync it up to the cloud!
               setWeeklyPlan((currentPlan) => {
                 if (currentPlan && currentPlan.days && currentPlan.days.length > 0) {
-                  saveWeeklyPlanToCloud(loggedUser.id!, currentPlan);
-                  return currentPlan;
+                  let activePlan = currentPlan;
+                  if (isPlanDeprecated(currentPlan)) {
+                    activePlan = upgradePlanExercises(currentPlan);
+                  }
+                  saveWeeklyPlanToCloud(loggedUser.id!, activePlan);
+                  return activePlan;
                 }
                 return null;
               });
@@ -217,6 +239,22 @@ export default function App() {
       ...user,
       appLanguage: nextLang,
     });
+  };
+
+  const handleUpgradeWeeklyPlan = () => {
+    if (!weeklyPlan) return;
+    soundEffects.playFanfare();
+    const upgraded = upgradePlanExercises(weeklyPlan);
+    setWeeklyPlan(upgraded);
+    try {
+      localStorage.setItem('simpleeng_weekly_plan', JSON.stringify(upgraded));
+      localStorage.setItem('talktune_weekly_plan', JSON.stringify(upgraded));
+    } catch {
+      // ignore
+    }
+    if (user?.id) {
+      saveWeeklyPlanToCloud(user.id, upgraded);
+    }
   };
 
   const handleLogout = async () => {
@@ -596,6 +634,7 @@ export default function App() {
             lang={lang}
             onStartBlock={handleStartWeeklyBlock}
             onOpenNewPlanCreator={() => setCurrentView('weekly_creator')}
+            onUpgradePlan={handleUpgradeWeeklyPlan}
             onOpenAuth={(mode) => {
               if (mode === 'login') openLoginModal();
               else openRegisterModal();
