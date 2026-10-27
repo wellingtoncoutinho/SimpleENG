@@ -108,11 +108,10 @@ INSTRUCTIONS FOR THE EXERCISES:
 - In "explanationPt", explain the grammatical rule or collocation clearly in Portuguese.
 - In "roleplay_prompt", have Leo ask a warm conversational question relating to the student's topics so the student can answer using the required words.`;
 
-  // Model cascade: try ultra-fast gemini-flash-lite-latest first, then gemini-3-flash-preview, then gemini-3.8-flash
+  // Model cascade: try ultra-fast gemini-flash-lite-latest first, then gemini-3.5-flash-lite
   const modelsToTry = [
     'gemini-flash-lite-latest',
-    'gemini-3-flash-preview',
-    'gemini-3.8-flash',
+    'gemini-3.5-flash-lite',
   ];
 
   for (const modelName of modelsToTry) {
@@ -346,7 +345,7 @@ Return strictly a valid JSON array matching this format (one object per target w
   }
 ]`;
 
-    const models = ['gemini-flash-lite-latest', 'gemini-3-flash-preview', 'gemini-3.8-flash'];
+    const models = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite'];
     for (const model of models) {
       try {
         const response = await ai.models.generateContent({

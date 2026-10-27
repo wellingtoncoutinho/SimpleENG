@@ -1,4 +1,4 @@
-import { ParsedVocabularyItem } from '../types/weeklyPlan';
+import { ParsedVocabularyItem } from '../types/weeklyPlan.ts';
 
 /**
  * Intelligent parser for classroom notes and vocabulary lists.
@@ -11,6 +11,36 @@ import { ParsedVocabularyItem } from '../types/weeklyPlan';
  * - "fall for (se apaixonar por) - confundi preposição in"
  * - Plain lists: "commitment, crush, ghost someone"
  */
+export function isMetaHeader(text: string): boolean {
+  const t = text.toLowerCase().replace(/[:#*=\-–—]/g, '').trim();
+  const HEADERS = [
+    'phrasal verbs',
+    'phrasal verb',
+    'phrasal-verbs',
+    'phrasal',
+    'vocabulary',
+    'vocabulario',
+    'vocabulário',
+    'expressions',
+    'expressoes',
+    'expressões',
+    'idioms',
+    'idiom',
+    'grammar',
+    'gramatica',
+    'gramática',
+    'notes',
+    'anotacoes',
+    'anotações',
+    'palavras da aula',
+    'aula de hoje',
+    'aula',
+    'tema',
+    'topic',
+  ];
+  return HEADERS.includes(t) || t.startsWith('tema:') || t.startsWith('topic:');
+}
+
 export function parseClassNotes(rawText: string): ParsedVocabularyItem[] {
   if (!rawText || !rawText.trim()) return [];
 
@@ -24,6 +54,10 @@ export function parseClassNotes(rawText: string): ParsedVocabularyItem[] {
   let idCounter = 1;
 
   for (const line of lines) {
+    // Skip section headers or titles (e.g. "Phrasal Verbs", "Vocabulary:", "Tema: Relacionamentos")
+    const strippedLine = line.replace(/^[-*•·\d+.)\]\s]+/, '').trim();
+    if (!strippedLine || isMetaHeader(strippedLine)) continue;
+
     // If the line contains multiple comma-separated words with no punctuation notes, e.g. "word1, word2, word3"
     // check if it has definitions (dash, colon, equals, parens)
     const hasDefinitionSyntax = /[-:=/()]/.test(line);
@@ -32,7 +66,7 @@ export function parseClassNotes(rawText: string): ParsedVocabularyItem[] {
       const parts = line.split(',').map((p) => p.trim()).filter(Boolean);
       for (const part of parts) {
         const cleaned = cleanWord(part);
-        if (cleaned) {
+        if (cleaned && !isMetaHeader(cleaned)) {
           results.push({
             id: `vocab_${Date.now()}_${idCounter++}`,
             english: cleaned,
@@ -41,10 +75,6 @@ export function parseClassNotes(rawText: string): ParsedVocabularyItem[] {
       }
       continue;
     }
-
-    // Clean leading bullets, numbers (e.g. "1.", "- ", "• ")
-    const strippedLine = line.replace(/^[-*•·\d+.)\]\s]+/, '').trim();
-    if (!strippedLine) continue;
 
     // Pattern 1: Parens right after English: e.g. "fall for (se apaixonar por) - confundi a preposição"
     const parenMatch = strippedLine.match(/^([^(]+?)\s*\(([^)]+)\)\s*(?:[-–—:]\s*(.*))?$/);
@@ -158,11 +188,13 @@ export function parseClassNotes(rawText: string): ParsedVocabularyItem[] {
 }
 
 function cleanWord(str: string): string {
-  return str
+  const cleaned = str
     .replace(/^["'`“]+|["'`”]+$/g, '')
     .replace(/^[-–—:;,\s]+|[-–—:;,\s]+$/g, '')
     .replace(/[.,;:]+$/, '')
     .trim();
+  if (isMetaHeader(cleaned)) return '';
+  return cleaned;
 }
 
 function looksLikePronunciation(text: string): boolean {
