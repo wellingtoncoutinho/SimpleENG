@@ -267,8 +267,6 @@ export function evaluateRoleplayAnswer(
   const isCorrect = !missingWords && (!hasMistakes || clean.length >= 25);
 
   const naturalSuggestion = hasMistakes ? suggested : undefined;
-  const naturalSuggestionPt = naturalSuggestion ? translateStudentSentence(naturalSuggestion) : undefined;
-  const userSentencePt = translateStudentSentence(clean);
 
   let summaryFeedback = 'Excelente resposta conversacional!';
   if (missingWords) {
@@ -282,8 +280,6 @@ export function evaluateRoleplayAnswer(
     missingRequiredWords,
     corrections,
     naturalSuggestion,
-    naturalSuggestionPt,
-    userSentencePt,
     summaryFeedback,
   };
 }

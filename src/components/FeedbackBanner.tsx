@@ -47,6 +47,11 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
 }) => {
   const [showHint, setShowHint] = useState<boolean>(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+  const statusChangeTimeRef = React.useRef<number>(Date.now());
+
+  useEffect(() => {
+    statusChangeTimeRef.current = Date.now();
+  }, [status]);
 
   const isRoleplay = exerciseType === 'roleplay_prompt';
   const isMatchPairs = exerciseType === 'match_pairs';
@@ -81,12 +86,23 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
           setShowHint(false);
           return;
         }
+
+        // If user is focused inside an input or textarea, Enter is strictly for typing/field submit, NEVER for onContinue!
+        if (isInput) {
+          return;
+        }
+
         if (status === 'idle') {
-          if (!isInput && canCheck) {
+          if (canCheck) {
             e.preventDefault();
             onCheck();
           }
         } else {
+          // Cooldown guard: require at least 500ms since the status changed from idle
+          // to prevent accidental key bubbling, repeat Enter or rapid taps from skipping feedback!
+          if (Date.now() - statusChangeTimeRef.current < 500) {
+            return;
+          }
           e.preventDefault();
           onContinue();
         }
@@ -184,16 +200,11 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                   <h4 className="text-emerald-900 dark:text-emerald-200 font-black text-base sm:text-lg tracking-tight leading-tight">
                     {roleplayEvaluation?.summaryFeedback || t.correctBannerTitle}
                   </h4>
-                  {/* User's sentence & Portuguese gloss */}
+                  {/* User's sentence */}
                   <div className="mt-1.5 bg-white/80 dark:bg-slate-800/80 border border-emerald-200 dark:border-emerald-800/80 px-3 py-1.5 rounded-xl shadow-2xs text-xs sm:text-sm">
                     <p className="text-emerald-950 dark:text-emerald-100 font-bold">
                       💬 Sua resposta: <span className="font-extrabold italic">"{userAnswer}"</span>
                     </p>
-                    {roleplayEvaluation?.userSentencePt && (
-                      <p className="text-emerald-800 dark:text-emerald-300 text-xs mt-0.5 font-medium">
-                        🇧🇷 Tradução aproximada: <span className="italic">"{roleplayEvaluation.userSentencePt}"</span>
-                      </p>
-                    )}
                   </div>
                   {/* Minor corrections if applicable */}
                   {roleplayEvaluation && roleplayEvaluation.corrections.length > 0 && (
@@ -275,11 +286,6 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                           <p className="text-xs text-slate-800 dark:text-slate-200 font-bold">
                             ✨ Como soaria natural: <span className="text-emerald-700 dark:text-emerald-300 font-extrabold">"{roleplayEvaluation.naturalSuggestion}"</span>
                           </p>
-                          {roleplayEvaluation.naturalSuggestionPt && (
-                            <p className="text-2xs text-slate-600 dark:text-slate-400 italic font-medium">
-                              🇧🇷 ({roleplayEvaluation.naturalSuggestionPt})
-                            </p>
-                          )}
                         </div>
                       )}
                     </div>

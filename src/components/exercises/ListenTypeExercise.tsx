@@ -143,8 +143,13 @@ export const ListenTypeExercise: React.FC<ListenTypeExerciseProps> = ({
   }, [exercise.id, audioText]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && userAnswer.trim() && !disabled) {
-      onSubmit();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (userAnswer.trim() && !disabled) {
+        (e.target as HTMLInputElement).blur();
+        onSubmit();
+      }
     }
   };
 

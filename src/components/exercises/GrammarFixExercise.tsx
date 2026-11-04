@@ -25,8 +25,13 @@ export const GrammarFixExercise: React.FC<GrammarFixExerciseProps> = ({
   const activeInstruction = lang === 'pt' ? (exercise.instructionPt || exercise.instruction) : exercise.instruction;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && userAnswer.trim() && !disabled) {
-      onSubmit();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (userAnswer.trim() && !disabled) {
+        (e.target as HTMLInputElement).blur();
+        onSubmit();
+      }
     }
   };
 

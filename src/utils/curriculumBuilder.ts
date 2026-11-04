@@ -817,6 +817,182 @@ function getSmartConfusableDistractors(targetWord: string, count: number = 2): s
   return [];
 }
 
+
+export interface GrammarPitfall {
+  targetWord: string;
+  wrong: string;
+  correct: string;
+  promptPt: string;
+  ptTranslation: string;
+  hintPt: string;
+  explanationPt: string;
+}
+
+export const BRAZILIAN_GRAMMAR_PITFALLS: GrammarPitfall[] = [
+  {
+    targetWord: 'explain',
+    wrong: 'Can you explain me the menu, please?',
+    correct: 'Can you explain the menu to me, please?',
+    promptPt: 'Ajuste a preposição correta com o verbo "explain":',
+    ptTranslation: 'Você pode me explicar o cardápio, por favor?',
+    hintPt: 'Dica: Em inglês dizemos "explain something to me" (nunca "explain me").',
+    explanationPt: 'O verbo "explain" exige a preposição "to" antes do pronome: "explain to me".',
+  },
+  {
+    targetWord: 'depend on',
+    wrong: 'Our dinner plans depend of the weather tonight.',
+    correct: 'Our dinner plans depend on the weather tonight.',
+    promptPt: 'Corrija a preposição após o verbo "depend":',
+    ptTranslation: 'Nossos planos de jantar dependem do clima hoje à noite.',
+    hintPt: 'Dica: Em inglês usa-se sempre "depend on" (nunca "depend of").',
+    explanationPt: 'A regência verbal em inglês é "depend on", diferentemente do português "depender de".',
+  },
+  {
+    targetWord: 'listen to',
+    wrong: 'I like to listen music while I cook dinner.',
+    correct: 'I like to listen to music while I cook dinner.',
+    promptPt: 'Adicione a preposição obrigatória com o verbo "listen":',
+    ptTranslation: 'Eu gosto de ouvir música enquanto cozinho o jantar.',
+    hintPt: 'Dica: "Listen" sempre exige a preposição "to": "listen to music".',
+    explanationPt: 'Diferente do português ("ouvir música"), em inglês é obrigatório usar "to" após listen.',
+  },
+  {
+    targetWord: 'married to',
+    wrong: 'She has been married with him for eight years.',
+    correct: 'She has been married to him for eight years.',
+    promptPt: 'Corrija a preposição usada com "married":',
+    ptTranslation: 'Ela é casada com ele há oito anos.',
+    hintPt: 'Dica: Em inglês dizemos "married to someone" (e não "married with").',
+    explanationPt: 'A preposição correta com "married" é "to": "married to someone".',
+  },
+  {
+    targetWord: 'look forward to',
+    wrong: 'I look forward to meet you at the cafe.',
+    correct: 'I look forward to meeting you at the cafe.',
+    promptPt: 'Ajuste a forma do verbo após "look forward to":',
+    ptTranslation: 'Aguardo ansiosamente encontrar você no café.',
+    hintPt: 'Dica: O "to" aqui é preposição, então o verbo seguinte fica com "-ing" (meeting).',
+    explanationPt: 'Após a preposição "look forward to", usamos o gerúndio: "look forward to meeting".',
+  },
+  {
+    targetWord: 'agree',
+    wrong: 'I am agree with your opinion on this.',
+    correct: 'I agree with your opinion on this.',
+    promptPt: 'Elimine o verbo "to be" incorreto antes de "agree":',
+    ptTranslation: 'Eu concordo com a sua opinião sobre isso.',
+    hintPt: 'Dica: "Agree" já é verbo ("I agree"). Não use "I am agree".',
+    explanationPt: 'Em inglês "agree" é verbo: dizemos "I agree" ou "I disagree", nunca com o verbo "to be".',
+  },
+  {
+    targetWord: 'near',
+    wrong: 'The cafe is located near of my house.',
+    correct: 'The cafe is located near my house.',
+    promptPt: 'Elimine a preposição incorreta após "near":',
+    ptTranslation: 'O café fica localizado perto da minha casa.',
+    hintPt: 'Dica: "Near" já significa "perto de". Nunca use "near of".',
+    explanationPt: 'Em inglês "near" não leva preposição: dizemos "near the house", nunca "near of".',
+  },
+  {
+    targetWord: 'good at',
+    wrong: 'He is very good in speaking English during meetings.',
+    correct: 'He is very good at speaking English during meetings.',
+    promptPt: 'Ajuste a preposição para indicar habilidade ("good at"):',
+    ptTranslation: 'Ele é muito bom em falar inglês durante as reuniões.',
+    hintPt: 'Dica: Para habilidades e talentos, use "good at" (nunca "good in").',
+    explanationPt: 'Dizemos "good at English", "good at sports", "good at math" com a preposição "at".',
+  },
+  {
+    targetWord: 'arrive at',
+    wrong: 'We arrived to the airport two hours early.',
+    correct: 'We arrived at the airport two hours early.',
+    promptPt: 'Corrija a preposição com o verbo "arrive":',
+    ptTranslation: 'Chegamos ao aeroporto duas horas mais cedo.',
+    hintPt: 'Dica: Em inglês usamos "arrive at" (locais específicos) ou "arrive in" (cidades/países), nunca "arrive to".',
+    explanationPt: 'O verbo "arrive" não aceita a preposição de movimento "to". Use "arrive at the airport".',
+  },
+  {
+    targetWord: 'for',
+    wrong: 'I live in this city since five years.',
+    correct: 'I have lived in this city for five years.',
+    promptPt: 'Ajuste o tempo verbal e preposição de duração ("for" vs "since"):',
+    ptTranslation: 'Eu moro nesta cidade há cinco anos.',
+    hintPt: 'Dica: Para períodos de tempo (cinco anos), use "for" e o Present Perfect ("have lived").',
+    explanationPt: 'Usamos "since" para pontos de partida (since 2020) e "for" para duração (for five years).',
+  },
+  {
+    targetWord: 'told me',
+    wrong: 'The waiter said me that the table was reserved.',
+    correct: 'The waiter told me that the table was reserved.',
+    promptPt: 'Ajuste o verbo de comunicação com pronome ("said" vs "told"):',
+    ptTranslation: 'O garçom me disse que a mesa estava reservada.',
+    hintPt: 'Dica: Use "told me" com pronome direto, ou "said to me" (nunca "said me").',
+    explanationPt: 'O verbo "tell" recebe a pessoa diretamente: "told me". O verbo "say" exige "to": "said to me".',
+  },
+  {
+    targetWord: 'discuss',
+    wrong: 'We need to discuss about the budget in the meeting.',
+    correct: 'We need to discuss the budget in the meeting.',
+    promptPt: 'Elimine a preposição desnecessária após "discuss":',
+    ptTranslation: 'Precisamos discutir o orçamento na reunião.',
+    hintPt: 'Dica: O verbo "discuss" é transitivo direto: "discuss something" (sem "about").',
+    explanationPt: 'Diferente de "talk about", o verbo "discuss" não leva a preposição "about".',
+  },
+  {
+    targetWord: 'enjoy',
+    wrong: 'I really enjoy to try new dishes when traveling.',
+    correct: 'I really enjoy trying new dishes when traveling.',
+    promptPt: 'Ajuste o verbo seguinte para a forma em "-ing" após "enjoy":',
+    ptTranslation: 'Eu realmente gosto de experimentar novos pratos quando viajo.',
+    hintPt: 'Dica: O verbo "enjoy" sempre exige o verbo seguinte com "-ing" (trying).',
+    explanationPt: 'Em inglês, verbos como "enjoy", "avoid" e "finish" exigem o gerúndio no verbo subsequente.',
+  },
+  {
+    targetWord: 'left',
+    wrong: 'I forgot my wallet in the car this morning.',
+    correct: 'I left my wallet in the car this morning.',
+    promptPt: 'Ajuste o verbo ("deixar em algum local" é "leave / left", não "forget"):',
+    ptTranslation: 'Eu deixei minha carteira no carro esta manhã.',
+    hintPt: 'Dica: Quando você menciona o local onde esqueceu algo, use "left" (deixei), não "forgot".',
+    explanationPt: 'Dizemos "I forgot my wallet" (esqueci), mas "I left my wallet in the car" quando especificamos o local.',
+  },
+  {
+    targetWord: 'take for granted',
+    wrong: 'You should never take your good health as granted.',
+    correct: 'You should never take your good health for granted.',
+    promptPt: 'Corrija a preposição da expressão fixa idiomática:',
+    ptTranslation: 'Você nunca deve tomar sua boa saúde como algo garantido.',
+    hintPt: 'Dica: A expressão idiomática correta é "take for granted" (com "for", nunca "as").',
+    explanationPt: 'Expressão fixa: "take something for granted" significa valorizar menos por achar que sempre estará ali.',
+  },
+  {
+    targetWord: 'need',
+    wrong: 'All the employees needs to arrive on time.',
+    correct: 'All the employees need to arrive on time.',
+    promptPt: 'Ajuste a concordância do verbo no presente com sujeito plural:',
+    ptTranslation: 'Todos os funcionários precisam chegar no horário.',
+    hintPt: 'Dica: Sujeito no plural (they / employees) usa "need", sem o "-s".',
+    explanationPt: 'O "-s" na terminação do verbo no Simple Present é exclusivo para 3ª pessoa do singular (he/she/it).',
+  },
+  {
+    targetWord: 'care',
+    wrong: 'I am not caring what negative people say.',
+    correct: 'I do not care what negative people say.',
+    promptPt: 'Ajuste o tempo verbal de sentimento para o Simple Present:',
+    ptTranslation: 'Eu não me importo com o que pessoas negativas dizem.',
+    hintPt: 'Dica: Verbos de atitude e estado mental usam "I do not care", não a forma contínua com "-ing".',
+    explanationPt: 'Verbos de estado mental não aceitam tempos contínuos para expressar sentimentos gerais.',
+  },
+  {
+    targetWord: 'order',
+    wrong: 'I want to ask the bill, please.',
+    correct: 'I would like to ask for the bill, please.',
+    promptPt: 'Ajuste a expressão para pedir a conta educadamente:',
+    ptTranslation: 'Eu gostaria de pedir a conta, por favor.',
+    hintPt: 'Dica: "Pedir algo" é "ask for something" ("ask for the bill").',
+    explanationPt: 'O verbo "ask" sem preposição significa "perguntar". Para "pedir algo", use "ask for".',
+  },
+];
+
 /**
  * Builds 4 tactile matching pairs for match_pairs minigame.
  * Uses words from student class notes first, rotating starting offset with seed
@@ -843,9 +1019,12 @@ function createMatchPairs(
     (i) => i.english.trim().toLowerCase() !== targetWord.toLowerCase()
   );
   const countOthers = others.length;
+  // If list is small (<= 5), pick target + at most 1 student word, so we have room for 2 thematic pairs rotated by seed.
+  // This ensures Block 1, Block 2, Block 3, Block 4 never show the identical 4 pairs!
+  const maxOthersFromStudent = allItems.length <= 5 ? 1 : 2;
   if (countOthers > 0) {
     for (let i = 0; i < countOthers; i++) {
-      if (pairs.length >= 4) break;
+      if (pairs.length >= 1 + maxOthersFromStudent) break;
       const other = others[(i + seed) % countOthers];
       const oEng = other.english.trim();
       const oPt = getNaturalMeaning(oEng, other.portuguese);
@@ -1947,24 +2126,63 @@ export function buildCustomLesson(
     audioSpeedDefault: 1.0,
   };
 
-  // 4. grammar_fix: Brazilian pitfall and preposition correction (CORRECTED: promptText = flawed sentence!)
+  // 4. grammar_fix: Brazilian pitfall and preposition correction with dynamic rotation & correct target word
   const wordGrammar = itemGrammar.english;
   const geminiGrammar = geminiMatrix?.[wordGrammar.toLowerCase().trim()]?.grammarFix;
   const bundleGrammar = createRichSentences(itemGrammar, blockSeed + 3, scenarioKey, safeItems);
-  const gfWrong = geminiGrammar?.wrong || bundleGrammar.grammarFix.wrong;
-  const gfCorrect = geminiGrammar?.correct || bundleGrammar.grammarFix.correct;
-  const gfPrompt = geminiGrammar?.promptPt || bundleGrammar.grammarFix.promptPt;
-  const gfPt = bundleGrammar.grammarFix.ptTranslation;
-  const gfExplanation = geminiGrammar?.explanationPt || bundleGrammar.grammarFix.explanationPt;
-  const gfHint = bundleGrammar.grammarFix.hintPt;
+
+  // Check if student target word directly matches a known Brazilian pitfall
+  const normWordGrammar = wordGrammar.toLowerCase().trim();
+  const directPitfall = BRAZILIAN_GRAMMAR_PITFALLS.find(
+    (p) => p.targetWord.toLowerCase() === normWordGrammar || normWordGrammar.includes(p.targetWord.toLowerCase())
+  );
+
+  let gfTargetWord = wordGrammar;
+  let gfWrong = '';
+  let gfCorrect = '';
+  let gfPrompt = '';
+  let gfPt = '';
+  let gfExplanation = '';
+  let gfHint = '';
+
+  if (geminiGrammar && geminiGrammar.wrong && geminiGrammar.correct) {
+    gfTargetWord = wordGrammar;
+    gfWrong = geminiGrammar.wrong;
+    gfCorrect = geminiGrammar.correct;
+    gfPrompt = geminiGrammar.promptPt || 'Corrija o erro comum para tornar a frase natural:';
+    gfPt = bundleGrammar.grammarFix.ptTranslation || geminiGrammar.correct;
+    gfExplanation = geminiGrammar.explanationPt || 'Estrutura corrigida para soar 100% natural.';
+    gfHint = bundleGrammar.grammarFix.hintPt;
+  } else if (directPitfall) {
+    gfTargetWord = directPitfall.targetWord;
+    gfWrong = directPitfall.wrong;
+    gfCorrect = directPitfall.correct;
+    gfPrompt = directPitfall.promptPt;
+    gfPt = directPitfall.ptTranslation;
+    gfExplanation = directPitfall.explanationPt;
+    gfHint = directPitfall.hintPt;
+  } else {
+    // Pick from rich rotating pool: guarantee NO two blocks in a day or week repeat!
+    const scenarioHash = scenarioKey.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const pitfallIndex = (blockSeed * 5 + scenarioHash) % BRAZILIAN_GRAMMAR_PITFALLS.length;
+    const chosen = BRAZILIAN_GRAMMAR_PITFALLS[pitfallIndex];
+
+    gfTargetWord = chosen.targetWord;
+    gfWrong = chosen.wrong;
+    gfCorrect = chosen.correct;
+    gfPrompt = chosen.promptPt;
+    gfPt = chosen.ptTranslation;
+    gfExplanation = chosen.explanationPt;
+    gfHint = chosen.hintPt;
+  }
 
   const exGrammarFix: Exercise = {
     id: `gf_${blockSeed}_${Date.now()}_4`,
     type: 'grammar_fix',
-    targetWord: wordGrammar,
+    targetWord: gfTargetWord,
     instruction: 'Fix the common mistake to make the sentence natural:',
     instructionPt: gfPrompt || 'Corrija o erro comum para tornar a frase natural:',
-    promptText: gfWrong, // English flawed sentence to be displayed in the card!
+    promptText: gfWrong, // English flawed sentence displayed in the card!
     promptTextPt: gfPt,
     audioSentence: gfCorrect,
     expectedAnswer: gfCorrect,
@@ -1972,7 +2190,7 @@ export function buildCustomLesson(
     acceptableVariations: [gfCorrect, gfCorrect.replace(/[.,!?]/g, '')],
     wordBank: gfCorrect.replace(/[.,!?]/g, '').split(' '),
     options: [gfCorrect, gfWrong].sort(() => 0.5 - Math.random()),
-    requiredWords: [wordGrammar],
+    requiredWords: [gfTargetWord],
     hint: 'Pay attention to prepositions and verb conjugations.',
     hintPt: gfHint,
     explanation: 'Grammar fixed! Avoiding common Brazilian pitfalls makes your English sound polished.',
@@ -2318,7 +2536,7 @@ export function buildWeeklyPlan(
   };
 }
 
-export const CURRENT_PLAN_VERSION = 5;
+export const CURRENT_PLAN_VERSION = 6;
 
 /**
  * Checks if a plan is deprecated (older plan generated before version 5,
