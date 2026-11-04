@@ -780,14 +780,53 @@ export interface RichSentenceBundle {
   };
 }
 
+const CONFUSABLE_DISTRACTOR_MAP: Record<string, string[]> = {
+  'through': ['thought', 'though', 'thorough', 'throughout'],
+  'who is it?': ['how is it?', 'where is it?', 'what is it?'],
+  'aerobic step': ['cardio step', 'step workout', 'aerobic pace'],
+  'get a package': ['take a box', 'make a bundle', 'order a pack'],
+  'cold plunge': ['ice bath', 'cold shower', 'freeze dive', 'cold pool'],
+  'grueling': ['tiring', 'exhausting', 'grinding', 'cruel'],
+  'workout': ['work in', 'warm up', 'workload', 'training'],
+  'not caring': ['not minding', 'giving up', 'holding back', 'careless'],
+  'employees': ['employers', 'colleagues', 'workers', 'managers'],
+  'near': ['close to', 'nearby', 'next to', 'far from'],
+  'speak up': ['speak out', 'talk down', 'hold back', 'calm down'],
+  'ways': ['habits', 'paths', 'means', 'views'],
+  'trusty': ['trusted', 'truthful', 'trusting', 'faithful'],
+  'trust': ['truth', 'faith', 'doubt', 'belief'],
+  'crush': ['crash', 'date', 'flame', 'infatuation'],
+  'look forward to': ['look back on', 'look out for', 'look into', 'look after'],
+  'schedule': ['timetable', 'calendar', 'routine', 'agenda'],
+  'overwhelmed': ['overloaded', 'overpowered', 'exhausted', 'overrated'],
+  'struggle': ['stumble', 'strive', 'suffer', 'surrender'],
+  'fear': ['tear', 'fright', 'dread', 'phobia'],
+  'ghost': ['host', 'disappear', 'vanish', 'ignore'],
+  'ghosting': ['ignoring', 'vanishing', 'blocking'],
+  'hang out': ['hang up', 'hang on', 'catch up', 'drop out'],
+  'take for granted': ['take for sure', 'take as granted', 'give for granted'],
+  'aisle': ['isle', 'corridor', 'hallway', 'alley'],
+  'actually': ['currently', 'nowadays', 'eventually', 'factually'],
+};
+
+function getSmartConfusableDistractors(targetWord: string, count: number = 2): string[] {
+  const norm = targetWord.toLowerCase().trim();
+  if (CONFUSABLE_DISTRACTOR_MAP[norm]) {
+    return CONFUSABLE_DISTRACTOR_MAP[norm].slice(0, count);
+  }
+  return [];
+}
+
 /**
  * Builds 4 tactile matching pairs for match_pairs minigame.
- * Uses words from student class notes first, then supplements with thematic words.
+ * Uses words from student class notes first, rotating starting offset with seed
+ * and supplementing with thematic scenario pairs so that blocks NEVER repeat identical lists.
  */
 function createMatchPairs(
   targetItem: ParsedVocabularyItem,
   allItems: ParsedVocabularyItem[],
-  scenarioKey: DayScenarioKey
+  scenarioKey: DayScenarioKey,
+  seed: number = 0
 ): MatchPair[] {
   const pairs: MatchPair[] = [];
   const targetWord = targetItem.english.trim();
@@ -799,24 +838,28 @@ function createMatchPairs(
     portuguese: targetPt,
   });
 
-  // Pick other words from student's items first
+  // Pick other words from student's items with offset seed
   const others = allItems.filter(
     (i) => i.english.trim().toLowerCase() !== targetWord.toLowerCase()
   );
-  for (const other of others) {
-    if (pairs.length >= 4) break;
-    const oEng = other.english.trim();
-    const oPt = getNaturalMeaning(oEng, other.portuguese);
-    if (!pairs.some((p) => p.english.toLowerCase() === oEng.toLowerCase())) {
-      pairs.push({
-        id: `pair_${pairs.length}_${oEng.toLowerCase().replace(/\s+/g, '_')}`,
-        english: oEng,
-        portuguese: oPt,
-      });
+  const countOthers = others.length;
+  if (countOthers > 0) {
+    for (let i = 0; i < countOthers; i++) {
+      if (pairs.length >= 4) break;
+      const other = others[(i + seed) % countOthers];
+      const oEng = other.english.trim();
+      const oPt = getNaturalMeaning(oEng, other.portuguese);
+      if (!pairs.some((p) => p.english.toLowerCase() === oEng.toLowerCase())) {
+        pairs.push({
+          id: `pair_${pairs.length}_${oEng.toLowerCase().replace(/\s+/g, '_')}`,
+          english: oEng,
+          portuguese: oPt,
+        });
+      }
     }
   }
 
-  // Supplement with scenario pairs if fewer than 4
+  // If fewer than 4 or for variety, supplement with scenario pairs offset by seed
   const THEMATIC_PAIRS: Record<DayScenarioKey, Array<[string, string]>> = {
     restaurant: [
       ['bill', 'conta do restaurante'],
@@ -863,8 +906,9 @@ function createMatchPairs(
   };
 
   const pool = THEMATIC_PAIRS[scenarioKey] || THEMATIC_PAIRS.restaurant;
-  for (const [eng, pt] of pool) {
+  for (let i = 0; i < pool.length; i++) {
     if (pairs.length >= 4) break;
+    const [eng, pt] = pool[(i + seed) % pool.length];
     if (!pairs.some((p) => p.english.toLowerCase() === eng.toLowerCase())) {
       pairs.push({
         id: `pair_theme_${pairs.length}_${eng.replace(/\s+/g, '_')}`,
@@ -874,7 +918,8 @@ function createMatchPairs(
     }
   }
 
-  return pairs.slice(0, 4);
+  // Shuffle order of pairs so tiles appear in different places
+  return pairs.slice(0, 4).sort(() => 0.5 - Math.random());
 }
 
 /**
@@ -892,7 +937,7 @@ function createRichSentences(
   const rawMeaning = item.portuguese?.trim() || '';
   const nat = getNaturalMeaning(word, rawMeaning);
   const category = categorizeWord(word);
-  const pairs = createMatchPairs({ ...item, english: word }, allItems, scenarioKey);
+  const pairs = createMatchPairs({ ...item, english: word }, allItems, scenarioKey, seedIndex);
 
   // Check Curated Vocabulary Sentence Registry first for native, idiomatic precision
   const normWord = word.toLowerCase().trim();
@@ -1779,7 +1824,6 @@ export function buildCustomLesson(
 ): LessonPayload {
   const safeItems = items.length > 0 ? items : [{ id: '1', english: 'practice', portuguese: 'prática' }];
   const wordsCovered = safeItems.map((i) => i.english);
-  const exercises: Exercise[] = [];
 
   // Determine target items for each exercise, rotating by blockSeed:
   const itemPairs = safeItems[blockSeed % safeItems.length];
@@ -1791,7 +1835,7 @@ export function buildCustomLesson(
 
   // 1. match_pairs: Tactile pairs matching minigame (Duolingo style)
   const pairsBundle = createRichSentences(itemPairs, blockSeed, scenarioKey, safeItems);
-  exercises.push({
+  const exMatchPairs: Exercise = {
     id: `mp_${blockSeed}_${Date.now()}_1`,
     type: 'match_pairs',
     targetWord: itemPairs.english,
@@ -1811,23 +1855,41 @@ export function buildCustomLesson(
     explanation: 'Awesome! Quick matching builds instinctive vocabulary recall.',
     explanationPt: 'Excelente! Conectar pares rapidamente desenvolve reflexo e memória de longo prazo.',
     audioSpeedDefault: 1.0,
-  });
+  };
 
-  // 2. fill_blank: Complete the sentence in context
+  // 2. fill_blank: Complete the sentence in context with smart confusable distractors
   const wordFill = itemFill.english;
   const geminiFill = geminiMatrix?.[wordFill.toLowerCase().trim()]?.fillBlank;
   const bundleFill = createRichSentences(itemFill, blockSeed + 1, scenarioKey, safeItems);
   const fbBlank = geminiFill?.sentenceWithBlank || bundleFill.fillBlank.sentenceWithBlank;
   const fbExpected = geminiFill?.expectedAnswer || bundleFill.fillBlank.expectedAnswer;
-  const fbOptions =
-    geminiFill?.options && geminiFill.options.length >= 2
-      ? geminiFill.options
-      : bundleFill.fillBlank.options;
+  const smartDistractors = getSmartConfusableDistractors(fbExpected, 2);
+
+  let fbOptions: string[] = [];
+  if (geminiFill?.options && geminiFill.options.length >= 2) {
+    fbOptions = geminiFill.options;
+  } else {
+    const rawOpts = [
+      fbExpected,
+      ...smartDistractors,
+      ...bundleFill.fillBlank.options.filter((o: string) => o.toLowerCase() !== fbExpected.toLowerCase()),
+    ];
+    const seen = new Set<string>();
+    for (const opt of rawOpts) {
+      const lower = opt.toLowerCase();
+      if (!seen.has(lower) && fbOptions.length < 3) {
+        seen.add(lower);
+        fbOptions.push(opt);
+      }
+    }
+    fbOptions.sort(() => 0.5 - Math.random());
+  }
+
   const fbPt = geminiFill?.ptTranslation || bundleFill.fillBlank.ptTranslation;
   const fbHintPt = geminiFill?.hintPt || bundleFill.fillBlank.hintPt;
   const fbExplanationPt = geminiFill?.explanationPt || bundleFill.fillBlank.explanationPt;
 
-  exercises.push({
+  const exFillBlank: Exercise = {
     id: `fb_${blockSeed}_${Date.now()}_2`,
     type: 'fill_blank',
     targetWord: wordFill,
@@ -1848,19 +1910,23 @@ export function buildCustomLesson(
     explanation: 'Spot on! Choosing words in context is how native speakers think.',
     explanationPt: fbExplanationPt,
     audioSpeedDefault: 1.0,
-  });
+  };
 
-  // 3. sentence_build: Assemble words into natural order
+  // 3. sentence_build: Assemble words into natural order with tricky distractors
   const wordBuild = itemBuild.english;
   const geminiBuild = geminiMatrix?.[wordBuild.toLowerCase().trim()]?.sentenceBuild;
   const bundleBuild = createRichSentences(itemBuild, blockSeed + 2, scenarioKey, safeItems);
   const sbSentence = geminiBuild?.sentence || bundleBuild.sentenceBuild.english;
   const sbPt = geminiBuild?.pt || bundleBuild.sentenceBuild.ptTranslation;
-  const sbDistractors =
-    geminiBuild?.distractors || bundleBuild.sentenceBuild.distractors || ['always', 'time'];
+  const smartSBDistractors = getSmartConfusableDistractors(wordBuild, 2);
+  const sbDistractors = [
+    ...(geminiBuild?.distractors || bundleBuild.sentenceBuild.distractors || ['to', 'for']),
+    ...smartSBDistractors,
+  ].filter((d) => !sbSentence.toLowerCase().split(/\s+/).includes(d.toLowerCase()))
+   .slice(0, 3);
   const sbWords = sbSentence.replace(/[.,!?]/g, '').split(' ').filter(Boolean);
 
-  exercises.push({
+  const exSentenceBuild: Exercise = {
     id: `sb_${blockSeed}_${Date.now()}_3`,
     type: 'sentence_build',
     targetWord: wordBuild,
@@ -1879,9 +1945,9 @@ export function buildCustomLesson(
     explanation: 'Terrific! Assembling real sentences solidifies English grammar intuition.',
     explanationPt: 'Sensacional! Montar frases reais fixa a ordem natural das palavras em inglês.',
     audioSpeedDefault: 1.0,
-  });
+  };
 
-  // 4. grammar_fix: Brazilian pitfall and preposition correction
+  // 4. grammar_fix: Brazilian pitfall and preposition correction (CORRECTED: promptText = flawed sentence!)
   const wordGrammar = itemGrammar.english;
   const geminiGrammar = geminiMatrix?.[wordGrammar.toLowerCase().trim()]?.grammarFix;
   const bundleGrammar = createRichSentences(itemGrammar, blockSeed + 3, scenarioKey, safeItems);
@@ -1892,13 +1958,13 @@ export function buildCustomLesson(
   const gfExplanation = geminiGrammar?.explanationPt || bundleGrammar.grammarFix.explanationPt;
   const gfHint = bundleGrammar.grammarFix.hintPt;
 
-  exercises.push({
+  const exGrammarFix: Exercise = {
     id: `gf_${blockSeed}_${Date.now()}_4`,
     type: 'grammar_fix',
     targetWord: wordGrammar,
     instruction: 'Fix the common mistake to make the sentence natural:',
-    instructionPt: 'Corrija o erro comum para tornar a frase natural:',
-    promptText: gfPrompt,
+    instructionPt: gfPrompt || 'Corrija o erro comum para tornar a frase natural:',
+    promptText: gfWrong, // English flawed sentence to be displayed in the card!
     promptTextPt: gfPt,
     audioSentence: gfCorrect,
     expectedAnswer: gfCorrect,
@@ -1912,7 +1978,7 @@ export function buildCustomLesson(
     explanation: 'Grammar fixed! Avoiding common Brazilian pitfalls makes your English sound polished.',
     explanationPt: gfExplanation,
     audioSpeedDefault: 1.0,
-  });
+  };
 
   // 5. speak_verify: Oral production with microphone
   const wordSpeak = itemSpeak.english;
@@ -1923,7 +1989,7 @@ export function buildCustomLesson(
   const svHint = bundleSpeak.speakVerify.hintPt;
   const svExplanation = bundleSpeak.speakVerify.explanationPt;
 
-  exercises.push({
+  const exSpeakVerify: Exercise = {
     id: `sv_${blockSeed}_${Date.now()}_5`,
     type: 'speak_verify',
     targetWord: wordSpeak,
@@ -1946,7 +2012,7 @@ export function buildCustomLesson(
     explanation: 'Pronunciation verified! Short spoken phrases build genuine speaking stamina.',
     explanationPt: svExplanation,
     audioSpeedDefault: 1.0,
-  });
+  };
 
   // 6. roleplay_prompt: Conversational dialogue with Leo
   const wordRoleplay = itemRoleplay.english;
@@ -1958,10 +2024,14 @@ export function buildCustomLesson(
   const rpPt = bundleRoleplay.roleplayPrompt.ptTranslation;
   const rpHint = bundleRoleplay.roleplayPrompt.hintPt;
 
-  exercises.push({
+  const cleanRoleplayTarget = wordRoleplay
+    .replace(/^["'`“”«»]+|["'`“”«»]+$/g, '')
+    .trim();
+
+  const exRoleplayPrompt: Exercise = {
     id: `rp_${blockSeed}_${Date.now()}_6`,
     type: 'roleplay_prompt',
-    targetWord: wordRoleplay,
+    targetWord: cleanRoleplayTarget,
     instruction: 'Answer Leo in English using the target vocabulary:',
     instructionPt: 'Responda ao Leo em inglês usando a palavra obrigatória:',
     promptText: rpLeo,
@@ -1972,17 +2042,47 @@ export function buildCustomLesson(
     acceptableVariations: [
       rpAnswer,
       rpAnswer.toLowerCase(),
-      `I always use ${wordRoleplay} in this situation.`,
-      `I prefer to use ${wordRoleplay}.`,
+      `I always use ${cleanRoleplayTarget} in this situation.`,
+      `I prefer to use ${cleanRoleplayTarget}.`,
     ],
-    wordBank: ['I', 'we', 'always', 'at', 'home', 'with', 'people', 'when', wordRoleplay],
-    requiredWords: [wordRoleplay],
-    hint: `Form a natural sentence containing "${wordRoleplay}".`,
+    wordBank: ['I', 'we', 'always', 'at', 'home', 'with', 'people', 'when', cleanRoleplayTarget],
+    requiredWords: [cleanRoleplayTarget],
+    hint: `Form a natural sentence containing "${cleanRoleplayTarget}".`,
     hintPt: rpHint,
     explanation: 'Terrific answer! Applying vocabulary in conversational dialogue is the peak of fluency.',
-    explanationPt: `Excelente resposta conversacional! Você colocou "${wordRoleplay}" em prática ativa no diálogo com o Leo.`,
+    explanationPt: `Excelente resposta conversacional! Você colocou "${cleanRoleplayTarget}" em prática ativa no diálogo com o Leo.`,
     audioSpeedDefault: 1.0,
-  });
+  };
+
+  // Exercise map
+  const exerciseMap: Record<string, Exercise> = {
+    match_pairs: exMatchPairs,
+    fill_blank: exFillBlank,
+    sentence_build: exSentenceBuild,
+    grammar_fix: exGrammarFix,
+    speak_verify: exSpeakVerify,
+    roleplay_prompt: exRoleplayPrompt,
+  };
+
+  // 4 distinctly sequenced learning flows so no two consecutive blocks ever feel identical!
+  const BLOCK_ORDER_PATTERNS: Array<Array<'fill_blank' | 'sentence_build' | 'speak_verify' | 'match_pairs' | 'grammar_fix' | 'roleplay_prompt'>> = [
+    // Bloco 1: Descoberta & Contexto (Começa preenchendo lacuna, monta frase, fala no microfone, minigame pares, erro gramatical, Leo)
+    ['fill_blank', 'sentence_build', 'speak_verify', 'match_pairs', 'grammar_fix', 'roleplay_prompt'],
+    // Bloco 2: Ação & Fala Ativa (Começa no microfone falando, minigame ligar pares, erro gramatical, completa frase, monta frase, Leo)
+    ['speak_verify', 'match_pairs', 'grammar_fix', 'fill_blank', 'sentence_build', 'roleplay_prompt'],
+    // Bloco 3: Desafio & Raciocínio (Começa montando frase, erro gramatical, completa lacuna, bate-papo Leo, fala, minigame pares)
+    ['sentence_build', 'grammar_fix', 'fill_blank', 'roleplay_prompt', 'speak_verify', 'match_pairs'],
+    // Bloco 4: Maestria & Fluência (Começa ajustando erro gramatical, bate-papo Leo, fala no microfone, monta frase, completa frase, minigame pares)
+    ['grammar_fix', 'roleplay_prompt', 'speak_verify', 'sentence_build', 'fill_blank', 'match_pairs'],
+  ];
+
+  const selectedPattern = BLOCK_ORDER_PATTERNS[blockSeed % BLOCK_ORDER_PATTERNS.length];
+  const exercises: Exercise[] = [];
+  for (const type of selectedPattern) {
+    if (exerciseMap[type]) {
+      exercises.push(exerciseMap[type]);
+    }
+  }
 
   const cleanPitfallsPt = [
     `Cuidado com preposições ao usar ${wordsCovered.slice(0, 3).map((w) => `"${w}"`).join(', ')}.`,
@@ -2089,24 +2189,24 @@ export function buildWeeklyPlan(
     type: ExerciseType;
   }> = [
     {
-      titleName: 'Descoberta & Conexão',
-      subtitle: 'Ligue os pares, complete no cenário e monte a frase na ordem certa.',
-      type: 'match_pairs',
-    },
-    {
-      titleName: 'Prática no Cenário',
-      subtitle: 'Ajuste gramatical, pronúncia no microfone e diálogo com o Leo.',
+      titleName: 'Descoberta & Contexto',
+      subtitle: 'Complete no cenário, monte a frase na ordem certa e fale no microfone.',
       type: 'fill_blank',
     },
     {
-      titleName: 'Fixação & Reflexo',
-      subtitle: 'Varie o vocabulário em ritmo ágil de desafio e escuta.',
+      titleName: 'Ação & Fala Ativa',
+      subtitle: 'Comece com voz no microfone, minigame de ligar pares e ajuste gramatical.',
+      type: 'speak_verify',
+    },
+    {
+      titleName: 'Desafio & Raciocínio',
+      subtitle: 'Monte frases complexas, corrija vícios comuns e converse com o Leo.',
       type: 'sentence_build',
     },
     {
       titleName: 'Maestria & Fluência',
-      subtitle: 'Consolidação completa das expressões em situações da vida real.',
-      type: 'speak_verify',
+      subtitle: 'Ajuste gramatical avançado, bate-papo estendido e fixação final.',
+      type: 'grammar_fix',
     },
   ];
 
@@ -2168,7 +2268,7 @@ export function buildWeeklyPlan(
         geminiMatrix,
         scenario.key,
         theme.type,
-        b // Pass block index as blockSeed to rotate words across exercises!
+        b // Pass block index as blockSeed to rotate starting exercise & words!
       );
 
       blocks.push({
@@ -2218,11 +2318,11 @@ export function buildWeeklyPlan(
   };
 }
 
-export const CURRENT_PLAN_VERSION = 4;
+export const CURRENT_PLAN_VERSION = 5;
 
 /**
- * Checks if a plan is deprecated (older plan generated before 6-exercise micro-lessons,
- * or containing outdated static templates / distractors).
+ * Checks if a plan is deprecated (older plan generated before version 5,
+ * or containing outdated static templates / distractors / Portuguese instruction in grammar_fix promptText).
  */
 export function isPlanDeprecated(plan: WeeklyPlan): boolean {
   if (!plan || !plan.days || plan.days.length === 0) return false;
@@ -2238,16 +2338,31 @@ export function isPlanDeprecated(plan: WeeklyPlan): boolean {
     ) {
       return true;
     }
+    // Check if any grammar_fix has Portuguese instruction in promptText instead of flawed English sentence
+    for (const d of plan.days) {
+      for (const b of d.blocks || []) {
+        const gf = b.lesson?.exercises?.find((e) => e.type === 'grammar_fix');
+        if (
+          gf &&
+          (gf.promptText.startsWith('Ajuste') ||
+            gf.promptText.startsWith('Corrija') ||
+            gf.promptText.startsWith('Elimine'))
+        ) {
+          return true;
+        }
+      }
+    }
     return false;
   }
   return true;
 }
 
 /**
- * Upgrades an existing WeeklyPlan to Version 4:
- * - Generates 6 diversified exercises for every block (Pairs, Fill in Blank, Sentence Build, Grammar Fix, Speak Verify, Leo Roleplay)
- * - Rotates vocabulary words across exercises
- * - Filters out meta section headers (e.g. "phrasal verbs")
+ * Upgrades an existing WeeklyPlan to Version 5:
+ * - Dynamically sequences each block differently (Bloco 1 != Bloco 2 != Bloco 3 != Bloco 4)
+ * - Fixes grammar_fix to show the flawed English sentence in the card
+ * - Embeds smart confusable distractors
+ * - Shuffles and rotates pairs minigame
  * - CAREFULLY PRESERVES ALL USER PROGRESS: isCompleted, completedAt, score, and xpEarned!
  */
 export function upgradePlanExercises(oldPlan: WeeklyPlan): WeeklyPlan {
@@ -2273,24 +2388,24 @@ export function upgradePlanExercises(oldPlan: WeeklyPlan): WeeklyPlan {
     type: ExerciseType;
   }> = [
     {
-      titleName: 'Descoberta & Conexão',
-      subtitle: 'Ligue os pares, complete no cenário e monte a frase na ordem certa.',
-      type: 'match_pairs',
-    },
-    {
-      titleName: 'Prática no Cenário',
-      subtitle: 'Ajuste gramatical, pronúncia no microfone e diálogo com o Leo.',
+      titleName: 'Descoberta & Contexto',
+      subtitle: 'Complete no cenário, monte a frase na ordem certa e fale no microfone.',
       type: 'fill_blank',
     },
     {
-      titleName: 'Fixação & Reflexo',
-      subtitle: 'Varie o vocabulário em ritmo ágil de desafio e escuta.',
+      titleName: 'Ação & Fala Ativa',
+      subtitle: 'Comece com voz no microfone, minigame de ligar pares e ajuste gramatical.',
+      type: 'speak_verify',
+    },
+    {
+      titleName: 'Desafio & Raciocínio',
+      subtitle: 'Monte frases complexas, corrija vícios comuns e converse com o Leo.',
       type: 'sentence_build',
     },
     {
       titleName: 'Maestria & Fluência',
-      subtitle: 'Consolidação completa das expressões em situações da vida real.',
-      type: 'speak_verify',
+      subtitle: 'Ajuste gramatical avançado, bate-papo estendido e fixação final.',
+      type: 'grammar_fix',
     },
   ];
 

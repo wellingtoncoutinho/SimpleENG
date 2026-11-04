@@ -1,4 +1,5 @@
 import { getWordTranslation } from './wordTranslations';
+import { normalizeSentence } from './speechRecognition';
 
 export interface GrammarCorrection {
   mistake: string;
@@ -211,14 +212,27 @@ export function evaluateRoleplayAnswer(
   requiredWords: string[] = []
 ): RoleplayEvaluation {
   const clean = userAnswer.trim();
-  const lower = clean.toLowerCase();
+  const normUser = normalizeSentence(clean);
 
-  // 1. Check required words
+  // 1. Check required words with robust normalization & multi-token tolerance
   const missingRequiredWords: string[] = [];
   for (const rw of requiredWords) {
-    const rwLower = rw.toLowerCase().trim();
-    if (!lower.includes(rwLower)) {
-      missingRequiredWords.push(rw);
+    if (!rw) continue;
+    // Strip external quotes, markdown, and trailing punctuation
+    const cleanRw = rw
+      .replace(/^["'`“”«»]+|["'`“”«»]+$/g, '')
+      .replace(/[.,;!?]+$/, '')
+      .trim();
+    if (!cleanRw) continue;
+
+    const normRw = normalizeSentence(cleanRw);
+    if (!normUser.includes(normRw)) {
+      // Check multi-word tokens (e.g. "cold plunge" -> checks presence of "cold" and "plunge")
+      const tokens = normRw.split(' ').filter(Boolean);
+      const hasAllTokens = tokens.length > 0 && tokens.every((t) => normUser.includes(t));
+      if (!hasAllTokens) {
+        missingRequiredWords.push(cleanRw);
+      }
     }
   }
 

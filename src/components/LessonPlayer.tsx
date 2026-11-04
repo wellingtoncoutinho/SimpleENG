@@ -42,13 +42,9 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   onExit,
   onComplete,
 }) => {
-  // Always organize exercises so the learner starts with the friendly word bank (Duolingo style)
+  // Respect the dynamic, pedagogical exercise flow generated for each micro-block
   const sortedExercises = useMemo(() => {
-    return [...lesson.exercises].sort((a, b) => {
-      const weightA = EXERCISE_ORDER_WEIGHT[a.type] ?? 99;
-      const weightB = EXERCISE_ORDER_WEIGHT[b.type] ?? 99;
-      return weightA - weightB;
-    });
+    return lesson.exercises || [];
   }, [lesson.exercises]);
 
   // Pre-load neural studio audio for all exercises in the lesson in background

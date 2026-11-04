@@ -130,9 +130,9 @@ export const FillBlankExercise: React.FC<FillBlankExerciseProps> = ({
           {afterBlank && <span>{afterBlank.trim()}</span>}
         </div>
 
-        {/* Translation Scaffolding */}
-        {(exercise.expectedAnswerPt || exercise.promptTextPt) && (
-          <p className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium italic">
+        {/* Translation Scaffolding - only revealed after answering (when disabled/feedback state) */}
+        {disabled && (exercise.expectedAnswerPt || exercise.promptTextPt) && (
+          <p className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium italic animate-in fade-in">
             "{exercise.expectedAnswerPt || exercise.promptTextPt}"
           </p>
         )}
