@@ -283,3 +283,112 @@ export function evaluateRoleplayAnswer(
     summaryFeedback,
   };
 }
+
+/**
+ * Common Brazilian Portuguese question-formation mistakes (missing auxiliary inversion, etc.)
+ */
+const QUESTION_PATTERNS: PatternRule[] = [
+  {
+    pattern: /^(why|where|when|what|how)\s+(you|they|we)\s+(are|were)\b/i,
+    extractMistake: (m) => `${m[1]} ${m[2]} ${m[3]}`,
+    replacement: (m) => `${m[1]} ${m[3]} ${m[2]}`,
+    tip: 'Em perguntas em inglês, inverta o verbo "to be" antes do sujeito (ex: "Why are you...?", "Where were you...?").',
+  },
+  {
+    pattern: /^(why|where|when|what|how)\s+(he|she|it)\s+(is|was)\b/i,
+    extractMistake: (m) => `${m[1]} ${m[2]} ${m[3]}`,
+    replacement: (m) => `${m[1]} ${m[3]} ${m[2]}`,
+    tip: 'Em perguntas, coloque "is / was" antes do sujeito (ex: "Where is he...?", "Why was she...?").',
+  },
+  {
+    pattern: /^(why|where|when|what|how)\s+you\s+(went|saw|ate|bought|did|made|said|left|took)\b/i,
+    extractMistake: (m) => `${m[1]} you ${m[2]}`,
+    replacement: (m) => {
+      const baseMap: Record<string, string> = {
+        went: 'go', saw: 'see', ate: 'eat', bought: 'buy', did: 'do',
+        made: 'make', said: 'say', left: 'leave', took: 'take',
+      };
+      return `${m[1]} did you ${baseMap[m[2].toLowerCase()] || m[2]}`;
+    },
+    tip: 'Para perguntar no passado, use o auxiliar "did" + verbo na forma base (ex: "Where did you go?", e não "Where you went?").',
+  },
+  {
+    pattern: /^you\s+(like|want|need|know|have|work|live|prefer|use)\b/i,
+    extractMistake: (m) => `You ${m[1]}`,
+    replacement: (m) => `Do you ${m[1].toLowerCase()}`,
+    tip: 'Para fazer perguntas no presente, comece com o auxiliar "Do you..." (ex: "Do you like...?", e não apenas "You like...?").',
+  },
+  {
+    pattern: /^you\s+(went|saw|liked|finished|talked|called|worked|bought)\b/i,
+    extractMistake: (m) => `You ${m[1]}`,
+    replacement: (m) => {
+      const baseMap: Record<string, string> = {
+        went: 'go', saw: 'see', liked: 'like', finished: 'finish',
+        talked: 'talk', called: 'call', worked: 'work', bought: 'buy',
+      };
+      return `Did you ${baseMap[m[1].toLowerCase()] || m[1].toLowerCase()}`;
+    },
+    tip: 'Para perguntas no passado, comece com "Did you..." + verbo na forma base (ex: "Did you go...?").',
+  },
+];
+
+/**
+ * Evaluates a user-created question for the "ask_question" (Reverse Q&A) exercise.
+ */
+export function evaluateQuestionFormulation(
+  userQuestion: string,
+  requiredWords: string[] = []
+): RoleplayEvaluation {
+  const baseEval = evaluateRoleplayAnswer(userQuestion, requiredWords);
+  const clean = userQuestion.trim();
+  const extraCorrections: GrammarCorrection[] = [...baseEval.corrections];
+  let suggested = baseEval.naturalSuggestion ? baseEval.naturalSuggestion.replace(/[.!?]+$/, '') : clean.replace(/[.!?]+$/, '');
+
+  for (const rule of QUESTION_PATTERNS) {
+    const match = suggested.match(rule.pattern);
+    if (match) {
+      const mistake = rule.extractMistake(match);
+      const fix = rule.replacement(match);
+      extraCorrections.push({
+        mistake,
+        fix,
+        tip: rule.tip,
+      });
+      suggested = suggested.replace(rule.pattern, fix);
+    }
+  }
+
+  // Check if it looks like a question (starts with WH-word or auxiliary verb)
+  const startsWithQuestionWord = /^(what|where|when|why|how|who|which|whose|do|does|did|are|is|was|were|can|could|would|will|should|have|has|had|don't|didn't|aren't|isn't)\b/i.test(clean);
+
+  if (!startsWithQuestionWord && clean.split(/\s+/).length >= 2 && extraCorrections.length === 0) {
+    extraCorrections.push({
+      mistake: clean.split(/\s+/).slice(0, 2).join(' '),
+      fix: `Do you / What / How...`,
+      tip: 'Em inglês, perguntas precisam começar com um pronome interrogativo (What, Where, Why, How) ou verbo auxiliar (Do, Did, Are, Can, Would).',
+    });
+  }
+
+  if (suggested.length > 0) {
+    suggested = suggested.charAt(0).toUpperCase() + suggested.slice(1) + '?';
+  }
+
+  const hasMistakes = extraCorrections.length > 0;
+  const missingWords = baseEval.missingRequiredWords.length > 0;
+  const isCorrect = !missingWords && !hasMistakes && clean.split(/\s+/).length >= 3;
+
+  let summaryFeedback = 'Excelente pergunta! Estrutura interrogativa perfeita!';
+  if (missingWords) {
+    summaryFeedback = `Quase lá! Faltou incluir a expressão obrigatória na sua pergunta: "${baseEval.missingRequiredWords.join('", "')}".`;
+  } else if (hasMistakes) {
+    summaryFeedback = 'Boa tentativa! Veja como ajustar a estrutura da pergunta em inglês:';
+  }
+
+  return {
+    isCorrect,
+    missingRequiredWords: baseEval.missingRequiredWords,
+    corrections: extraCorrections,
+    naturalSuggestion: hasMistakes ? suggested : undefined,
+    summaryFeedback,
+  };
+}

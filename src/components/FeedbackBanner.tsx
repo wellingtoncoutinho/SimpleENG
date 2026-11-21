@@ -53,7 +53,8 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
     statusChangeTimeRef.current = Date.now();
   }, [status]);
 
-  const isRoleplay = exerciseType === 'roleplay_prompt';
+  const isRoleplay = exerciseType === 'roleplay_prompt' || exerciseType === 'ask_question';
+  const isAskQuestion = exerciseType === 'ask_question';
   const isMatchPairs = exerciseType === 'match_pairs';
   const t = translations[lang];
   const activeExplanation = lang === 'pt' ? (explanationPt || explanation) : explanation;
@@ -219,7 +220,9 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                   {/* Leo's sample answer clearly marked as alternative */}
                   {expectedAnswer && (
                     <div className="mt-2 text-xs text-emerald-900 dark:text-emerald-200 font-medium">
-                      <span className="font-bold">🦁 Resposta modelo do Leo: </span>
+                      <span className="font-bold">
+                        {isAskQuestion ? '🦁 Pergunta modelo do Leo: ' : '🦁 Resposta modelo do Leo: '}
+                      </span>
                       <span className="italic">"{expectedAnswer}"</span>
                       {sentenceTranslation && (
                         <span className="opacity-80 block text-2xs sm:text-xs">
@@ -293,7 +296,9 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
                   {/* Leo's sample answer clearly marked as alternative */}
                   {expectedAnswer && (
                     <div className="mt-2 text-xs text-rose-900 dark:text-rose-200 font-medium">
-                      <span className="font-bold">🦁 Resposta modelo do Leo: </span>
+                      <span className="font-bold">
+                        {isAskQuestion ? '🦁 Pergunta modelo do Leo: ' : '🦁 Resposta modelo do Leo: '}
+                      </span>
                       <span className="italic">"{expectedAnswer}"</span>
                       {sentenceTranslation && (
                         <span className="opacity-80 block text-2xs sm:text-xs">

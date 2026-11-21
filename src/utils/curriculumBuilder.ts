@@ -2272,6 +2272,58 @@ export function buildCustomLesson(
     audioSpeedDefault: 1.0,
   };
 
+  // 7. ask_question: Reverse Q&A — Leo gives the answer and the student creates the question!
+  const itemAskQ = safeItems[(blockSeed + 5) % safeItems.length];
+  const wordAskQ = itemAskQ.english;
+  const cleanAskQTarget = wordAskQ
+    .replace(/^["'`“”«»]+|["'`“”«»]+$/g, '')
+    .trim();
+  const bundleAskQ = createRichSentences(itemAskQ, blockSeed + 6, scenarioKey, safeItems);
+  const geminiAskQ = geminiMatrix?.[wordAskQ.toLowerCase().trim()]?.askQuestion;
+
+  // In Reverse Q&A:
+  // - givenAnswer is the statement/answer Leo gives (e.g. bundleAskQ.roleplayPrompt.expectedAnswer)
+  // - expectedAnswer is a natural question using the targetWord (or asking about it)
+  const aqGivenAnswer = geminiAskQ?.givenAnswer || bundleAskQ.roleplayPrompt.expectedAnswer;
+  const aqGivenAnswerPt = geminiAskQ?.givenAnswerPt || bundleAskQ.roleplayPrompt.ptTranslation;
+  const aqExpectedQuestion =
+    geminiAskQ?.expectedQuestion ||
+    (bundleAskQ.roleplayPrompt.leoPrompt.toLowerCase().includes(cleanAskQTarget.toLowerCase())
+      ? bundleAskQ.roleplayPrompt.leoPrompt
+      : `How do you usually deal with ${cleanAskQTarget} in this situation?`);
+  const aqExpectedQuestionPt =
+    geminiAskQ?.expectedQuestionPt ||
+    `Como você costuma lidar com / usar "${cleanAskQTarget}" nessa situação?`;
+
+  const exAskQuestion: Exercise = {
+    id: `aq_${blockSeed}_${Date.now()}_7`,
+    type: 'ask_question',
+    targetWord: cleanAskQTarget,
+    instruction: 'Look at Leo’s answer and write or speak the question in English:',
+    instructionPt: 'Veja a resposta do Leo e crie a PERGUNTA em inglês usando a expressão em foco:',
+    promptText: aqGivenAnswer,
+    promptTextPt: aqGivenAnswerPt,
+    givenAnswer: aqGivenAnswer,
+    givenAnswerPt: aqGivenAnswerPt,
+    audioSentence: aqGivenAnswer,
+    expectedAnswer: aqExpectedQuestion,
+    expectedAnswerPt: aqExpectedQuestionPt,
+    acceptableVariations: [
+      aqExpectedQuestion,
+      aqExpectedQuestion.toLowerCase(),
+      `Do you use ${cleanAskQTarget}?`,
+      `What do you think about ${cleanAskQTarget}?`,
+      `Why did you mention ${cleanAskQTarget}?`,
+    ],
+    wordBank: ['What', 'How', 'Why', 'do', 'did', 'you', 'think', 'about', cleanAskQTarget],
+    requiredWords: [cleanAskQTarget],
+    hint: `Start with a question word (What, How, Why) or auxiliary (Do you, Did you, Are you) and include "${cleanAskQTarget}".`,
+    hintPt: `Dica: Comece com What, How, Why, Do you ou Did you e inclua "${cleanAskQTarget}" na sua pergunta!`,
+    explanation: 'Awesome question! Mastering question word order and auxiliary verbs unlocks real two-way conversations.',
+    explanationPt: `Excelente pergunta! Formular perguntas com "${cleanAskQTarget}" destrava a sua capacidade de puxar assunto e manter conversas reais.`,
+    audioSpeedDefault: 1.0,
+  };
+
   // Exercise map
   const exerciseMap: Record<string, Exercise> = {
     match_pairs: exMatchPairs,
@@ -2280,18 +2332,20 @@ export function buildCustomLesson(
     grammar_fix: exGrammarFix,
     speak_verify: exSpeakVerify,
     roleplay_prompt: exRoleplayPrompt,
+    ask_question: exAskQuestion,
   };
 
   // 4 distinctly sequenced learning flows so no two consecutive blocks ever feel identical!
-  const BLOCK_ORDER_PATTERNS: Array<Array<'fill_blank' | 'sentence_build' | 'speak_verify' | 'match_pairs' | 'grammar_fix' | 'roleplay_prompt'>> = [
-    // Bloco 1: Descoberta & Contexto (Começa preenchendo lacuna, monta frase, fala no microfone, minigame pares, erro gramatical, Leo)
+  // Now includes "ask_question" (Crie a Pergunta) in the weekly rotation!
+  const BLOCK_ORDER_PATTERNS: Array<Array<'fill_blank' | 'sentence_build' | 'speak_verify' | 'match_pairs' | 'grammar_fix' | 'roleplay_prompt' | 'ask_question'>> = [
+    // Bloco 1: Descoberta & Contexto
     ['fill_blank', 'sentence_build', 'speak_verify', 'match_pairs', 'grammar_fix', 'roleplay_prompt'],
-    // Bloco 2: Ação & Fala Ativa (Começa no microfone falando, minigame ligar pares, erro gramatical, completa frase, monta frase, Leo)
-    ['speak_verify', 'match_pairs', 'grammar_fix', 'fill_blank', 'sentence_build', 'roleplay_prompt'],
-    // Bloco 3: Desafio & Raciocínio (Começa montando frase, erro gramatical, completa lacuna, bate-papo Leo, fala, minigame pares)
+    // Bloco 2: Ação & Pergunta Ativa (Inclui o Desafio Invertido: Crie a Pergunta!)
+    ['speak_verify', 'match_pairs', 'grammar_fix', 'fill_blank', 'sentence_build', 'ask_question'],
+    // Bloco 3: Desafio & Raciocínio
     ['sentence_build', 'grammar_fix', 'fill_blank', 'roleplay_prompt', 'speak_verify', 'match_pairs'],
-    // Bloco 4: Maestria & Fluência (Começa ajustando erro gramatical, bate-papo Leo, fala no microfone, monta frase, completa frase, minigame pares)
-    ['grammar_fix', 'roleplay_prompt', 'speak_verify', 'sentence_build', 'fill_blank', 'match_pairs'],
+    // Bloco 4: Maestria & Fluência (Inclui tanto Crie a Pergunta quanto Roleplay!)
+    ['grammar_fix', 'ask_question', 'speak_verify', 'sentence_build', 'fill_blank', 'roleplay_prompt'],
   ];
 
   const selectedPattern = BLOCK_ORDER_PATTERNS[blockSeed % BLOCK_ORDER_PATTERNS.length];
@@ -2536,7 +2590,7 @@ export function buildWeeklyPlan(
   };
 }
 
-export const CURRENT_PLAN_VERSION = 6;
+export const CURRENT_PLAN_VERSION = 7;
 
 /**
  * Checks if a plan is deprecated (older plan generated before version 5,

@@ -8,7 +8,8 @@ export type ExerciseType =
   | 'grammar_fix'
   | 'multiple_choice'
   | 'match_pairs'
-  | 'fill_blank';
+  | 'fill_blank'
+  | 'ask_question';
 
 export interface ModuleMeta {
   appName: string;
@@ -54,6 +55,8 @@ export interface Exercise {
   options?: string[]; // Multiple choice options or Fill-in-the-blank choices
   sentenceWithBlank?: string; // For fill_blank e.g. "I wish I had _______ to avoid the traffic."
   pairs?: MatchPair[]; // For match_pairs game
+  givenAnswer?: string; // For ask_question: The answer that Leo gives so the student must write/speak the question
+  givenAnswerPt?: string; // Translation of the given answer
 }
 
 export interface ReviewSummary {

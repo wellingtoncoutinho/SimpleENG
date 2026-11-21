@@ -19,6 +19,7 @@ import { WeeklyPlannerView } from './components/WeeklyPlannerView';
 import { WeeklyPlanCreator } from './components/WeeklyPlanCreator';
 import { LessonGenerator } from './components/LessonGenerator';
 import { LessonPlayer } from './components/LessonPlayer';
+import { TellYourDayView } from './components/TellYourDayView';
 import { LearnerMascot } from './components/LearnerMascot';
 import { BrandLogo } from './components/BrandLogo';
 import { StreakBadge } from './components/StreakBadge';
@@ -36,7 +37,7 @@ import {
   loadWeeklyPlanFromCloud,
 } from './services/authService';
 
-type AppView = 'weekly_planner' | 'weekly_creator' | 'generator' | 'player';
+type AppView = 'weekly_planner' | 'weekly_creator' | 'generator' | 'player' | 'tell_your_day';
 
 export default function App() {
   const [lang, setLang] = useState<Language>(() => {
@@ -663,6 +664,24 @@ export default function App() {
           />
         )}
 
+        {/* VIEW 3.5: Tell Your Day Continuous Speaking Studio */}
+        {currentView === 'tell_your_day' && (
+          <TellYourDayView
+            user={user}
+            targetWords={weeklyPlan?.parsedItems?.map((i) => i.english) || []}
+            lang={lang}
+            onBack={() => setCurrentView('weekly_planner')}
+            onAwardXp={(earned) => {
+              handleUpdateUser({
+                ...user,
+                totalXp: (user.totalXp || 0) + earned,
+                lessonsCompleted: (user.lessonsCompleted || 0) + 1,
+                streakDays: Math.max(1, user.streakDays || 0),
+              });
+            }}
+          />
+        )}
+
         {/* VIEW 4: Interactive Exercise Player */}
         {currentView === 'player' && activeLesson && (
           <>
@@ -709,6 +728,44 @@ export default function App() {
           </>
         )}
       </main>
+
+      {/* Floating Mascot Bubble ("Como foi seu dia?") - ONLY on the Home Page (weekly_planner) */}
+      {currentView === 'weekly_planner' && (
+        <div className="fixed bottom-5 right-4 sm:bottom-7 sm:right-6 z-40 flex flex-col items-end animate-in fade-in slide-in-from-bottom-4">
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playTap();
+              setCurrentView('tell_your_day');
+            }}
+            className="group relative flex items-center gap-3 pl-3 pr-4 py-2.5 rounded-full bg-white dark:bg-slate-900 border-2 border-emerald-400 dark:border-emerald-600 shadow-[0_8px_25px_rgba(16,185,129,0.28)] hover:shadow-[0_10px_30px_rgba(16,185,129,0.42)] hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer"
+            title="Conte como foi seu dia em inglês!"
+          >
+            {/* Pulsing active indicator dot */}
+            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900" />
+            </span>
+
+            {/* Mini Leo Mascot Avatar */}
+            <div className="w-11 h-11 rounded-full bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center overflow-hidden flex-shrink-0 group-hover:scale-105 transition-transform">
+              <div className="scale-[0.55] origin-center">
+                <LearnerMascot mood="speaking" size="sm" />
+              </div>
+            </div>
+
+            {/* Speech Bubble Text */}
+            <div className="text-left">
+              <span className="block text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 leading-none mb-0.5">
+                Fala Ativa · 🎙️
+              </span>
+              <span className="block text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight">
+                {lang === 'pt' ? 'Como foi seu dia?' : 'How was your day?'}
+              </span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* User Profile Modal */}
       <UserProfileModal

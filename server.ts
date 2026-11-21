@@ -6,6 +6,7 @@ import {
   generateLessonWithGemini,
   generateWeeklyPlanWithGemini,
   synthesizeSpeechWithGemini,
+  analyzeDaySpeechWithGemini,
 } from './server/geminiService.js';
 
 dotenv.config();
@@ -16,7 +17,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
 
 app.post('/api/generate-lesson', async (req, res) => {
   try {
@@ -70,6 +71,26 @@ app.post('/api/tts', async (req, res) => {
   } catch (err: any) {
     console.error('Error in /api/tts:', err);
     res.status(500).json({ error: err.message || 'TTS generation failed' });
+  }
+});
+
+app.post('/api/analyze-day-speech', async (req, res) => {
+  try {
+    const { audioBase64, mimeType, liveTranscript, userLevel, targetWords } = req.body;
+    if (!audioBase64 && !liveTranscript) {
+      return res.status(400).json({ error: 'Missing audio or transcript to analyze' });
+    }
+    const analysis = await analyzeDaySpeechWithGemini({
+      audioBase64,
+      mimeType,
+      liveTranscript,
+      userLevel,
+      targetWords,
+    });
+    res.json(analysis);
+  } catch (err: any) {
+    console.error('Error in /api/analyze-day-speech:', err);
+    res.status(500).json({ error: err.message || 'Failed to analyze day speech' });
   }
 });
 

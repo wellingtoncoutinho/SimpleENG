@@ -160,6 +160,133 @@ export function createSpeechRecognizer(
   return recognizer;
 }
 
+/**
+ * Continuous Speech Recognizer for long-form monologue ("Tell Your Day").
+ * Never stops on silence or 12s timeout; automatically restarts on browser-enforced disconnects
+ * while preserving all spoken sentences across pauses and hesitations.
+ */
+export function createContinuousSpeechRecognizer(
+  onUpdate: (confirmedText: string, interimText: string) => void,
+  onError: (error: string) => void
+) {
+  if (!isSpeechRecognitionSupported()) {
+    onError('Reconhecimento de voz ao vivo não suportado neste navegador (o áudio ainda será gravado!).');
+    return null;
+  }
+
+  const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  let recognizer: any = null;
+  let isUserActive = false;
+  let confirmedSegments: string[] = [];
+  let currentSessionFinal = '';
+  let restartTimer: any = null;
+
+  const initSession = () => {
+    if (!isUserActive) return;
+
+    recognizer = new SpeechRecognitionClass();
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
+    recognizer.lang = 'en-US';
+    currentSessionFinal = '';
+
+    recognizer.onresult = (event: any) => {
+      let sessionFinal = '';
+      let sessionInterim = '';
+
+      for (let i = 0; i < event.results.length; ++i) {
+        const piece = event.results[i][0]?.transcript || '';
+        if (event.results[i].isFinal) {
+          sessionFinal += ' ' + piece;
+        } else {
+          sessionInterim += ' ' + piece;
+        }
+      }
+
+      currentSessionFinal = sessionFinal.replace(/\s+/g, ' ').trim();
+      const allConfirmed = [...confirmedSegments, currentSessionFinal]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      onUpdate(allConfirmed, sessionInterim.replace(/\s+/g, ' ').trim());
+    };
+
+    recognizer.onerror = (event: any) => {
+      if (event.error === 'not-allowed') {
+        isUserActive = false;
+        onError('Permissão de microfone negada.');
+      } else if (event.error === 'no-speech' || event.error === 'aborted' || event.error === 'network') {
+        // Normal during pauses in speech when thinking — onend will seamlessly restart
+      } else {
+        console.warn('Continuous speech recognition warning:', event.error);
+      }
+    };
+
+    recognizer.onend = () => {
+      if (currentSessionFinal) {
+        confirmedSegments.push(currentSessionFinal);
+        currentSessionFinal = '';
+      }
+      if (isUserActive) {
+        // Automatically restart immediately so the user can pause & think as long as they want
+        if (restartTimer) clearTimeout(restartTimer);
+        restartTimer = setTimeout(() => {
+          if (isUserActive) {
+            try {
+              initSession();
+            } catch {}
+          }
+        }, 120);
+      }
+    };
+
+    try {
+      recognizer.start();
+    } catch (e) {
+      console.warn('Continuous recognizer start warning:', e);
+    }
+  };
+
+  return {
+    start(initialText: string = '') {
+      confirmedSegments = initialText.trim() ? [initialText.trim()] : [];
+      isUserActive = true;
+      initSession();
+    },
+    stop() {
+      isUserActive = false;
+      if (restartTimer) {
+        clearTimeout(restartTimer);
+        restartTimer = null;
+      }
+      if (currentSessionFinal) {
+        confirmedSegments.push(currentSessionFinal);
+        currentSessionFinal = '';
+      }
+      if (recognizer) {
+        try {
+          recognizer.stop();
+        } catch {}
+      }
+      return confirmedSegments.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    },
+    abort() {
+      isUserActive = false;
+      if (restartTimer) {
+        clearTimeout(restartTimer);
+        restartTimer = null;
+      }
+      if (recognizer) {
+        try {
+          recognizer.abort();
+        } catch {}
+      }
+    },
+  };
+}
+
 export function normalizeSentence(str: string): string {
   return str
     .toLowerCase()

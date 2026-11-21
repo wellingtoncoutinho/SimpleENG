@@ -8,6 +8,7 @@ import {
   generateLessonWithGemini,
   generateWeeklyPlanWithGemini,
   synthesizeSpeechWithGemini,
+  analyzeDaySpeechWithGemini,
 } from './server/geminiService.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -81,6 +82,28 @@ function apiMiddlewarePlugin(): Plugin {
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ error: err.message || 'TTS synthesis failed' }));
+          }
+        });
+      });
+
+      server.middlewares.use('/api/analyze-day-speech', async (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          return res.end();
+        }
+        let body = '';
+        req.on('data', (chunk) => (body += chunk));
+        req.on('end', async () => {
+          try {
+            const input = JSON.parse(body);
+            const analysis = await analyzeDaySpeechWithGemini(input);
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(analysis));
+          } catch (err: any) {
+            console.error('API /analyze-day-speech error:', err);
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: err.message || 'Day speech analysis failed' }));
           }
         });
       });

@@ -10,11 +10,12 @@ import { GrammarFixExercise } from './exercises/GrammarFixExercise';
 import { MultipleChoiceExercise } from './exercises/MultipleChoiceExercise';
 import { FillBlankExercise } from './exercises/FillBlankExercise';
 import { MatchPairsExercise } from './exercises/MatchPairsExercise';
+import { AskQuestionExercise } from './exercises/AskQuestionExercise';
 import { LessonComplete } from './LessonComplete';
 import { LearnerMascot, MascotMood } from './LearnerMascot';
 import { soundEffects, prefetchAudio, stopAllAudio } from '../utils/audio';
 import { containsRequiredWords, verifyAnswer } from '../utils/speechRecognition';
-import { evaluateRoleplayAnswer, RoleplayEvaluation } from '../utils/roleplayEvaluator';
+import { evaluateRoleplayAnswer, evaluateQuestionFormulation, RoleplayEvaluation } from '../utils/roleplayEvaluator';
 import { Language, translations } from '../utils/i18n';
 
 interface LessonPlayerProps {
@@ -173,6 +174,21 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         }
         break;
       }
+      case 'ask_question': {
+        const evaluation = evaluateQuestionFormulation(
+          answerToVerify,
+          currentExercise.requiredWords || [currentExercise.targetWord]
+        );
+        localRoleplayEval = evaluation;
+        setRoleplayEvaluation(evaluation);
+
+        if (evaluation.missingRequiredWords.length > 0 || evaluation.corrections.length > 0) {
+          isCorrect = false;
+        } else {
+          isCorrect = true;
+        }
+        break;
+      }
       case 'grammar_fix': {
         const result = verifyAnswer(
           answerToVerify,
@@ -208,16 +224,17 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
 
       // Construct a precise, helpful, actionable tip for the student's mistake
       let errorTip = '';
-      if (currentExercise.type === 'roleplay_prompt') {
+      if (currentExercise.type === 'roleplay_prompt' || currentExercise.type === 'ask_question') {
+        const label = currentExercise.type === 'ask_question' ? 'Na pergunta com' : 'No diálogo com';
         if (localRoleplayEval && localRoleplayEval.missingRequiredWords.length > 0) {
-          errorTip = `No diálogo com "${currentExercise.targetWord}": faltou usar a palavra obrigatória "${localRoleplayEval.missingRequiredWords.join('", "')}".`;
+          errorTip = `${label} "${currentExercise.targetWord}": faltou usar a palavra obrigatória "${localRoleplayEval.missingRequiredWords.join('", "')}".`;
         } else if (localRoleplayEval && localRoleplayEval.corrections.length > 0) {
           const detail = localRoleplayEval.corrections
             .map(c => `'${c.mistake}' ➔ use '${c.fix}' (${c.tip})`)
             .join('; ');
-          errorTip = `No diálogo com "${currentExercise.targetWord}": ${detail}`;
+          errorTip = `${label} "${currentExercise.targetWord}": ${detail}`;
         } else {
-          errorTip = `No diálogo com "${currentExercise.targetWord}": lembre-se de responder em frase completa com o vocabulário obrigatório.`;
+          errorTip = `${label} "${currentExercise.targetWord}": lembre-se de formular a frase completa com o vocabulário obrigatório.`;
         }
       } else if (currentExercise.type === 'multiple_choice' || currentExercise.type === 'fill_blank') {
         errorTip = `Na atividade com "${currentExercise.targetWord}": a opção correta é "${currentExercise.expectedAnswer}". ${currentExercise.explanationPt || ''}`;
@@ -414,6 +431,17 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
 
         {currentExercise.type === 'roleplay_prompt' && (
           <RoleplayPromptExercise
+            exercise={currentExercise}
+            userAnswer={userAnswer}
+            onChangeAnswer={setUserAnswer}
+            onSubmit={handleCheckAnswer}
+            lang={lang}
+            disabled={feedbackStatus !== 'idle'}
+          />
+        )}
+
+        {currentExercise.type === 'ask_question' && (
+          <AskQuestionExercise
             exercise={currentExercise}
             userAnswer={userAnswer}
             onChangeAnswer={setUserAnswer}

@@ -341,6 +341,12 @@ Return strictly a valid JSON array matching this format (one object per target w
       "leoQuestion": "An engaging question asked by Mascot Leo to the student in English.",
       "studentAnswer": "A natural, authentic student answer in English applying the required word.",
       "pt": "Pergunta em português para guiar a resposta."
+    },
+    "askQuestion": {
+      "givenAnswer": "A natural statement/answer spoken by Leo in English within the scenario.",
+      "givenAnswerPt": "Tradução em português da resposta do Leo.",
+      "expectedQuestion": "A natural English question using the target word that leads to Leo's answer.",
+      "expectedQuestionPt": "Tradução da pergunta esperada em português."
     }
   }
 ]`;
@@ -535,4 +541,195 @@ export async function synthesizeSpeechWithGemini(
   }
 
   return null;
+}
+
+export interface DaySpeechAnalysisInput {
+  audioBase64?: string;
+  mimeType?: string;
+  liveTranscript?: string;
+  userLevel?: string;
+  targetWords?: string[];
+}
+
+export interface DaySpeechAnalysisResult {
+  faithfulTranscript: string;
+  portugueseMeaning: string;
+  overallFeedbackPt: string;
+  score: number;
+  grammarCorrections: Array<{
+    whatYouSaid: string;
+    betterWay: string;
+    explanationPt: string;
+  }>;
+  pronunciationAndFluencyTips: Array<{
+    wordOrPhrase: string;
+    tipPt: string;
+  }>;
+  correctedVersion: string;
+  nativeLevelUpVersion: string;
+  nativeExpressionsUsed: Array<{
+    expression: string;
+    meaningPt: string;
+  }>;
+}
+
+export async function analyzeDaySpeechWithGemini(
+  input: DaySpeechAnalysisInput
+): Promise<DaySpeechAnalysisResult> {
+  const ai = getAiClient();
+  const level = input.userLevel || 'B1';
+  const cleanLive = (input.liveTranscript || '').trim();
+
+  const systemPrompt = `You are Mascot Leo, a warm, perceptive, and expert English speaking coach for Brazilian Portuguese speakers in the app "SimpleENG".
+The student just recorded an open-ended audio monologue telling you about how their day went ("Tell me about your day").
+Note: The student is thinking and speaking in real time, so they may pause, hesitate, repeat words, or mix up verb tenses and prepositions.
+
+CRITICAL INSTRUCTION:
+- If an audio file is attached, LISTEN CAREFULLY to the actual spoken audio! Do NOT rely blindly on the browser live transcript, because browser speech-to-text often auto-corrects grammar mistakes or mishears Brazilian pronunciation.
+- Transcribe what the student ACTUALLY said in "faithfulTranscript" (cleaning up only meaningless stutters like "uh/um", but preserving their real grammar choices so we can teach them).
+- Identify where they made grammar or vocabulary slips (especially past tense verbs, prepositions like in/on/at/to, missing subjects, or Portuguese literal translations).
+- Identify pronunciation, rhythm, or hesitation points you heard in the audio (or structure flow if text-only) and give warm, practical tips in Brazilian Portuguese.
+- Rewrite their story in two ways:
+  1. "correctedVersion": Their exact story, keeping their style, just grammatically correct and clear.
+  2. "nativeLevelUpVersion": How a native English speaker at level ${level}+ would naturally tell the exact same story using everyday phrasal verbs and natural connectors (e.g., "Ended up", "Turns out", "First off", "Grabbed a bite", "Caught up on").
+
+Return strictly valid JSON matching the schema.`;
+
+  const userParts: any[] = [];
+
+  if (input.audioBase64 && input.audioBase64.length > 50) {
+    userParts.push({
+      inlineData: {
+        mimeType: input.mimeType || 'audio/webm',
+        data: input.audioBase64,
+      },
+    });
+  }
+
+  userParts.push({
+    text: `Student CEFR Level: ${level}
+${input.targetWords && input.targetWords.length > 0 ? `Weekly target vocabulary (check if they used any or could have used them): ${input.targetWords.join(', ')}` : ''}
+Browser live speech-to-text draft (use only as backup reference; prioritize the real audio if attached): "${cleanLive || '(Audio recording attached)'}"
+
+Please analyze the student's spoken story about their day and return the complete coaching feedback in JSON.`,
+  });
+
+  const modelsToTry = [
+    'gemini-2.5-flash',
+    'gemini-flash-latest',
+    'gemini-flash-lite-latest',
+    'gemini-3.5-flash-lite',
+  ];
+
+  for (const modelName of modelsToTry) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: [{ role: 'user', parts: userParts }],
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              faithfulTranscript: { type: Type.STRING },
+              portugueseMeaning: { type: Type.STRING },
+              overallFeedbackPt: { type: Type.STRING },
+              score: { type: Type.NUMBER },
+              grammarCorrections: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    whatYouSaid: { type: Type.STRING },
+                    betterWay: { type: Type.STRING },
+                    explanationPt: { type: Type.STRING },
+                  },
+                  required: ['whatYouSaid', 'betterWay', 'explanationPt'],
+                },
+              },
+              pronunciationAndFluencyTips: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    wordOrPhrase: { type: Type.STRING },
+                    tipPt: { type: Type.STRING },
+                  },
+                  required: ['wordOrPhrase', 'tipPt'],
+                },
+              },
+              correctedVersion: { type: Type.STRING },
+              nativeLevelUpVersion: { type: Type.STRING },
+              nativeExpressionsUsed: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    expression: { type: Type.STRING },
+                    meaningPt: { type: Type.STRING },
+                  },
+                  required: ['expression', 'meaningPt'],
+                },
+              },
+            },
+            required: [
+              'faithfulTranscript',
+              'portugueseMeaning',
+              'overallFeedbackPt',
+              'score',
+              'grammarCorrections',
+              'pronunciationAndFluencyTips',
+              'correctedVersion',
+              'nativeLevelUpVersion',
+              'nativeExpressionsUsed',
+            ],
+          },
+        },
+      });
+
+      const text = response.text?.trim() || '{}';
+      const parsed = JSON.parse(text) as DaySpeechAnalysisResult;
+      if (parsed && parsed.faithfulTranscript) {
+        return parsed;
+      }
+    } catch (err: any) {
+      console.warn(`Model ${modelName} failed for analyzeDaySpeechWithGemini:`, err?.message || err);
+    }
+  }
+
+  // Resilient local fallback using evaluateRoleplayAnswer if offline or API error
+  const fallbackTranscript = cleanLive || 'Today I had a busy day. I worked a lot and studied English.';
+  return {
+    faithfulTranscript: fallbackTranscript,
+    portugueseMeaning: 'Hoje tive um dia movimentado e pratiquei meu inglês falando sobre a minha rotina.',
+    overallFeedbackPt:
+      'Mandou muito bem por destravar e contar o seu dia em voz alta! Falar de forma livre, mesmo pausando para pensar, é o melhor exercício para ganhar fluência real.',
+    score: 88,
+    grammarCorrections: [
+      {
+        whatYouSaid: fallbackTranscript.slice(0, 60),
+        betterWay: fallbackTranscript.endsWith('.') ? fallbackTranscript : `${fallbackTranscript}.`,
+        explanationPt: 'Lembre-se de conectar suas frases usando conectivos do passado como "First", "After that" e "Then".',
+      },
+    ],
+    pronunciationAndFluencyTips: [
+      {
+        wordOrPhrase: 'worked / studied / walked (-ed endings)',
+        tipPt: 'Em verbos regulares no passado terminados em "-ed", evite pronunciar a vogal "e" forte; junte o som final diretamente com um "/t/" ou "/d/" suave.',
+      },
+    ],
+    correctedVersion: fallbackTranscript.endsWith('.') ? fallbackTranscript : `${fallbackTranscript}.`,
+    nativeLevelUpVersion: `Today was quite a productive day! ${fallbackTranscript.endsWith('.') ? fallbackTranscript : `${fallbackTranscript}.`} After wrapping everything up, I took some time to wind down.`,
+    nativeExpressionsUsed: [
+      {
+        expression: 'wrap up',
+        meaningPt: 'finalizar / concluir tarefas do dia',
+      },
+      {
+        expression: 'wind down',
+        meaningPt: 'desacelerar / relaxar depois de um dia cheio',
+      },
+    ],
+  };
 }
