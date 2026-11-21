@@ -234,11 +234,11 @@ export function speakWord(word: string, onEnd?: () => void) {
     return;
   }
 
-  // If already in neural cache, play high fidelity audio
+  // If already in neural cache, play high fidelity audio immediately
   if (neuralAudioCache.has(cleaned)) {
     try {
       const audio = new Audio(`data:audio/wav;base64,${neuralAudioCache.get(cleaned)}`);
-      audio.playbackRate = 1.0;
+      audio.playbackRate = 0.94;
       audio.onended = () => { if (onEnd) onEnd(); };
       audio.onerror = () => { if (onEnd) onEnd(); };
       audio.play().catch(() => { if (onEnd) onEnd(); });
@@ -246,37 +246,39 @@ export function speakWord(word: string, onEnd?: () => void) {
     } catch {}
   }
 
-  if ('speechSynthesis' in window) {
-    try {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-
-      const utterance = new SpeechSynthesisUtterance(cleaned);
-      utterance.rate = getCalibratedSpeechRate(0.9);
-      utterance.pitch = 1.0;
-      utterance.lang = 'en-US';
-
-      const voice = cachedBestVoice || loadBestEnglishVoice();
-      if (voice) {
-        utterance.voice = voice;
-      }
-
-      utterance.onend = () => {
-        if (onEnd) onEnd();
-      };
-      utterance.onerror = () => {
-        if (onEnd) onEnd();
-      };
-
-      window.speechSynthesis.speak(utterance);
-      return;
-    } catch {
-      // ignore
+  // Otherwise fetch studio neural Gemini TTS (Aoede) so it never sounds like robotic browser TTS!
+  fetchAudioBase64(cleaned).then((base64) => {
+    if (base64 && !isMainSentenceSpeaking) {
+      try {
+        const audio = new Audio(`data:audio/wav;base64,${base64}`);
+        audio.playbackRate = 0.94;
+        audio.onended = () => { if (onEnd) onEnd(); };
+        audio.onerror = () => { if (onEnd) onEnd(); };
+        audio.play().catch(() => { if (onEnd) onEnd(); });
+        return;
+      } catch {}
     }
-  }
 
-  if (onEnd) onEnd();
+    // Fallback to browser speech only if offline / API unavailable
+    if ('speechSynthesis' in window && !isMainSentenceSpeaking) {
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        const utterance = new SpeechSynthesisUtterance(cleaned);
+        utterance.rate = getCalibratedSpeechRate(0.9);
+        utterance.pitch = 1.0;
+        utterance.lang = 'en-US';
+        const voice = cachedBestVoice || loadBestEnglishVoice();
+        if (voice) utterance.voice = voice;
+        utterance.onend = () => { if (onEnd) onEnd(); };
+        utterance.onerror = () => { if (onEnd) onEnd(); };
+        window.speechSynthesis.speak(utterance);
+        return;
+      } catch {}
+    }
+    if (onEnd) onEnd();
+  });
 }
 
 let currentWebAudioSource: AudioBufferSourceNode | null = null;
@@ -314,7 +316,7 @@ async function playWavViaWebAudio(
 
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
-    source.playbackRate.value = speed < 0.85 ? 0.60 : 1.0;
+    source.playbackRate.value = speed < 0.85 ? 0.60 : speed < 0.96 ? 0.92 : 1.0;
     source.connect(ctx.destination);
     source.onended = () => {
       currentWebAudioSource = null;
@@ -363,7 +365,7 @@ async function fetchAudioBase64(text: string): Promise<string | null> {
   const fetchPromise = (async () => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 14000);
 
       const res = await fetch('/api/tts', {
         method: 'POST',
@@ -558,7 +560,7 @@ export async function playTextToSpeech(
     try {
       const cleanAudio = cleanAudioWav(base64Audio);
       const audio = new Audio(`data:audio/wav;base64,${cleanAudio}`);
-      audio.playbackRate = speed < 0.85 ? 0.60 : 1.0;
+      audio.playbackRate = speed < 0.85 ? 0.60 : speed < 0.96 ? 0.92 : 1.0;
       currentAudioElement = audio;
       audio.onended = handleFinish;
       audio.onerror = async () => {

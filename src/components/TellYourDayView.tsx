@@ -20,7 +20,7 @@ import {
 import { LearnerMascot } from './LearnerMascot';
 import { UserProfile } from '../types/user';
 import { createContinuousSpeechRecognizer } from '../utils/speechRecognition';
-import { playTextToSpeech, speakWord, soundEffects, stopAllAudio } from '../utils/audio';
+import { playTextToSpeech, prefetchAudio, soundEffects, stopAllAudio } from '../utils/audio';
 import { Language } from '../utils/i18n';
 
 export interface DaySpeechAnalysisResult {
@@ -107,6 +107,8 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
   };
 
   useEffect(() => {
+    prefetchAudio(leoGreeting);
+    targetWords.slice(0, 5).forEach((w) => prefetchAudio(w));
     return () => {
       stopAllAudio();
       cleanupRecordingResources();
@@ -361,6 +363,19 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
       soundEffects.playFanfare();
       onAwardXp?.(30);
 
+      // Prefetch studio neural voice (Aoede) for all corrections, tips, and model stories immediately
+      if (result.correctedVersion) prefetchAudio(result.correctedVersion);
+      if (result.nativeLevelUpVersion) prefetchAudio(result.nativeLevelUpVersion);
+      result.grammarCorrections?.forEach((c) => {
+        if (c.betterWay) prefetchAudio(c.betterWay);
+      });
+      result.pronunciationAndFluencyTips?.forEach((p) => {
+        if (p.wordOrPhrase) prefetchAudio(p.wordOrPhrase);
+      });
+      result.nativeExpressionsUsed?.forEach((e) => {
+        if (e.expression) prefetchAudio(e.expression);
+      });
+
       // Save to local journal history
       const newEntry: SavedDayEntry = {
         id: `day_${Date.now()}`,
@@ -398,7 +413,8 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
     stopAllAudio();
     setIsPlayingModelAudio(key);
     soundEffects.playTap();
-    playTextToSpeech(text, 1.0, () => {
+    // Play at a calm, clear 0.92x conversational pace using the studio neural voice (Aoede)
+    playTextToSpeech(text, 0.92, () => {
       setIsPlayingModelAudio(null);
     });
   };
@@ -488,11 +504,11 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
                   <button
                     key={w}
                     type="button"
-                    onClick={() => speakWord(w)}
+                    onClick={() => handlePlayVersionAudio(`word_${w}`, w)}
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 cursor-pointer"
                     title="Ouvir pronúncia"
                   >
-                    <Volume2 className="w-3 h-3 text-emerald-600" />
+                    <Volume2 className={`w-3 h-3 text-emerald-600 ${isPlayingModelAudio === `word_${w}` ? 'animate-bounce' : ''}`} />
                     <span>{w}</span>
                   </button>
                 ))}
@@ -742,11 +758,11 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
                       <span className="text-slate-400 font-black hidden sm:inline">➔</span>
                       <button
                         type="button"
-                        onClick={() => speakWord(item.betterWay)}
+                        onClick={() => handlePlayVersionAudio(`corr_${idx}`, item.betterWay)}
                         className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 text-xs sm:text-sm font-black hover:bg-emerald-200 transition-all cursor-pointer"
-                        title="Ouvir pronúncia correta"
+                        title="Ouvir pronúncia natural do estúdio"
                       >
-                        <Volume2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        <Volume2 className={`w-3.5 h-3.5 text-emerald-600 flex-shrink-0 ${isPlayingModelAudio === `corr_${idx}` ? 'animate-bounce' : ''}`} />
                         <span>{item.betterWay}</span>
                       </button>
                     </div>
@@ -777,10 +793,10 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
                       <div>
                         <button
                           type="button"
-                          onClick={() => speakWord(tip.wordOrPhrase)}
+                          onClick={() => handlePlayVersionAudio(`tip_${idx}`, tip.wordOrPhrase)}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs font-black mb-2 hover:bg-amber-100 cursor-pointer"
                         >
-                          <Volume2 className="w-3.5 h-3.5 text-amber-600" />
+                          <Volume2 className={`w-3.5 h-3.5 text-amber-600 ${isPlayingModelAudio === `tip_${idx}` ? 'animate-bounce' : ''}`} />
                           <span>{tip.wordOrPhrase}</span>
                         </button>
                         <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
@@ -857,11 +873,12 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => speakWord(exp.expression)}
-                        className="text-[11px] px-2 py-0.5 rounded-lg bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200 font-bold cursor-pointer"
-                        title="Toque para ouvir"
+                        onClick={() => handlePlayVersionAudio(`exp_${idx}`, exp.expression)}
+                        className="text-[11px] px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200 font-bold cursor-pointer inline-flex items-center gap-1 hover:bg-indigo-100 transition-all"
+                        title="Toque para ouvir a pronúncia natural"
                       >
-                        <strong>{exp.expression}</strong> = {exp.meaningPt}
+                        <Volume2 className={`w-3 h-3 text-indigo-600 ${isPlayingModelAudio === `exp_${idx}` ? 'animate-bounce' : ''}`} />
+                        <span><strong>{exp.expression}</strong> = {exp.meaningPt}</span>
                       </button>
                     ))}
                   </div>
