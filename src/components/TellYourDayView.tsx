@@ -17,6 +17,7 @@ import {
   History,
   Trash2,
   Download,
+  Upload,
   ShieldCheck,
 } from 'lucide-react';
 import { LearnerMascot } from './LearnerMascot';
@@ -109,6 +110,7 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const speechRecognizerRef = useRef<ReturnType<typeof createContinuousSpeechRecognizer> | null>(null);
   const timerRef = useRef<any>(null);
   const elapsedRef = useRef<number>(0);
@@ -414,6 +416,52 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
     setErrorMsg(null);
     setRecoveredNotice(null);
     setRecordingState('idle');
+  };
+
+  const handleUploadAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    soundEffects.playTap();
+    setErrorMsg(null);
+    setRecoveredNotice(null);
+    setAnalysisResult(null);
+
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+
+    const uploadedMime = file.type || 'audio/webm';
+    setMimeType(uploadedMime);
+    setAudioBlob(file);
+    const url = URL.createObjectURL(file);
+    setAudioUrl(url);
+    setRecordingState('stopped');
+
+    // Estimate or read duration from audio element
+    const tempAudio = new Audio(url);
+    tempAudio.onloadedmetadata = () => {
+      if (tempAudio.duration && isFinite(tempAudio.duration)) {
+        const secs = Math.round(tempAudio.duration);
+        setElapsedSeconds(secs);
+        savePendingAudioDraft({
+          audioBlob: file,
+          mimeType: uploadedMime,
+          transcript: confirmedTextRef.current,
+          elapsedSeconds: secs,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    };
+
+    savePendingAudioDraft({
+      audioBlob: file,
+      mimeType: uploadedMime,
+      transcript: confirmedTextRef.current,
+      elapsedSeconds: elapsedRef.current,
+      updatedAt: new Date().toISOString(),
+    });
+
+    e.target.value = '';
   };
 
   const handleDownloadAudio = (blobToDownload: Blob | null = audioBlob, labelDate?: string) => {
@@ -750,18 +798,43 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
             </div>
           </div>
 
+          {/* Hidden File Input for Audio Upload */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*,.webm,.mp3,.m4a,.wav,.ogg,.aac,.mp4"
+            onChange={handleUploadAudioFile}
+            className="hidden"
+          />
+
           {/* Primary Microphone Controls */}
           <div className="flex items-center justify-center gap-3 sm:gap-4 mb-6 flex-wrap">
             {recordingState === 'idle' && (
-              <button
-                type="button"
-                onClick={handleStartRecording}
-                disabled={isAnalyzing}
-                className="py-4 px-7 rounded-3xl btn-3d-green text-white font-black text-base flex items-center gap-3 cursor-pointer shadow-lg"
-              >
-                <Mic className="w-6 h-6" />
-                <span>Abrir Microfone e Contar Meu Dia</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleStartRecording}
+                  disabled={isAnalyzing}
+                  className="py-4 px-7 rounded-3xl btn-3d-green text-white font-black text-base flex items-center gap-3 cursor-pointer shadow-lg"
+                >
+                  <Mic className="w-6 h-6" />
+                  <span>Abrir Microfone e Contar Meu Dia</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playTap();
+                    fileInputRef.current?.click();
+                  }}
+                  disabled={isAnalyzing}
+                  className="py-3.5 px-5 rounded-2xl btn-3d-slate font-black text-xs sm:text-sm flex items-center gap-2 cursor-pointer"
+                  title="Carregar um arquivo de áudio do seu celular ou computador"
+                >
+                  <Upload className="w-4 h-4 text-emerald-600" />
+                  <span>Carregar Áudio Salvo</span>
+                </button>
+              </>
             )}
 
             {recordingState === 'recording' && (
@@ -821,6 +894,20 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
                     <span>Baixar Meu Áudio</span>
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playTap();
+                    fileInputRef.current?.click();
+                  }}
+                  disabled={isAnalyzing}
+                  className="py-2.5 px-4 rounded-2xl btn-3d-slate text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  title="Enviar outro arquivo de áudio do aparelho"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Carregar Outro Áudio</span>
+                </button>
 
                 <button
                   type="button"
