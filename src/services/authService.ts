@@ -542,3 +542,70 @@ export async function loadWeeklyPlanFromCloud(
 
   return null;
 }
+
+/**
+ * Save user's "Tell Your Day" journal history to Firestore cloud and localStorage
+ */
+export async function saveDayJournalHistoryToCloud(
+  userId: string,
+  entries: any[]
+): Promise<void> {
+  try {
+    const serialized = JSON.stringify(entries);
+    localStorage.setItem('simpleeng_day_journal_history', serialized);
+    if (userId) {
+      localStorage.setItem('simpleeng_day_journal_history_' + userId, serialized);
+    }
+  } catch {
+    // ignore
+  }
+
+  if (isFirebaseConfigured() && db && userId) {
+    try {
+      await setDoc(doc(db, 'day_journals', userId), {
+        userId,
+        updatedAt: new Date().toISOString(),
+        entries: entries.slice(0, 25),
+      });
+    } catch (error) {
+      console.warn('Error saving day journal history to cloud:', error);
+    }
+  }
+}
+
+/**
+ * Load user's "Tell Your Day" journal history from Firestore cloud or localStorage
+ */
+export async function loadDayJournalHistoryFromCloud(
+  userId?: string
+): Promise<any[]> {
+  if (isFirebaseConfigured() && db && userId) {
+    try {
+      const snap = await getDoc(doc(db, 'day_journals', userId));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data && Array.isArray(data.entries) && data.entries.length > 0) {
+          const serialized = JSON.stringify(data.entries);
+          localStorage.setItem('simpleeng_day_journal_history', serialized);
+          localStorage.setItem('simpleeng_day_journal_history_' + userId, serialized);
+          return data.entries;
+        }
+      }
+    } catch (error) {
+      console.warn('Error loading day journal history from cloud:', error);
+    }
+  }
+
+  try {
+    const saved =
+      (userId && localStorage.getItem('simpleeng_day_journal_history_' + userId)) ||
+      localStorage.getItem('simpleeng_day_journal_history');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}

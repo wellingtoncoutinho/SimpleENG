@@ -16,11 +16,25 @@ import {
   Wand2,
   History,
   Trash2,
+  Download,
+  ShieldCheck,
 } from 'lucide-react';
 import { LearnerMascot } from './LearnerMascot';
 import { UserProfile } from '../types/user';
 import { createContinuousSpeechRecognizer } from '../utils/speechRecognition';
 import { playTextToSpeech, prefetchAudio, soundEffects, stopAllAudio } from '../utils/audio';
+import {
+  savePendingAudioDraft,
+  loadPendingAudioDraft,
+  clearPendingAudioDraft,
+  saveArchivedAudioBlob,
+  loadArchivedAudioBlob,
+  deleteArchivedAudioBlob,
+} from '../utils/audioDraftStorage';
+import {
+  saveDayJournalHistoryToCloud,
+  loadDayJournalHistoryFromCloud,
+} from '../services/authService';
 import { Language } from '../utils/i18n';
 
 export interface DaySpeechAnalysisResult {
@@ -49,6 +63,7 @@ export interface SavedDayEntry {
   id: string;
   dateFormatted: string;
   durationSec: number;
+  hasLocalAudio?: boolean;
   result: DaySpeechAnalysisResult;
 }
 
@@ -74,14 +89,18 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState<string>('audio/webm');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [recoveredNotice, setRecoveredNotice] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<DaySpeechAnalysisResult | null>(null);
+  const [selectedHistoryAudioUrl, setSelectedHistoryAudioUrl] = useState<string | null>(null);
   const [isPlayingLeoIntro, setIsPlayingLeoIntro] = useState<boolean>(false);
   const [isPlayingModelAudio, setIsPlayingModelAudio] = useState<string | null>(null);
 
   const [history, setHistory] = useState<SavedDayEntry[]>(() => {
     try {
-      const saved = localStorage.getItem('simpleeng_day_journal_history');
+      const saved =
+        (user?.id && localStorage.getItem('simpleeng_day_journal_history_' + user.id)) ||
+        localStorage.getItem('simpleeng_day_journal_history');
       if (saved) return JSON.parse(saved);
     } catch {}
     return [];
@@ -92,10 +111,15 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
   const audioChunksRef = useRef<Blob[]>([]);
   const speechRecognizerRef = useRef<ReturnType<typeof createContinuousSpeechRecognizer> | null>(null);
   const timerRef = useRef<any>(null);
+  const elapsedRef = useRef<number>(0);
+  elapsedRef.current = elapsedSeconds;
   const confirmedTextRef = useRef<string>('');
   confirmedTextRef.current = confirmedText;
+  const interimTextRef = useRef<string>('');
+  interimTextRef.current = interimText;
 
-  const leoGreeting = "Hey! Tell me a little about how your day went. Take your time to think — the microphone won't cut you off!";
+  const leoGreeting =
+    "Hey! Tell me a little about how your day went. Take your time to think — the microphone won't cut you off!";
 
   const handlePlayLeoIntro = () => {
     if (isPlayingLeoIntro) return;
@@ -106,17 +130,45 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
     });
   };
 
+  // 1. On mount: Recover any unanalyzed audio draft from IndexedDB + load cloud history
   useEffect(() => {
     prefetchAudio(leoGreeting);
     targetWords.slice(0, 5).forEach((w) => prefetchAudio(w));
+
+    let isMounted = true;
+
+    loadPendingAudioDraft().then((draft) => {
+      if (!isMounted || !draft) return;
+      const hasAudio = draft.audioBlob && draft.audioBlob.size > 0;
+      const hasText = draft.transcript && draft.transcript.trim().length > 0;
+
+      if (hasAudio || hasText) {
+        if (draft.audioBlob) {
+          setAudioBlob(draft.audioBlob);
+          setAudioUrl(URL.createObjectURL(draft.audioBlob));
+        }
+        if (draft.mimeType) setMimeType(draft.mimeType);
+        if (draft.transcript) setConfirmedText(draft.transcript);
+        if (draft.elapsedSeconds) setElapsedSeconds(draft.elapsedSeconds);
+        setRecordingState('stopped');
+        setRecoveredNotice(
+          'Recuperamos automaticamente sua última gravação que ainda não tinha sido concluída! Você pode ouvir, baixar ou clicar para analisar.'
+        );
+      }
+    });
+
+    loadDayJournalHistoryFromCloud(user?.id).then((cloudEntries) => {
+      if (isMounted && cloudEntries && cloudEntries.length > 0) {
+        setHistory(cloudEntries);
+      }
+    });
+
     return () => {
+      isMounted = false;
       stopAllAudio();
       cleanupRecordingResources();
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
     };
-  }, []);
+  }, [user?.id]);
 
   const cleanupRecordingResources = () => {
     if (timerRef.current) {
@@ -160,11 +212,35 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
     return `${String(mins).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
   };
 
+  const persistCurrentSnapshotToVault = (customBlob?: Blob | null, customText?: string) => {
+    const snapshotBlob =
+      customBlob !== undefined
+        ? customBlob
+        : audioChunksRef.current.length > 0
+        ? new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' })
+        : audioBlob;
+
+    const snapshotText =
+      customText !== undefined
+        ? customText
+        : (confirmedTextRef.current + ' ' + interimTextRef.current).replace(/\s+/g, ' ').trim();
+
+    savePendingAudioDraft({
+      audioBlob: snapshotBlob || null,
+      mimeType: mimeType || 'audio/webm',
+      transcript: snapshotText,
+      elapsedSeconds: elapsedRef.current,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
   const handleStartRecording = async () => {
     stopAllAudio();
     setIsPlayingLeoIntro(false);
     setErrorMsg(null);
+    setRecoveredNotice(null);
     setAnalysisResult(null);
+    setSelectedHistoryAudioUrl(null);
     soundEffects.playTap();
 
     try {
@@ -179,29 +255,51 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
         ? 'audio/mp4'
         : '';
 
-      const recorder = supportedMime
-        ? new MediaRecorder(stream, { mimeType: supportedMime })
-        : new MediaRecorder(stream);
+      // 24 kbps voice bitrate: crystal clear for voice & Gemini analysis,
+      // keeps a 5-minute audio around ~900 KB so it NEVER hits Vercel's 4.5MB limit!
+      const recorderOptions: MediaRecorderOptions = {
+        ...(supportedMime ? { mimeType: supportedMime } : {}),
+        audioBitsPerSecond: 24000,
+      };
 
-      setMimeType(recorder.mimeType || 'audio/webm');
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, recorderOptions);
+      } catch {
+        recorder = supportedMime ? new MediaRecorder(stream, { mimeType: supportedMime }) : new MediaRecorder(stream);
+      }
+
+      const activeMime = recorder.mimeType || 'audio/webm';
+      setMimeType(activeMime);
       audioChunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
           audioChunksRef.current.push(e.data);
+          // Every ~3 chunks (4.5s), persist live backup to IndexedDB so even a browser crash loses nothing!
+          if (audioChunksRef.current.length % 3 === 0) {
+            const liveBlob = new Blob(audioChunksRef.current, { type: activeMime });
+            savePendingAudioDraft({
+              audioBlob: liveBlob,
+              mimeType: activeMime,
+              transcript: (confirmedTextRef.current + ' ' + interimTextRef.current).replace(/\s+/g, ' ').trim(),
+              elapsedSeconds: elapsedRef.current,
+              updatedAt: new Date().toISOString(),
+            });
+          }
         }
       };
 
       recorder.onstop = () => {
         if (audioChunksRef.current.length > 0) {
-          const finalBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+          const finalBlob = new Blob(audioChunksRef.current, { type: activeMime });
           setAudioBlob(finalBlob);
           const url = URL.createObjectURL(finalBlob);
           setAudioUrl(url);
+          persistCurrentSnapshotToVault(finalBlob);
         }
       };
 
-      // Collect chunks every 1500ms so long recordings never lose buffer data
       recorder.start(1500);
       mediaRecorderRef.current = recorder;
 
@@ -237,11 +335,16 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
         mediaRecorderRef.current.pause();
       } catch {}
     }
+    let combined = confirmedTextRef.current;
     if (speechRecognizerRef.current) {
       const saved = speechRecognizerRef.current.stop();
-      if (saved) setConfirmedText(saved);
+      if (saved) {
+        combined = saved;
+        setConfirmedText(saved);
+      }
       setInterimText('');
     }
+    persistCurrentSnapshotToVault(undefined, combined);
     setRecordingState('paused');
   };
 
@@ -263,9 +366,10 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
     soundEffects.playTap();
     stopTimer();
 
+    let combined = (confirmedTextRef.current + ' ' + interimTextRef.current).replace(/\s+/g, ' ').trim();
     if (speechRecognizerRef.current) {
       const finalStr = speechRecognizerRef.current.stop();
-      const combined = (finalStr + ' ' + interimText).replace(/\s+/g, ' ').trim();
+      combined = (finalStr + ' ' + interimTextRef.current).replace(/\s+/g, ' ').trim();
       if (combined) setConfirmedText(combined);
       setInterimText('');
       speechRecognizerRef.current = null;
@@ -282,15 +386,25 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
       mediaStreamRef.current = null;
     }
 
+    if (audioChunksRef.current.length > 0) {
+      const finalBlob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
+      setAudioBlob(finalBlob);
+      setAudioUrl(URL.createObjectURL(finalBlob));
+      persistCurrentSnapshotToVault(finalBlob, combined);
+    } else {
+      persistCurrentSnapshotToVault(audioBlob, combined);
+    }
+
     setRecordingState('stopped');
   };
 
-  const handleResetRecording = () => {
+  const handleResetRecording = async () => {
     soundEffects.playTap();
     cleanupRecordingResources();
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
     }
+    await clearPendingAudioDraft();
     setAudioBlob(null);
     setAudioUrl(null);
     setConfirmedText('');
@@ -298,7 +412,23 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
     setElapsedSeconds(0);
     setAnalysisResult(null);
     setErrorMsg(null);
+    setRecoveredNotice(null);
     setRecordingState('idle');
+  };
+
+  const handleDownloadAudio = (blobToDownload: Blob | null = audioBlob, labelDate?: string) => {
+    if (!blobToDownload) return;
+    soundEffects.playTap();
+    const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
+    const safeDate = (labelDate || new Date().toISOString().slice(0, 10)).replace(/[^a-zA-Z0-9_-]/g, '-');
+    const url = URL.createObjectURL(blobToDownload);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `meu-dia-ingles-${safeDate}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
   };
 
   const blobToBase64 = (blob: Blob): Promise<string> => {
@@ -319,7 +449,6 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
     setErrorMsg(null);
 
     let currentBlob = audioBlob;
-    // If user is still in recording/paused state and clicks "Analisar Agora", finalize first
     if (recordingState === 'recording' || recordingState === 'paused') {
       handleStopRecording();
       if (audioChunksRef.current.length > 0) {
@@ -335,14 +464,33 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
       return;
     }
 
+    // Persist draft to IndexedDB before network call
+    persistCurrentSnapshotToVault(currentBlob, fullDraft);
+
     setIsAnalyzing(true);
     try {
       let audioBase64: string | undefined = undefined;
+
+      // Vercel Serverless Functions have a strict 4.5 MB total request body limit.
+      // Base64 encoding adds ~33% overhead, so a raw blob up to 2.8 MB fits safely (~3.7 MB base64).
+      // With our 24kbps recording, even 10 minutes is under 2 MB.
+      // If a legacy or uncompressed recording exceeds 2.8 MB, we slice the last 2.7 MB of audio or use the live transcript so it NEVER fails with 413!
+      const MAX_SAFE_BYTES = 2_800_000;
       if (currentBlob && currentBlob.size > 0) {
-        audioBase64 = await blobToBase64(currentBlob);
+        if (currentBlob.size <= MAX_SAFE_BYTES) {
+          audioBase64 = await blobToBase64(currentBlob);
+        } else if (!fullDraft || fullDraft.length < 20) {
+          // Audio is > 2.8MB and there is no live transcript: send the first 2.7MB chunk so Gemini still hears the voice
+          const trimmedBlob = currentBlob.slice(0, 2_700_000, currentBlob.type);
+          audioBase64 = await blobToBase64(trimmedBlob);
+        } else {
+          // Audio is > 2.8MB and we have the complete live transcript: omit the giant binary payload to avoid Vercel 413 error
+          console.info('Audio exceeds 2.8MB serverless payload cap; using full live transcript to guarantee delivery.');
+          audioBase64 = undefined;
+        }
       }
 
-      const response = await fetch('/api/analyze-day-speech', {
+      let response = await fetch('/api/analyze-day-speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -354,12 +502,29 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
         }),
       });
 
+      // Automatic fallback: if the server rejected the large audio binary (413 or 504 timeout) and we have the transcript, retry immediately with transcript!
+      if (!response.ok && audioBase64 && fullDraft.length > 5) {
+        console.warn(`Primary audio analysis returned ${response.status}, retrying cleanly with transcript...`);
+        response = await fetch('/api/analyze-day-speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            liveTranscript: fullDraft,
+            userLevel: user.level || 'B1',
+            targetWords: targetWords.slice(0, 8),
+          }),
+        });
+      }
+
       if (!response.ok) {
-        throw new Error('Falha ao analisar seu áudio no servidor. Seu áudio continua salvo aqui, tente novamente!');
+        throw new Error(
+          `O servidor demorou para responder (Código ${response.status}). Seu áudio e texto estão salvos no cofre do navegador — você pode baixar seu áudio abaixo ou tentar novamente!`
+        );
       }
 
       const result: DaySpeechAnalysisResult = await response.json();
       setAnalysisResult(result);
+      setRecoveredNotice(null);
       soundEffects.playFanfare();
       onAwardXp?.(30);
 
@@ -376,9 +541,13 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
         if (e.expression) prefetchAudio(e.expression);
       });
 
-      // Save to local journal history
+      const entryId = `day_${Date.now()}`;
+      if (currentBlob && currentBlob.size > 0) {
+        await saveArchivedAudioBlob(entryId, currentBlob, mimeType);
+      }
+
       const newEntry: SavedDayEntry = {
-        id: `day_${Date.now()}`,
+        id: entryId,
         dateFormatted: new Date().toLocaleDateString('pt-BR', {
           day: '2-digit',
           month: 'short',
@@ -386,18 +555,19 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
           minute: '2-digit',
         }),
         durationSec: elapsedSeconds,
+        hasLocalAudio: Boolean(currentBlob && currentBlob.size > 0),
         result,
       };
-      const updatedHistory = [newEntry, ...history].slice(0, 15);
+
+      const updatedHistory = [newEntry, ...history].slice(0, 25);
       setHistory(updatedHistory);
-      try {
-        localStorage.setItem('simpleeng_day_journal_history', JSON.stringify(updatedHistory));
-      } catch {}
+      await saveDayJournalHistoryToCloud(user?.id || '', updatedHistory);
+      await clearPendingAudioDraft();
     } catch (err: any) {
       console.error('Error analyzing day speech:', err);
       setErrorMsg(
         err.message ||
-          'Ocorreu um erro de conexão, mas sua gravação está protegida! Clique em "Analisar Minha Fala" para tentar de novo.'
+          'Ocorreu uma falha de conexão, mas seu áudio está salvo no cofre do app (mesmo se você fechar a página). Você também pode clicar em "Baixar Áudio" abaixo!'
       );
     } finally {
       setIsAnalyzing(false);
@@ -413,19 +583,31 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
     stopAllAudio();
     setIsPlayingModelAudio(key);
     soundEffects.playTap();
-    // Play at a calm, clear 0.92x conversational pace using the studio neural voice (Aoede)
     playTextToSpeech(text, 0.92, () => {
       setIsPlayingModelAudio(null);
     });
   };
 
-  const handleDeleteHistoryItem = (id: string) => {
+  const handleSelectHistoryEntry = async (item: SavedDayEntry) => {
+    soundEffects.playTap();
+    setAnalysisResult(item.result);
+    if (selectedHistoryAudioUrl) {
+      URL.revokeObjectURL(selectedHistoryAudioUrl);
+      setSelectedHistoryAudioUrl(null);
+    }
+    const archived = await loadArchivedAudioBlob(item.id);
+    if (archived && archived.audioBlob) {
+      setSelectedHistoryAudioUrl(URL.createObjectURL(archived.audioBlob));
+    }
+    window.scrollTo({ top: 250, behavior: 'smooth' });
+  };
+
+  const handleDeleteHistoryItem = async (id: string) => {
     soundEffects.playTap();
     const filtered = history.filter((h) => h.id !== id);
     setHistory(filtered);
-    try {
-      localStorage.setItem('simpleeng_day_journal_history', JSON.stringify(filtered));
-    } catch {}
+    await deleteArchivedAudioBlob(id);
+    await saveDayJournalHistoryToCloud(user?.id || '', filtered);
   };
 
   const fullVisibleTranscript = (confirmedText + (interimText ? ' ' + interimText : '')).trim();
@@ -453,6 +635,26 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
           <span>Fala Ativa · Diário em Inglês</span>
         </div>
       </div>
+
+      {/* Auto-Recovered Audio Banner (When user reopens the app after an error or accidental close) */}
+      {recoveredNotice && (
+        <div className="mb-5 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border-2 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold">
+            <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span>{recoveredNotice}</span>
+          </div>
+          {audioBlob && (
+            <button
+              type="button"
+              onClick={() => handleDownloadAudio(audioBlob)}
+              className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 text-xs font-black inline-flex items-center gap-1.5 cursor-pointer flex-shrink-0 hover:bg-emerald-100"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Baixar Áudio</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Main Card: Leo Asking "How Was Your Day?" */}
       <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-8 shadow-sm mb-6">
@@ -491,7 +693,7 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
               "Hey! Tell me a little about how your day went!"
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-              🇧🇷 <strong>Me conta um pouco como foi o seu dia em inglês!</strong> O microfone fica aberto de forma contínua: você pode pausar para pensar, procurar palavras na cabeça ou hesitar sem medo de o áudio cortar. O Leo vai ouvir sua gravação real e mostrar onde você mandou bem e como falar de um jeito ainda mais natural!
+              🇧🇷 <strong>Me conta um pouco como foi o seu dia em inglês!</strong> O microfone fica aberto de forma contínua (mesmo em áudios longos de 4 ou 5 minutos) e salva um backup automático no seu navegador a cada poucos segundos.
             </p>
 
             {/* Optional target words inspiration */}
@@ -537,11 +739,11 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
               )}
               <span>
                 {recordingState === 'recording'
-                  ? 'Gravando sem interrupções (Pode pensar com calma)...'
+                  ? 'Gravando com Backup Automático...'
                   : recordingState === 'paused'
-                  ? 'Gravação Pausada'
+                  ? 'Gravação Pausada (Salva no Cofre)'
                   : recordingState === 'stopped'
-                  ? 'Áudio Gravado & Protegido'
+                  ? 'Áudio Salvo no Cofre do Navegador'
                   : 'Microfone Pronto'}
               </span>
               <span className="font-mono text-sm ml-1">{formatTime(elapsedSeconds)}</span>
@@ -607,15 +809,29 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
             )}
 
             {recordingState === 'stopped' && (
-              <button
-                type="button"
-                onClick={handleResetRecording}
-                disabled={isAnalyzing}
-                className="py-2.5 px-4 rounded-2xl btn-3d-slate text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Gravar de Novo do Zero</span>
-              </button>
+              <div className="flex items-center gap-2.5 flex-wrap justify-center">
+                {audioBlob && (
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadAudio(audioBlob)}
+                    className="py-2.5 px-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-200 border-2 border-emerald-300 dark:border-emerald-800 text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all"
+                    title="Baixar arquivo de áudio para o seu dispositivo"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Baixar Meu Áudio</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleResetRecording}
+                  disabled={isAnalyzing}
+                  className="py-2.5 px-4 rounded-2xl btn-3d-slate text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Descartar e Gravar do Zero</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -624,7 +840,7 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
             <div className="w-full max-w-xl mb-5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
                 <Headphones className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Sua gravação de voz ({formatTime(elapsedSeconds)}):</span>
+                <span>Sua gravação ({formatTime(elapsedSeconds)}):</span>
               </div>
               <audio controls src={audioUrl} className="h-9 w-full sm:w-64" />
             </div>
@@ -635,7 +851,7 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
             <div className="flex items-center justify-between mb-1.5 px-1">
               <span className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Rascunho ao Vivo da Sua Fala (O Leo também vai ouvir seu áudio real!):</span>
+                <span>Rascunho ao Vivo da Sua Fala (Você também pode editar ou complementar):</span>
               </span>
               {fullVisibleTranscript && (
                 <span className="text-[11px] font-semibold text-slate-400">
@@ -649,8 +865,10 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
                 rows={4}
                 value={fullVisibleTranscript}
                 onChange={(e) => {
-                  setConfirmedText(e.target.value);
+                  const val = e.target.value;
+                  setConfirmedText(val);
                   setInterimText('');
+                  persistCurrentSnapshotToVault(audioBlob, val);
                 }}
                 disabled={recordingState === 'recording' || isAnalyzing}
                 placeholder="Conforme você fala no microfone, suas palavras vão aparecendo aqui em tempo real..."
@@ -664,9 +882,21 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
           </div>
 
           {errorMsg && (
-            <div className="w-full mt-4 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs sm:text-sm font-bold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
-              <span>{errorMsg}</span>
+            <div className="w-full mt-4 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border-2 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-600" />
+                <span>{errorMsg}</span>
+              </div>
+              {audioBlob && (
+                <button
+                  type="button"
+                  onClick={() => handleDownloadAudio(audioBlob)}
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200 text-xs font-black inline-flex items-center gap-1.5 cursor-pointer flex-shrink-0"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Baixar Áudio</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -715,6 +945,12 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
                   </h2>
                 </div>
               </div>
+
+              {selectedHistoryAudioUrl && (
+                <div className="flex items-center gap-2">
+                  <audio controls src={selectedHistoryAudioUrl} className="h-9 w-48 sm:w-56" />
+                </div>
+              )}
             </div>
 
             <p className="mt-4 text-sm sm:text-base text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
@@ -896,21 +1132,22 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
             <span>Seus Dias Anteriores ({history.length})</span>
           </h3>
           <div className="space-y-2.5">
-            {history.slice(0, 5).map((item) => (
+            {history.slice(0, 15).map((item) => (
               <div
                 key={item.id}
-                onClick={() => {
-                  soundEffects.playTap();
-                  setAnalysisResult(item.result);
-                  window.scrollTo({ top: 250, behavior: 'smooth' });
-                }}
+                onClick={() => handleSelectHistoryEntry(item)}
                 className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-850 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 cursor-pointer transition-all"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400">
                       {item.dateFormatted}
                     </span>
+                    {item.durationSec > 0 && (
+                      <span className="text-[10px] font-semibold text-slate-400">
+                        · {formatTime(item.durationSec)}
+                      </span>
+                    )}
                     <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
                       Nota {item.result.score}%
                     </span>
@@ -919,17 +1156,33 @@ export const TellYourDayView: React.FC<TellYourDayViewProps> = ({
                     "{item.result.faithfulTranscript}"
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteHistoryItem(item.id);
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg"
-                  title="Apagar registro"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const archived = await loadArchivedAudioBlob(item.id);
+                      if (archived && archived.audioBlob) {
+                        handleDownloadAudio(archived.audioBlob, item.dateFormatted);
+                      }
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg"
+                    title="Baixar gravação deste dia"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteHistoryItem(item.id);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg"
+                    title="Apagar registro"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
